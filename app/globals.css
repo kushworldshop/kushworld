@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-neon-green: #00ff9d;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.neon-green {
+  color: #00ff9d;
+  text-shadow: 0 0 15px #00ff9d;
+}
+
+.product-card {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.product-card:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 25px 50px -12px rgb(0 255 157 / 0.15);
+}
+
+/* Make sure dark backgrounds work */
+.bg-black { background-color: #000000; }
+.bg-zinc-900 { background-color: #18181b; }
+.bg-zinc-950 { background-color: #09090b; }
