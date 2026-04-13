@@ -1,64 +1,38 @@
-export interface Product {
+export type Product = {
   id: number;
   name: string;
   price: number;
   image: string;
   category: string;
-  availableSizes?: string[];   // New field for clothing
-}
+  description?: string;
+  sizes?: string[];
+};
 
 export const products: Product[] = [
   {
     id: 1,
-    name: "KUSH WORLD T-SHIRT",
-    price: 35,
-    image: "https://picsum.photos/id/1015/600/600",
-    category: "Merch & Apparel",
-    availableSizes: ["S", "M", "L", "XL", "XXL"]
+    name: "Classic Glass Bong - 14\"",
+    price: 59.99,
+    image: "/products/glass-bong-classic.jpg",
+    category: "Bongs",
+    description: "Premium borosilicate glass with ice catcher and perc. Lab tested.",
   },
   {
     id: 2,
-    name: "KUSH WORLD HOODIE",
-    price: 65,
-    image: "https://picsum.photos/id/1027/600/600",
-    category: "Merch & Apparel",
-    availableSizes: ["S", "M", "L", "XL", "XXL"]
+    name: "Organic Hemp Hoodie - Black",
+    price: 49.99,
+    image: "/products/hemp-hoodie-black.jpg",
+    category: "Apparel",
+    description: "Super soft organic hemp blend. Perfect for everyday wear.",
+    sizes: ["S", "M", "L", "XL", "XXL"],
   },
   {
     id: 3,
-    name: "KUSH WORLD SNAPBACK",
-    price: 28,
-    image: "https://picsum.photos/id/106/600/600",
-    category: "Merch & Apparel",
-    availableSizes: ["One Size"]
+    name: "Metal Herb Grinder - 4 Piece",
+    price: 24.99,
+    image: "/products/grinder-metal.jpg",
+    category: "Grinders",
+    description: "Heavy duty aluminum grinder with pollen catcher.",
   },
-  {
-    id: 4,
-    name: "4-Piece Aluminum Grinder",
-    price: 25,
-    image: "https://picsum.photos/id/201/600/600",
-    category: "Accessories"
-  },
-  {
-    id: 5,
-    name: "Ceramic Chill Pipe",
-    price: 18,
-    image: "https://picsum.photos/id/133/600/600",
-    category: "Pipes & Dab Rigs"
-  },
-  {
-    id: 6,
-    name: "Classic Glass Bong",
-    price: 85,
-    image: "https://picsum.photos/id/180/600/600",
-    category: "Bongs & Water Pipes"
-  },
-  {
-    id: 7,
-    name: "KUSH WORLD CREW SOCKS",
-    price: 15,
-    image: "https://picsum.photos/id/1060/600/600",
-    category: "Merch & Apparel",
-    availableSizes: ["One Size"]
-  }
+  // ← Add all your real products here. For clothing, always include sizes array.
 ];
