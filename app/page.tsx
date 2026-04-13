@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Navbar from '@/components/Navbar';
-import Hero from '@/components/Hero';
-import Categories from '@/components/Categories';
-import ShopSection from '@/components/ShopSection';
-import LoyaltySection from '@/components/LoyaltySection';
-import CartDrawer from '@/components/CartDrawer';
-import AgeModal from '@/components/AgeModal';
+
+// Use relative imports since components are inside app/components/
+import Navbar from './components/Navbar';
+import Hero from './components/Hero';
+import Categories from './components/Categories';
+import ShopSection from './components/ShopSection';
+import LoyaltySection from './components/LoyaltySection';
+import CartDrawer from './components/CartDrawer';
+import AgeModal from './components/AgeModal';
 
 export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -14,7 +16,7 @@ export default function Home() {
 
   useEffect(() => {
     const hasSeenAgeGate = localStorage.getItem('ageVerified');
-    const isLoggedIn = localStorage.getItem('loggedIn');
+    const isLoggedIn = !!localStorage.getItem('loggedIn');
 
     if (!hasSeenAgeGate && !isLoggedIn) {
       setShowAgeModal(true);
