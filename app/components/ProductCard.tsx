@@ -2,65 +2,67 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import { useCartStore } from '@/lib/cartStore';
-import { Product } from '@/lib/products';
+import { Product } from '@/lib/products';   // adjust the import path if your products file is elsewhere
 
-interface CartItem extends Product {
-  selectedSize?: string;
-  quantity: number;
+interface ProductCardProps {
+  product: Product;
 }
 
-export default function ProductCard({ product }: { product: Product }) {
-  const addToCart = useCartStore((state) => state.addItem);
-  const [selectedSize, setSelectedSize] = useState<string>(product.sizes?.[0] || '');
+export default function ProductCard({ product }: ProductCardProps) {
+  const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || '');
+
+  // Get the addToCart function from the store
+  const addToCart = useCartStore((state) => state.addToCart);
 
   const handleAddToCart = () => {
-    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
-      alert('Please select a size');
-      return;
-    }
-
     addToCart({
-      ...product,
+      id: String(product.id),           // FIXED: Convert number → string
+      name: product.name,
+      price: product.price,
+      image: product.image,
       selectedSize: selectedSize || undefined,
-      quantity: 1,
     });
+
+    // Nice visual feedback
+    const btn = document.getElementById(`add-btn-${product.id}`);
+    if (btn) {
+      const original = btn.textContent;
+      btn.textContent = 'Added ✓';
+      setTimeout(() => {
+        if (btn) btn.textContent = original || 'Quick Add';
+      }, 1200);
+    }
   };
 
   return (
-    <div className="bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 group hover:border-[#00ff9d]/50 transition-all">
-      <div className="relative aspect-[4/3] bg-black">
+    <div className="bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800 group">
+      <div className="relative h-80">
         <Image
           src={product.image}
           alt={product.name}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-500"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
         />
       </div>
 
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-3">
-          <h3 className="font-semibold text-xl leading-tight">{product.name}</h3>
-          <span className="text-[#00ff9d] font-bold text-xl">${product.price.toFixed(2)}</span>
-        </div>
+      <div className="p-6">
+        <h3 className="font-bold text-xl mb-1">{product.name}</h3>
+        <p className="text-[#00ff9d] font-medium text-lg mb-4">
+          ${product.price}
+        </p>
 
-        {product.description && (
-          <p className="text-zinc-400 text-sm mb-4 line-clamp-2">{product.description}</p>
-        )}
-
-        {/* Size Selector */}
         {product.sizes && product.sizes.length > 0 && (
-          <div className="mb-5">
-            <p className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Select Size</p>
+          <div className="mb-6">
+            <p className="text-xs text-zinc-400 mb-2">SIZE</p>
             <div className="flex flex-wrap gap-2">
               {product.sizes.map((size) => (
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size)}
-                  className={`px-4 py-2 text-sm font-medium rounded-2xl border transition-all ${
+                  className={`px-4 py-2 text-sm rounded-2xl border transition ${
                     selectedSize === size
                       ? 'bg-[#00ff9d] text-black border-[#00ff9d]'
-                      : 'border-zinc-700 hover:border-zinc-600 text-white'
+                      : 'border-zinc-700 hover:border-zinc-600'
                   }`}
                 >
                   {size}
@@ -71,10 +73,11 @@ export default function ProductCard({ product }: { product: Product }) {
         )}
 
         <button
+          id={`add-btn-${product.id}`}
           onClick={handleAddToCart}
-          className="w-full py-4 bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black font-bold rounded-2xl text-lg transition-all active:scale-[0.985]"
+          className="w-full py-4 bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black font-bold rounded-2xl transition text-lg"
         >
-          ADD TO CART
+          Quick Add
         </button>
       </div>
     </div>

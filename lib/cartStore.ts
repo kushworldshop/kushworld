@@ -1,73 +1,57 @@
 import { create } from 'zustand';
-import { Product } from './products';
 
 export interface CartItem {
-  product: Product;
+  id: string;
+  name: string;
+  price: number;
+  image: string;
   quantity: number;
-  size?: string;        // This will store the selected size
+  selectedSize?: string;
 }
 
 interface CartStore {
   items: CartItem[];
-  addToCart: (product: Product, quantity: number, size?: string) => void;
-  removeFromCart: (productId: number, size?: string) => void;
-  updateQuantity: (productId: number, newQuantity: number, size?: string) => void;
+  addToCart: (product: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
+  removeItem: (index: number) => void;
+  updateQuantity: (index: number, quantity: number) => void;
   clearCart: () => void;
-  totalItems: () => number;
   subtotal: () => number;
+  totalItems: () => number;
 }
 
 export const useCartStore = create<CartStore>((set, get) => ({
   items: [],
 
-  addToCart: (product, quantity, size) => {
-    set((state) => {
-      const existingIndex = state.items.findIndex(
-        (item) => item.product.id === product.id && item.size === size
-      );
+  addToCart: (product) => set((state) => {
+    const existingIndex = state.items.findIndex(
+      (item) => item.id === product.id && item.selectedSize === product.selectedSize
+    );
 
-      if (existingIndex !== -1) {
-        // Increase quantity if same product + same size already exists
-        const updatedItems = [...state.items];
-        updatedItems[existingIndex].quantity += quantity;
-        return { items: updatedItems };
-      } else {
-        // Add new item with size
-        return {
-          items: [...state.items, { product, quantity, size }]
-        };
-      }
-    });
-  },
+    if (existingIndex !== -1) {
+      const updatedItems = [...state.items];
+      updatedItems[existingIndex].quantity += product.quantity || 1;
+      return { items: updatedItems };
+    } else {
+      return {
+        items: [...state.items, { ...product, quantity: product.quantity || 1 }]
+      };
+    }
+  }),
 
-  removeFromCart: (productId, size) => {
-    set((state) => ({
-      items: state.items.filter(
-        (item) => !(item.product.id === productId && item.size === size)
-      )
-    }));
-  },
+  removeItem: (index) => set((state) => ({
+    items: state.items.filter((_, i) => i !== index)
+  })),
 
-  updateQuantity: (productId, newQuantity, size) => {
-    if (newQuantity < 1) return;
-    set((state) => ({
-      items: state.items.map((item) =>
-        item.product.id === productId && item.size === size
-          ? { ...item, quantity: newQuantity }
-          : item
-      )
-    }));
-  },
+  updateQuantity: (index, quantity) => set((state) => {
+    if (quantity < 1) return state;
+    const updatedItems = [...state.items];
+    updatedItems[index].quantity = quantity;
+    return { items: updatedItems };
+  }),
 
   clearCart: () => set({ items: [] }),
 
-  totalItems: () => {
-    return get().items.reduce((sum, item) => sum + item.quantity, 0);
-  },
+  subtotal: () => get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
 
-  subtotal: () => {
-    return get().items.reduce((sum, item) => 
-      sum + item.product.price * item.quantity, 0
-    );
-  },
+  totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
 }));

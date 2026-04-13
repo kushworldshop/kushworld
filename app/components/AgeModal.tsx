@@ -1,63 +1,75 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface AgeModalProps {
+  isOpen: boolean;
   onVerified: () => void;
-  onDecline: () => void;
+  onLoginSuccess?: () => void;   // optional if not always used
 }
 
-export default function AgeModal({ onVerified, onDecline }: AgeModalProps) {
-  const [isVisible, setIsVisible] = useState(true);
+export default function AgeModal({ isOpen, onVerified, onLoginSuccess }: AgeModalProps) {
+  const [age, setAge] = useState('');
+  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const hasVerified = localStorage.getItem('ageVerified') === 'true';
-    if (hasVerified) {
-      setIsVisible(false);
-      onVerified();
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    const ageNum = parseInt(age);
+    if (isNaN(ageNum) || ageNum < 18) {
+      setError('You must be 18 or older to enter.');
+      return;
     }
-  }, [onVerified]);
 
-  const handleVerify = () => {
-    localStorage.setItem('ageVerified', 'true');
-    setIsVisible(false);
+    // Age verified
     onVerified();
-  };
 
-  const handleDecline = () => {
-    setIsVisible(false);
-    onDecline();
+    // Optional: auto-login or success callback
+    if (onLoginSuccess) {
+      setTimeout(onLoginSuccess, 800);
+    }
   };
-
-  if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/95 z-[10000] flex items-center justify-center p-6">
-      <div className="bg-zinc-900 rounded-3xl max-w-md w-full p-10 text-center border border-zinc-700">
-        <div className="text-6xl mb-8">🌿</div>
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100]">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-10 max-w-md w-full mx-4">
+        <h2 className="text-3xl font-bold text-center mb-8 text-white">Age Verification</h2>
         
-        <h1 className="text-4xl font-bold mb-4">Are you 21 or older?</h1>
-        <p className="text-zinc-400 text-lg mb-10 leading-relaxed">
-          This website sells adult products. You must be 21+ to enter.
+        <p className="text-zinc-400 text-center mb-8">
+          You must be 18 years or older to access this site.
         </p>
 
-        <div className="space-y-4">
-          <button 
-            onClick={handleVerify}
-            className="w-full py-5 bg-[#00ff9d] text-black font-bold text-xl rounded-3xl hover:bg-[#00ff9d]/90 transition"
-          >
-            YES, I AM 21 OR OLDER
-          </button>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm text-zinc-400 mb-2">Enter your age</label>
+            <input
+              type="number"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+              placeholder="18"
+              className="w-full bg-black border border-zinc-700 rounded-2xl px-6 py-4 text-white text-2xl focus:border-[#00ff9d] outline-none"
+              min="1"
+              max="120"
+              required
+            />
+          </div>
 
-          <button 
-            onClick={handleDecline}
-            className="w-full py-5 border border-zinc-700 hover:bg-zinc-800 font-semibold rounded-3xl transition"
-          >
-            NO, TAKE ME TO MERCH ONLY
-          </button>
-        </div>
+          {error && (
+            <p className="text-red-500 text-center text-sm">{error}</p>
+          )}
 
-        <p className="text-xs text-zinc-500 mt-10">
-          We verify age for compliance. Merch is available to all ages.
+          <button
+            type="submit"
+            className="w-full py-4 bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black font-bold rounded-2xl text-lg transition"
+          >
+            Verify Age
+          </button>
+        </form>
+
+        <p className="text-xs text-zinc-500 text-center mt-6">
+          This site contains adult content. Please leave if you are under 18.
         </p>
       </div>
     </div>
