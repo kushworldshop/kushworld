@@ -9,7 +9,7 @@ export default function ShopSection() {
         <div className="text-center mb-12">
           <h2 className="text-5xl font-bold mb-4">SHOP KUSH WORLD</h2>
           <p className="text-zinc-400 text-xl max-w-2xl mx-auto">
-            Premium glass, hemp apparel, grinders &amp; accessories. 
+            Premium glass, hemp apparel, grinders & accessories. 
             Lab-tested • Discreet shipping • 21+ only
           </p>
         </div>
