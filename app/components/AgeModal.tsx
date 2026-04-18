@@ -1,76 +1,53 @@
 'use client';
+
 import { useState } from 'react';
 
 interface AgeModalProps {
   isOpen: boolean;
-  onVerified: () => void;
-  onLoginSuccess?: () => void;   // optional if not always used
+  onConfirm: () => void;
+  onCancel: () => void;
 }
 
-export default function AgeModal({ isOpen, onVerified, onLoginSuccess }: AgeModalProps) {
-  const [age, setAge] = useState('');
-  const [error, setError] = useState('');
+export default function AgeModal({ isOpen, onConfirm, onCancel }: AgeModalProps) {
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleConfirm = () => {
+    setAgeConfirmed(true);
+    localStorage.setItem('loggedIn', 'true'); // or your preferred key
+    onConfirm();
+  };
 
-    const ageNum = parseInt(age);
-    if (isNaN(ageNum) || ageNum < 18) {
-      setError('You must be 18 or older to enter.');
-      return;
-    }
-
-    // Age verified
-    onVerified();
-
-    // Optional: auto-login or success callback
-    if (onLoginSuccess) {
-      setTimeout(onLoginSuccess, 800);
-    }
+  const handleCancel = () => {
+    // Allow browsing merch anyway (or redirect if you prefer strict 21+)
+    onCancel();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100]">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-10 max-w-md w-full mx-4">
-        <h2 className="text-3xl font-bold text-center mb-8 text-white">Age Verification</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+      <div className="bg-zinc-900 p-8 rounded-xl max-w-md text-center border border-green-500">
+        <h2 className="text-3xl font-bold mb-4 text-white">Age Verification</h2>
+        <p className="text-zinc-300 mb-8">
+          You must be 21+ to enter this cannabis shop. 
+          <br />Are you 21 years or older?
+        </p>
         
-        <p className="text-zinc-400 text-center mb-8">
-          You must be 18 years or older to access this site.
-        </p>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm text-zinc-400 mb-2">Enter your age</label>
-            <input
-              type="number"
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
-              placeholder="18"
-              className="w-full bg-black border border-zinc-700 rounded-2xl px-6 py-4 text-white text-2xl focus:border-[#00ff9d] outline-none"
-              min="1"
-              max="120"
-              required
-            />
-          </div>
-
-          {error && (
-            <p className="text-red-500 text-center text-sm">{error}</p>
-          )}
-
+        <div className="flex gap-4 justify-center">
           <button
-            type="submit"
-            className="w-full py-4 bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black font-bold rounded-2xl text-lg transition"
+            onClick={handleConfirm}
+            className="bg-green-600 hover:bg-green-700 px-8 py-3 rounded-lg font-medium transition"
           >
-            Verify Age
+            Yes, I am 21+
           </button>
-        </form>
-
-        <p className="text-xs text-zinc-500 text-center mt-6">
-          This site contains adult content. Please leave if you are under 18.
-        </p>
+          
+          <button
+            onClick={handleCancel}
+            className="bg-zinc-700 hover:bg-zinc-600 px-8 py-3 rounded-lg font-medium transition"
+          >
+            No, take me away
+          </button>
+        </div>
       </div>
     </div>
   );
