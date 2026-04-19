@@ -1,0 +1,31 @@
+name: Deploy to Hetzner
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to server
+        run: |
+          ssh -o StrictHostKeyChecking=no root@46.62.249.173 << 'EOF'
+            cd /var/www/kushworld
+            git pull origin main
+            rm -rf .next
+            npm install
+            npm run build
+            pm2 restart kushworld
+            pm2 save
+            echo "✅ Deployed successfully at $(date)"
+          EOF
