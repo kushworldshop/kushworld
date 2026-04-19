@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 interface WishlistItem {
-  id: string;           // ← Changed to string to match your products
+  id: string;
   name: string;
   price: number;
   image: string;
@@ -20,16 +20,19 @@ export const useWishlistStore = create<WishlistStore>()(
   persist(
     (set, get) => ({
       items: [],
+
       addToWishlist: (product) =>
         set((state) => ({
           items: state.items.some((item) => item.id === product.id)
             ? state.items
             : [...state.items, product],
         })),
+
       removeFromWishlist: (id) =>
         set((state) => ({
           items: state.items.filter((item) => item.id !== id),
         })),
+
       toggleWishlist: (product) => {
         const isAlreadyIn = get().isInWishlist(product.id);
         if (isAlreadyIn) {
@@ -38,6 +41,7 @@ export const useWishlistStore = create<WishlistStore>()(
           get().addToWishlist(product);
         }
       },
+
       isInWishlist: (id) => get().items.some((item) => item.id === id),
     }),
     {
