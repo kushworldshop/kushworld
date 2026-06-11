@@ -116,10 +116,15 @@ export default function Checkout() {
           {/* Customer + Payment */}
           <div>
             <h2 className="text-2xl mb-6">Shipping & Payment</h2>
-            {/* Customer form fields - abbreviated for space, add all inputs */}
-            <input type="text" name="name" placeholder="Full Name" onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
-            <input type="email" name="email" placeholder="Email" onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
-            {/* Add address, city, state, zip, phone similarly */}
+            <input type="text" name="name" placeholder="Full Name" value={customerInfo.name} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
+            <input type="email" name="email" placeholder="Email" value={customerInfo.email} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
+            <input type="tel" name="phone" placeholder="Phone" value={customerInfo.phone} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" />
+            <input type="text" name="address" placeholder="Street Address" value={customerInfo.address} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <input type="text" name="city" placeholder="City" value={customerInfo.city} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl" required />
+              <input type="text" name="state" placeholder="State" value={customerInfo.state} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl" required />
+            </div>
+            <input type="text" name="zip" placeholder="ZIP Code" value={customerInfo.zip} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
 
             <div className="mt-8">
               <h3 className="text-xl mb-4">Payment Method</h3>
@@ -135,6 +140,30 @@ export default function Checkout() {
                 ))}
               </div>
             </div>
+
+            {paymentMethod === 'zelle' && (
+              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
+                <p className="font-semibold mb-2">Send Zelle payment to:</p>
+                <p className="text-[#00ff9d]">kushworldshop@gmail.com</p>
+                <p className="text-sm text-zinc-400 mt-3">Include your order ID in the memo after placing the order.</p>
+              </div>
+            )}
+
+            {paymentMethod === 'paypal' && (
+              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
+                <p className="font-semibold mb-2">PayPal Friends & Family:</p>
+                <p className="text-[#00ff9d]">@kushworldshop</p>
+                <p className="text-sm text-zinc-400 mt-3">Do not mention product names in the payment note.</p>
+              </div>
+            )}
+
+            {paymentMethod === 'chime' && (
+              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
+                <p className="font-semibold mb-2">Chime payment to:</p>
+                <p className="text-[#00ff9d]">$KushWorldShop</p>
+                <p className="text-sm text-zinc-400 mt-3">Send exact order total and include your order ID.</p>
+              </div>
+            )}
 
             {paymentMethod === 'btc' && qrUrl && (
               <div className="mt-8 p-8 bg-zinc-900 rounded-3xl text-center border border-[#00ff9d]/30">

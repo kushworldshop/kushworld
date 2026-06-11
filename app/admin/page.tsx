@@ -144,10 +144,14 @@ export default function AdminOrders() {
 
                 <div className="space-y-6">
                   <div>
-                    <p className="font-medium">{order.name}</p>
-                    <p className="text-sm text-zinc-400">{order.email}</p>
+                    <p className="font-medium">{order.customer?.name || order.name}</p>
+                    <p className="text-sm text-zinc-400">{order.customer?.email || order.email}</p>
+                    <p className="text-sm text-zinc-400">{(order.customer?.phone || order.phone) && `Phone: ${order.customer?.phone || order.phone}`}</p>
                     <p className="text-sm text-zinc-400 mt-1">
-                      {order.address}, {order.city} {order.state} {order.zip}
+                      {order.customer?.address || order.address}, {order.customer?.city || order.city} {order.customer?.state || order.state} {order.customer?.zip || order.zip}
+                    </p>
+                    <p className="text-sm mt-2">
+                      Status: <span className="text-[#00ff9d] uppercase">{order.status || 'pending'}</span>
                     </p>
                   </div>
 

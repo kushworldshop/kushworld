@@ -30,7 +30,10 @@ export default function Account() {
       const res = await fetch('/api/orders');
       const allOrders = await res.json();
       // Filter only this user's orders
-      const myOrders = allOrders.filter((o: any) => o.email?.toLowerCase() === userEmail.toLowerCase());
+      const myOrders = allOrders.filter((o: any) => {
+        const orderEmail = o.customer?.email || o.email;
+        return orderEmail?.toLowerCase() === userEmail.toLowerCase();
+      });
       setOrders(myOrders);
     } catch (e) {
       console.error('Failed to load orders');

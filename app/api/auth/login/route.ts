@@ -6,8 +6,19 @@ import bcrypt from 'bcryptjs';
 
 const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
 
+async function ensureUsersFile() {
+  const dataDir = path.join(process.cwd(), 'data');
+  await fs.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.access(USERS_FILE);
+  } catch {
+    await fs.writeFile(USERS_FILE, JSON.stringify([], null, 2));
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    await ensureUsersFile();
     const { email, password } = await request.json();
     const data = await fs.readFile(USERS_FILE, 'utf8');
     const users = JSON.parse(data);

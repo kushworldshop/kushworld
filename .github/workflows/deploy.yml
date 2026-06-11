@@ -21,7 +21,10 @@ jobs:
           script: |
             cd /var/www/kushworld
             git pull origin main
-            npm ci --production
+            npm ci
             npm run build
+            mkdir -p data
             pm2 restart kushworld || pm2 start npm --name "kushworld" -- start
             pm2 save
+            # One-time HTTPS setup (run manually if https://kushworld.shop fails):
+            # CERTBOT_EMAIL=you@email.com bash scripts/setup-ssl.sh

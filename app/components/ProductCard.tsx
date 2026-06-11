@@ -33,7 +33,7 @@ export default function ProductCard({ product }: { product: Product }) {
       name: product.name,
       price: product.price,
       image: product.image,
-      // size is removed — this fixes the TypeScript error
+      selectedSize: selectedSize || undefined,
       quantity: 1,
     });
 

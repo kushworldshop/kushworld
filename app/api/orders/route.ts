@@ -28,15 +28,52 @@ export async function GET() {
   return NextResponse.json(orders);
 }
 
+// PATCH order status (for admin)
+export async function PATCH(request: NextRequest) {
+  try {
+    await ensureOrdersFile();
+    const { id, status } = await request.json();
+
+    if (!id || !status) {
+      return NextResponse.json({ success: false, error: 'Order id and status required' }, { status: 400 });
+    }
+
+    const data = await fs.readFile(ORDERS_FILE, 'utf8');
+    const orders = JSON.parse(data);
+    const index = orders.findIndex((order: { id: string }) => order.id === id);
+
+    if (index === -1) {
+      return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
+    }
+
+    orders[index].status = status;
+    orders[index].updatedAt = new Date().toISOString();
+    await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
+
+    return NextResponse.json({ success: true, order: orders[index] });
+  } catch (error) {
+    console.error('Order update error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to update order' }, { status: 500 });
+  }
+}
+
 // POST new order (from checkout)
 export async function POST(request: NextRequest) {
   try {
     await ensureOrdersFile();
     const body = await request.json();
+    const customer = body.customer ?? {};
     
     const newOrder = {
       id: `KW-${Date.now().toString().slice(-8)}`,
       ...body,
+      email: customer.email ?? body.email,
+      name: customer.name ?? body.name,
+      address: customer.address ?? body.address,
+      city: customer.city ?? body.city,
+      state: customer.state ?? body.state,
+      zip: customer.zip ?? body.zip,
+      phone: customer.phone ?? body.phone,
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
