@@ -1,16 +1,27 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getHomepageMerch, getMerchSubcategoryLabel } from '@/lib/merch';
+import { getHomepageMerchFromProducts, getMerchSubcategoryLabel } from '@/lib/merch';
 import { useSiteContent } from '@/lib/useSiteContent';
-import { getProductSlug } from '@/lib/products';
+import { getProductSlug, type Product } from '@/lib/products';
 import { productHasOptions } from '@/lib/productOptions';
-
-const featured = getHomepageMerch(4);
 
 export default function MerchSection() {
   const { content } = useSiteContent();
+  const [featured, setFeatured] = useState<Product[]>([]);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.products) {
+          setFeatured(getHomepageMerchFromProducts(data.products, 4));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <section id="merch" className="py-20 md:py-28 bg-zinc-950">

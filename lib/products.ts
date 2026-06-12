@@ -23,6 +23,7 @@ export interface Product {
   merchSubcategory?: string;
   featured?: boolean;
   studioUrl?: string;
+  hidden?: boolean;
 }
 
 export function getProductSlug(product: Product): string {

@@ -11,8 +11,16 @@ import { getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOp
 const OVERRIDES_FILE = path.join(process.cwd(), 'data', 'product-overrides.json');
 
 export type ProductOverride = Partial<
-  Pick<Product, 'name' | 'price' | 'image' | 'description' | 'optionGroups'>
+  Pick<Product, 'name' | 'price' | 'image' | 'description' | 'optionGroups' | 'hidden'>
 >;
+
+export function isProductHidden(product: Pick<Product, 'hidden'>): boolean {
+  return product.hidden === true;
+}
+
+export function filterVisibleProducts<T extends Pick<Product, 'hidden'>>(products: T[]): T[] {
+  return products.filter((product) => !isProductHidden(product));
+}
 
 export type ProductOverridesMap = Record<string, ProductOverride>;
 
@@ -52,9 +60,13 @@ function mergeProduct(base: Product, override?: ProductOverride): Product {
   return merged;
 }
 
-export async function getProducts(): Promise<Product[]> {
+export async function getAllProducts(): Promise<Product[]> {
   const overrides = await readProductOverrides();
   return baseProducts.map((product) => mergeProduct(product, overrides[product.id]));
+}
+
+export async function getProducts(): Promise<Product[]> {
+  return filterVisibleProducts(await getAllProducts());
 }
 
 export async function getProductById(id: string): Promise<Product | undefined> {
@@ -63,8 +75,9 @@ export async function getProductById(id: string): Promise<Product | undefined> {
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | undefined> {
-  const products = await getProducts();
-  return products.find((product) => getProductSlug(product) === slug);
+  const product = (await getAllProducts()).find((item) => getProductSlug(item) === slug);
+  if (!product || isProductHidden(product)) return undefined;
+  return product;
 }
 
 export async function searchProducts(query: string): Promise<Product[]> {
@@ -103,10 +116,15 @@ export async function updateProductOverride(
     if (cleanedGroups.length > 0) next.optionGroups = cleanedGroups;
     else delete next.optionGroups;
   }
+  if (updates.hidden !== undefined) {
+    if (updates.hidden) next.hidden = true;
+    else delete next.hidden;
+  }
 
   const cleaned = Object.fromEntries(
     Object.entries(next).filter(([key, value]) => {
       if (value === undefined || value === '') return false;
+      if (key === 'hidden') return value === true;
       if (key === 'optionGroups') {
         return JSON.stringify(value) !== JSON.stringify(getProductOptionGroups(base));
       }
@@ -142,14 +160,27 @@ function sanitizeOptionGroups(groups: ProductOptionGroup[]): ProductOptionGroup[
     .filter((group) => group.name && group.values.length > 0);
 }
 
+export async function setProductHidden(id: string, hidden: boolean): Promise<Product | null> {
+  return updateProductOverride(id, { hidden });
+}
+
 export async function getAdminProducts(): Promise<
-  Array<Product & { hasOverride: boolean; basePrice: number; baseName: string; baseImage: string }>
+  Array<
+    Product & {
+      hasOverride: boolean;
+      hidden: boolean;
+      basePrice: number;
+      baseName: string;
+      baseImage: string;
+    }
+  >
 > {
   const overrides = await readProductOverrides();
   return baseProducts.map((base) => {
     const merged = mergeProduct(base, overrides[base.id]);
     return {
       ...merged,
+      hidden: isProductHidden(merged),
       hasOverride: !!overrides[base.id],
       basePrice: base.price,
       baseName: base.name,

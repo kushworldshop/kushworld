@@ -29,6 +29,7 @@ interface AdminProduct {
   optionGroups?: ProductOptionGroup[];
   sizes?: string[];
   colors?: string[];
+  hidden?: boolean;
   hasOverride?: boolean;
   baseName?: string;
   basePrice?: number;
@@ -57,6 +58,8 @@ export default function AdminOrders() {
   const [productEdits, setProductEdits] = useState<Record<string, Partial<AdminProduct>>>({});
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('all');
+  const [productVisibilityFilter, setProductVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all');
+  const [togglingVisibilityId, setTogglingVisibilityId] = useState<string | null>(null);
   const [productsMessage, setProductsMessage] = useState('');
   const [savingProductId, setSavingProductId] = useState<string | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -238,6 +241,30 @@ export default function AdminOrders() {
       setProductsMessage('Failed to upload image');
     } finally {
       setUploadingImageId(null);
+    }
+  };
+
+  const toggleProductVisibility = async (product: AdminProduct) => {
+    const nextHidden = !product.hidden;
+    setTogglingVisibilityId(product.id);
+    setProductsMessage('');
+    try {
+      const res = await adminFetch('/api/admin/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: product.id, hidden: nextHidden }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProductsMessage(nextHidden ? `Hidden ${product.name}` : `Unhidden ${product.name}`);
+        await loadProducts();
+      } else {
+        setProductsMessage(data.error || 'Failed to update visibility');
+      }
+    } catch {
+      setProductsMessage('Failed to update visibility');
+    } finally {
+      setTogglingVisibilityId(null);
     }
   };
 
@@ -531,8 +558,8 @@ export default function AdminOrders() {
             <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
               <h2 className="text-2xl font-bold mb-2">Product Catalog</h2>
               <p className="text-zinc-400 text-sm mb-6">
-                Edit names, prices, images, and descriptions. Upload a new image or paste an image URL.
-                Changes go live immediately on the shop.
+                Edit names, prices, images, descriptions, and options. Hide products to remove them from the shop
+                without deleting them.
               </p>
               <div className="flex flex-wrap gap-4 mb-4">
                 <input
@@ -553,6 +580,15 @@ export default function AdminOrders() {
                   <option value="mushrooms">Mushrooms</option>
                   <option value="merch">Merch</option>
                 </select>
+                <select
+                  value={productVisibilityFilter}
+                  onChange={(e) => setProductVisibilityFilter(e.target.value as 'all' | 'visible' | 'hidden')}
+                  className="bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                >
+                  <option value="all">All visibility</option>
+                  <option value="visible">Visible only</option>
+                  <option value="hidden">Hidden only</option>
+                </select>
               </div>
               {productsMessage && <p className="text-sm text-[#00ff9d] mb-4">{productsMessage}</p>}
             </div>
@@ -563,6 +599,11 @@ export default function AdminOrders() {
               <div className="space-y-6">
                 {adminProducts
                   .filter((product) => productCategory === 'all' || product.category === productCategory)
+                  .filter((product) => {
+                    if (productVisibilityFilter === 'visible') return !product.hidden;
+                    if (productVisibilityFilter === 'hidden') return product.hidden;
+                    return true;
+                  })
                   .filter((product) => {
                     const q = productSearch.toLowerCase().trim();
                     if (!q) return true;
@@ -576,7 +617,12 @@ export default function AdminOrders() {
                     const draft = getProductDraft(product);
                     const dirty = !!productEdits[product.id];
                     return (
-                      <div key={product.id} className="bg-zinc-900 border border-zinc-700 p-6 rounded-3xl">
+                      <div
+                        key={product.id}
+                        className={`bg-zinc-900 border p-6 rounded-3xl ${
+                          product.hidden ? 'border-zinc-800 opacity-70' : 'border-zinc-700'
+                        }`}
+                      >
                         <div className="flex flex-col lg:flex-row gap-6">
                           <img
                             src={draft.image}
@@ -647,15 +693,33 @@ export default function AdminOrders() {
                         <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">
                           <div className="text-xs text-zinc-500">
                             ID: {product.id} · {product.category}
+                            {product.hidden && <span className="text-amber-400 ml-2">Hidden from shop</span>}
                             {product.hasOverride && <span className="text-[#00ff9d] ml-2">Customized</span>}
                           </div>
-                          <button
-                            onClick={() => saveProduct(product)}
-                            disabled={savingProductId === product.id}
-                            className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-medium disabled:opacity-50"
-                          >
-                            {savingProductId === product.id ? 'Saving...' : dirty ? 'Save Changes' : 'Save'}
-                          </button>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              onClick={() => toggleProductVisibility(product)}
+                              disabled={togglingVisibilityId === product.id}
+                              className={`px-6 py-3 rounded-xl font-medium disabled:opacity-50 ${
+                                product.hidden
+                                  ? 'bg-zinc-800 hover:bg-zinc-700 text-white'
+                                  : 'bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
+                              }`}
+                            >
+                              {togglingVisibilityId === product.id
+                                ? 'Updating...'
+                                : product.hidden
+                                  ? 'Unhide Product'
+                                  : 'Hide Product'}
+                            </button>
+                            <button
+                              onClick={() => saveProduct(product)}
+                              disabled={savingProductId === product.id}
+                              className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-medium disabled:opacity-50"
+                            >
+                              {savingProductId === product.id ? 'Saving...' : dirty ? 'Save Changes' : 'Save'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );

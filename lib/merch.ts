@@ -41,20 +41,28 @@ export function getFeaturedMerch(limit = 8): MerchProduct[] {
 
 const HOMEPAGE_SUBCATEGORIES = ['hoodies', 'tees', 'headwear', 'accessories'] as const;
 
-export function getHomepageMerch(limit = 4): MerchProduct[] {
-  const picked: MerchProduct[] = [];
+export function getHomepageMerchFromProducts<T extends MerchProduct>(products: T[], limit = 4): T[] {
+  const merchOnly = products.filter((product) => product.category === 'merch');
+  const picked: T[] = [];
 
   for (const sub of HOMEPAGE_SUBCATEGORIES) {
     const item =
-      merchProducts.find((p) => p.merchSubcategory === sub && p.featured) ??
-      merchProducts.find((p) => p.merchSubcategory === sub);
-    if (item && !picked.some((p) => p.id === item.id)) {
+      merchOnly.find((product) => product.merchSubcategory === sub && product.featured) ??
+      merchOnly.find((product) => product.merchSubcategory === sub);
+    if (item && !picked.some((product) => product.id === item.id)) {
       picked.push(item);
     }
   }
 
   if (picked.length >= limit) return picked.slice(0, limit);
-  return getFeaturedMerch(limit);
+
+  const featured = merchOnly.filter((product) => product.featured);
+  const rest = merchOnly.filter((product) => !product.featured);
+  return [...featured, ...rest].slice(0, limit);
+}
+
+export function getHomepageMerch(limit = 4): MerchProduct[] {
+  return getHomepageMerchFromProducts(merchProducts, limit);
 }
 
 export function getMerchSubcategoryLabel(sub?: string): string {

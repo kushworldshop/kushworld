@@ -1,8 +1,10 @@
 import type { MetadataRoute } from 'next';
-import { products, getProductSlug } from '@/lib/products';
+import { getProductSlug } from '@/lib/products';
+import { getProducts } from '@/lib/productCatalog';
 import { PUBLIC_PAGES, SITE_URL } from '@/lib/seo';
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const products = await getProducts();
   const productUrls = products.map((p) => ({
     url: `${SITE_URL}/products/${getProductSlug(p)}`,
     lastModified: new Date(),
