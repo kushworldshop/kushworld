@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import AgeGateProvider from './components/AgeGateProvider';
 import JsonLd from './components/JsonLd';
 import { buildPageMetadata, organizationJsonLd, SITE_TAGLINE } from '@/lib/seo';
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         <JsonLd data={organizationJsonLd()} />
         <AgeGateProvider>{children}</AgeGateProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
