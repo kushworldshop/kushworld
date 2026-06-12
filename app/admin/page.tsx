@@ -10,7 +10,7 @@ import { formatCartItemOptions, getProductOptionGroups, type ProductOptionGroup 
 import { getAllProductCategorySlugs, getSubsectionsForProductCategory } from '@/lib/shopNavigation';
 import { formatCurrency, formatPercent, getProductMargin } from '@/lib/productEconomics';
 
-type AdminTab = 'orders' | 'promo' | 'products' | 'wishlist' | 'site' | 'customers';
+type AdminTab = 'orders' | 'products' | 'wishlist' | 'site' | 'customers';
 
 interface WishlistStat {
   id: string;
@@ -41,14 +41,6 @@ interface AdminProduct {
   baseImage?: string;
 }
 
-interface SiteSettings {
-  referrerCommissionPercent: number;
-  referrerRewardPoints: number;
-  promoCustomerDiscount: number;
-  promoFirstOrderOnly: boolean;
-  promoMinOrder: number;
-}
-
 export default function AdminOrders() {
   const [authenticated, setAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -56,9 +48,6 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<AdminTab>('orders');
-  const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [settingsMessage, setSettingsMessage] = useState('');
-  const [savingSettings, setSavingSettings] = useState(false);
   const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([]);
   const [productEdits, setProductEdits] = useState<
     Record<string, Partial<AdminProduct> & { trackInventory?: boolean }>
@@ -78,7 +67,6 @@ export default function AdminOrders() {
 
   const bootstrapAdmin = () => {
     loadOrders();
-    loadSettings();
     loadProducts();
     loadWishlistStats();
     loadSiteContent();
@@ -147,18 +135,6 @@ export default function AdminOrders() {
       }
     } catch (e) {
       console.error('Failed to load site content');
-    }
-  };
-
-  const loadSettings = async () => {
-    try {
-      const res = await adminFetch('/api/admin/settings');
-      if (res.ok) {
-        const data = await res.json();
-        setSettings(data.settings);
-      }
-    } catch (e) {
-      console.error('Failed to load settings');
     }
   };
 
@@ -330,32 +306,6 @@ export default function AdminOrders() {
     }
   };
 
-  const saveSettings = async () => {
-    if (!settings) return;
-    setSavingSettings(true);
-    setSettingsMessage('');
-    try {
-      const res = await adminFetch('/api/admin/settings', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSettings(data.settings);
-        setSettingsMessage('Promo settings saved.');
-      } else {
-        setSettingsMessage(data.error || 'Failed to save');
-      }
-    } catch {
-      setSettingsMessage('Failed to save settings');
-    } finally {
-      setSavingSettings(false);
-    }
-  };
-
   const updateStatus = async (orderId: string, newStatus: string) => {
     try {
       await fetch('/api/orders', {
@@ -486,12 +436,6 @@ export default function AdminOrders() {
             Orders
           </button>
           <button
-            onClick={() => setTab('promo')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'promo' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Promo & Commission
-          </button>
-          <button
             onClick={() => setTab('products')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'products' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
@@ -522,86 +466,6 @@ export default function AdminOrders() {
         )}
 
         {tab === 'customers' && <CustomersTab />}
-
-        {tab === 'promo' && settings && (
-          <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-10 max-w-2xl">
-            <h2 className="text-2xl font-bold mb-2">Promo Defaults</h2>
-            <p className="text-zinc-400 text-sm mb-8">
-              Site-wide defaults for promo codes and referral rewards. Override commission % and referral
-              points per member in the Members tab.
-            </p>
-
-            <div className="space-y-6">
-              <div>
-                <label className="text-sm text-zinc-400 block mb-2">Default referrer commission (% of order subtotal)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={50}
-                  step={0.5}
-                  value={settings.referrerCommissionPercent}
-                  onChange={(e) => setSettings({ ...settings, referrerCommissionPercent: Number(e.target.value) })}
-                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                />
-                <p className="text-xs text-zinc-500 mt-1">Example: 5% on a $100 order = $5 commission</p>
-              </div>
-
-              <div>
-                <label className="text-sm text-zinc-400 block mb-2">Default loyalty points per promo use</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={10000}
-                  value={settings.referrerRewardPoints}
-                  onChange={(e) => setSettings({ ...settings, referrerRewardPoints: Number(e.target.value) })}
-                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-zinc-400 block mb-2">Customer discount ($ off when using promo code)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={settings.promoCustomerDiscount}
-                  onChange={(e) => setSettings({ ...settings, promoCustomerDiscount: Number(e.target.value) })}
-                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-zinc-400 block mb-2">Minimum order for promo codes ($)</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={settings.promoMinOrder}
-                  onChange={(e) => setSettings({ ...settings, promoMinOrder: Number(e.target.value) })}
-                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                />
-              </div>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.promoFirstOrderOnly}
-                  onChange={(e) => setSettings({ ...settings, promoFirstOrderOnly: e.target.checked })}
-                  className="w-4 h-4 accent-[#00ff9d]"
-                />
-                <span className="text-sm">First order only (promo codes work on first purchase)</span>
-              </label>
-
-              <button
-                onClick={saveSettings}
-                disabled={savingSettings}
-                className="bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold disabled:opacity-50"
-              >
-                {savingSettings ? 'Saving...' : 'Save Promo Settings'}
-              </button>
-              {settingsMessage && <p className="text-sm text-[#00ff9d]">{settingsMessage}</p>}
-            </div>
-          </div>
-        )}
 
         {tab === 'products' && (
           <div className="mb-10">

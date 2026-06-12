@@ -200,7 +200,7 @@ export default function CustomersTab() {
         <h2 className="text-2xl font-bold mb-2">Site Members</h2>
         <p className="text-zinc-400 text-sm">
           View every registered member, edit profiles and social links, and manage loyalty points and
-          commission settings per person. Site-wide promo defaults live under the Promo tab.
+          commission settings per person.
         </p>
       </div>
 
