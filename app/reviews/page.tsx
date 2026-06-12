@@ -40,8 +40,8 @@ export default function ReviewsPage() {
             </p>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Real Reviews from Real Customers</h1>
             <p className="text-zinc-400 mb-8 max-w-2xl leading-relaxed">
-              See what shoppers say about Kush World — and leave your own short review after your order.
-              We also highlight feedback from our{' '}
+              Real touchdown posts from customers on X — plus reviews left right here after orders.
+              We feature verified posts below; hundreds more live on{' '}
               <a
                 href="https://x.com/KushWorld"
                 target="_blank"
@@ -49,8 +49,8 @@ export default function ReviewsPage() {
                 className="text-[#00ff9d] hover:underline"
               >
                 @KushWorld
-              </a>{' '}
-              community on X.
+              </a>
+              .
             </p>
 
             {stats && stats.count > 0 && (
@@ -97,19 +97,19 @@ export default function ReviewsPage() {
           <div className="lg:sticky lg:top-28 h-fit space-y-6">
             <ReviewForm products={productOptions} onSuccess={loadReviews} />
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-sm text-zinc-400">
-              <p className="font-semibold text-white mb-2">Have a review on X?</p>
+            <div className="bg-zinc-900 border border-[#00ff9d]/20 rounded-2xl p-6 text-sm text-zinc-400">
+              <p className="font-semibold text-white mb-2">Hundreds more on X</p>
               <p className="mb-4 leading-relaxed">
-                Tag <span className="text-[#00ff9d]">@KushWorld</span> or DM us with your order feedback
-                — we feature the best community posts right here on the site.
+                Search <span className="text-[#00ff9d]">@KushWorld</span> on X for touchdown posts,
+                order pics, and customer shoutouts. Tag us on your next TD to get featured here.
               </p>
               <a
-                href="https://x.com/KushWorld"
+                href="https://x.com/search?q=%40KushWorld%20touchdown&src=typed_query&f=live"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block text-[#00ff9d] font-medium hover:underline"
               >
-                Visit @KushWorld on X →
+                Browse @KushWorld touchdowns on X →
               </a>
             </div>
           </div>

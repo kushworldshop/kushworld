@@ -15,7 +15,7 @@ export default function ReviewsSection() {
   const [stats, setStats] = useState<ReviewStats>({ count: 0, average: 0 });
 
   useEffect(() => {
-    fetch('/api/reviews?featured=true&limit=6')
+    fetch('/api/reviews?featured=true&limit=9')
       .then((r) => r.json())
       .then((data) => {
         setReviews(data.reviews || []);
@@ -29,7 +29,7 @@ export default function ReviewsSection() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
           <div>
             <p className="text-[#00ff9d] text-sm font-medium uppercase tracking-widest mb-3">
-              Real Customer Feedback
+              Verified on X · Hundreds More
             </p>
             <h2 className="text-4xl md:text-5xl font-bold mb-4">What People Are Saying</h2>
             {stats.count > 0 && (
