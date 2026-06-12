@@ -7,9 +7,9 @@ import {
   claimReferralPoints,
   getReferralLink,
   calculateReferralDiscount,
-  REFERRAL_DISCOUNT,
   REFERRER_REWARD_POINTS,
 } from '@/lib/referrals';
+import { getSettings } from '@/lib/settings';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -24,14 +24,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ valid: false, error: 'Invalid referral code' }, { status: 404 });
     }
 
-    const discountResult = calculateReferralDiscount(subtotal, isFirstOrder);
+    const settings = await getSettings();
+    const discountResult = await calculateReferralDiscount(subtotal, isFirstOrder);
 
     return NextResponse.json({
       valid: true,
       code: referral.code,
       referrerName: referral.referrerName,
-      discount: REFERRAL_DISCOUNT,
+      discount: settings.promoCustomerDiscount,
       discountResult,
+      commissionPercent: settings.referrerCommissionPercent,
     });
   }
 
@@ -50,7 +52,7 @@ export async function GET(request: NextRequest) {
       link: getReferralLink(referral.code),
       clicks: referral.clicks,
       conversions: referral.conversions,
-      rewardPerReferral: REFERRER_REWARD_POINTS,
+      rewardPerReferral: (await getSettings()).referrerRewardPoints,
       pointsToAdd,
     });
   }
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
       link: getReferralLink(referral.code),
       clicks: referral.clicks,
       conversions: referral.conversions,
-      rewardPerReferral: REFERRER_REWARD_POINTS,
+      rewardPerReferral: (await getSettings()).referrerRewardPoints,
     });
   } catch (error) {
     console.error('Referral API error:', error);

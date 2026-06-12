@@ -12,6 +12,7 @@ import { creditReferrerForConversion } from '@/lib/referralRewards';
 import { getSessionUserId } from '@/lib/auth';
 import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
 import { markUserSpinPrizeUsed } from '@/lib/users';
+import { resolvePromoForOrder } from '@/lib/orderPromo';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -60,11 +61,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: `Cannot ship to ${state}` }, { status: 400 });
     }
 
+    let promoMeta: Awaited<ReturnType<typeof resolvePromoForOrder>> = { promoDiscount: 0 };
+    try {
+      promoMeta = await resolvePromoForOrder({
+        promoCode: body.promoCode,
+        referralCode: body.referralCode ?? referralCode,
+        couponCode: body.couponCode,
+        subtotal,
+        isFirstOrder: !!body.isFirstOrder,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid promo code';
+      return NextResponse.json({ success: false, error: message }, { status: 400 });
+    }
+
     let resolved;
     try {
       resolved = await resolveOrderTotals({
         subtotal,
-        promoDiscount: body.promoDiscount ?? body.discount ?? 0,
+        promoDiscount: promoMeta.promoDiscount,
         loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
         shipping: body.shipping,
         spinPrizeId: body.spinPrizeId,
@@ -117,7 +132,10 @@ export async function POST(request: NextRequest) {
       shipping,
       total: orderTotal,
       paymentMethod: 'card',
-      referralCode: referralCode || undefined,
+      promoCode: promoMeta.promoCode,
+      promoSource: promoMeta.promoSource,
+      referrerCode: promoMeta.referrerCode,
+      referrerName: promoMeta.referrerName,
       paymentStatus: 'paid',
       transactionId: payment.transactionId,
       authCode: payment.authCode,
@@ -142,9 +160,9 @@ export async function POST(request: NextRequest) {
     orders.unshift(newOrder);
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
 
-    if (referralCode) {
-      await recordReferralConversion(referralCode, orderId);
-      await creditReferrerForConversion(referralCode);
+    if (promoMeta.referrerCode) {
+      await recordReferralConversion(promoMeta.referrerCode, orderId, subtotal);
+      await creditReferrerForConversion(promoMeta.referrerCode);
     }
 
     const userId = await getSessionUserId();

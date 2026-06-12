@@ -1,9 +1,10 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { MIN_ORDER_AMOUNT } from '@/lib/checkout';
-import { REFERRAL_DISCOUNT, REFERRER_COMMISSION_USD, REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
+import { REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
+import { calculateCommissionAmount, getSettings } from '@/lib/settings';
 
-export { REFERRAL_DISCOUNT, REFERRER_REWARD_POINTS };
+export { REFERRER_REWARD_POINTS };
 
 const REFERRALS_FILE = path.join(process.cwd(), 'data', 'referrals.json');
 
@@ -122,31 +123,35 @@ export async function recordReferralClick(code: string): Promise<Referral | null
   return referrals[index];
 }
 
-export function calculateReferralDiscount(
+export async function calculateReferralDiscount(
   subtotal: number,
   isFirstOrder: boolean
-): { valid: boolean; discount: number; error?: string } {
-  if (!isFirstOrder) {
-    return { valid: false, discount: 0, error: 'Referral discount is for first orders only' };
+): Promise<{ valid: boolean; discount: number; error?: string }> {
+  const settings = await getSettings();
+
+  if (settings.promoFirstOrderOnly && !isFirstOrder) {
+    return { valid: false, discount: 0, error: 'This promo code is for first orders only' };
   }
 
-  if (subtotal < MIN_ORDER_AMOUNT) {
+  const minOrder = Math.max(settings.promoMinOrder, MIN_ORDER_AMOUNT);
+  if (subtotal < minOrder) {
     return {
       valid: false,
       discount: 0,
-      error: `Minimum order of $${MIN_ORDER_AMOUNT} required`,
+      error: `Minimum order of $${minOrder} required`,
     };
   }
 
   return {
     valid: true,
-    discount: Math.min(REFERRAL_DISCOUNT, subtotal),
+    discount: Math.min(settings.promoCustomerDiscount, subtotal),
   };
 }
 
 export async function recordReferralConversion(
   code: string,
-  orderId: string
+  orderId: string,
+  orderSubtotal: number
 ): Promise<Referral | null> {
   const referrals = await readReferrals();
   const normalized = normalizeCode(code);
@@ -154,12 +159,46 @@ export async function recordReferralConversion(
 
   if (index === -1) return null;
 
+  const settings = await getSettings();
+  const commission = calculateCommissionAmount(orderSubtotal, settings.referrerCommissionPercent);
+
   referrals[index].conversions += 1;
-  referrals[index].commissionEarned =
-    (referrals[index].commissionEarned ?? 0) + REFERRER_COMMISSION_USD;
+  referrals[index].commissionEarned = (referrals[index].commissionEarned ?? 0) + commission;
   await writeReferrals(referrals);
-  console.log(`Referral conversion: ${normalized} -> order ${orderId}`);
+  console.log(`Promo conversion: ${normalized} -> order ${orderId} (+$${commission})`);
   return referrals[index];
+}
+
+export async function updateReferralCode(
+  email: string,
+  newCode: string
+): Promise<{ success: boolean; code?: string; error?: string }> {
+  const normalized = normalizeCode(newCode);
+  if (!/^[A-Z0-9-]{4,20}$/.test(normalized)) {
+    return { success: false, error: 'Code must be 4–20 characters (letters, numbers, hyphens)' };
+  }
+
+  const referrals = await readReferrals();
+  const userIndex = referrals.findIndex(
+    (r) => r.referrerEmail.toLowerCase() === email.trim().toLowerCase()
+  );
+  if (userIndex === -1) {
+    return { success: false, error: 'Referral record not found' };
+  }
+
+  if (referrals.some((r, i) => i !== userIndex && r.code === normalized)) {
+    return { success: false, error: 'That promo code is already taken' };
+  }
+
+  const { getCoupons } = await import('@/lib/coupons');
+  const coupons = await getCoupons();
+  if (coupons.some((c) => c.code.toUpperCase() === normalized)) {
+    return { success: false, error: 'That code conflicts with a site coupon' };
+  }
+
+  referrals[userIndex].code = normalized;
+  await writeReferrals(referrals);
+  return { success: true, code: normalized };
 }
 
 export async function claimReferralPoints(email: string): Promise<{
@@ -175,7 +214,8 @@ export async function claimReferralPoints(email: string): Promise<{
   }
 
   const referral = referrals[index];
-  const earned = referral.conversions * REFERRER_REWARD_POINTS;
+  const settings = await getSettings();
+  const earned = referral.conversions * settings.referrerRewardPoints;
   const pointsToAdd = Math.max(0, earned - referral.pointsClaimed);
 
   if (pointsToAdd > 0) {

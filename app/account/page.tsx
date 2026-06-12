@@ -5,8 +5,15 @@ import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
-import { REFERRER_COMMISSION_USD, REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
 import { SPIN_COST } from '@/lib/spinWheelTypes';
+
+interface PromoTerms {
+  customerDiscount: number;
+  firstOrderOnly: boolean;
+  minOrder: number;
+  referrerCommissionPercent: number;
+  referrerRewardPoints: number;
+}
 
 type Tab = 'profile' | 'loyalty' | 'wheel' | 'referrals' | 'orders';
 
@@ -45,6 +52,10 @@ export default function Account() {
   });
 
   const [copied, setCopied] = useState(false);
+  const [copiedPromo, setCopiedPromo] = useState(false);
+  const [promoTerms, setPromoTerms] = useState<PromoTerms | null>(null);
+  const [customPromoCode, setCustomPromoCode] = useState('');
+  const [savingPromo, setSavingPromo] = useState(false);
 
   const loadProfile = async () => {
     const res = await fetch('/api/users/me');
@@ -84,6 +95,12 @@ export default function Account() {
 
   useEffect(() => {
     loadProfile();
+    fetch('/api/settings/public')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.success !== false) setPromoTerms(data);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -172,6 +189,39 @@ export default function Account() {
     await navigator.clipboard.writeText(user.referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyPromoCode = async () => {
+    if (!user?.referralCode) return;
+    await navigator.clipboard.writeText(user.referralCode);
+    setCopiedPromo(true);
+    setTimeout(() => setCopiedPromo(false), 2000);
+  };
+
+  const saveCustomPromoCode = async () => {
+    if (!customPromoCode.trim()) return;
+    setSavingPromo(true);
+    setError('');
+    setMessage('');
+    try {
+      const res = await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promoCode: customPromoCode.trim().toUpperCase() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUser(data.user);
+        setCustomPromoCode('');
+        setMessage('Promo code updated!');
+      } else {
+        setError(data.error || 'Could not update promo code');
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setSavingPromo(false);
+    }
   };
 
   if (!user) {
@@ -347,7 +397,8 @@ export default function Account() {
 
             <div className="space-y-4 text-sm text-zinc-300">
               <p>• Earn <strong>1 point per $10</strong> spent on orders (logged-in checkout)</p>
-              <p>• Earn <strong>{REFERRER_REWARD_POINTS} points</strong> per successful referral</p>
+              <p>• Earn <strong>{promoTerms?.referrerRewardPoints ?? 100} points</strong> per promo code use</p>
+              <p>• Share your <strong>personal promo code</strong> — earn <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on each order</p>
               <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
               <p>• Gamble <strong>{SPIN_COST} points</strong> on the prize wheel for discounts, free shipping, and more</p>
             </div>
@@ -387,15 +438,52 @@ export default function Account() {
 
         {tab === 'referrals' && (
           <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800 space-y-6">
-            <h2 className="text-2xl font-bold">Referral & Commission</h2>
+            <h2 className="text-2xl font-bold">Promo Codes & Commission</h2>
             <p className="text-zinc-400">
-              Share your link. Friends get ${10} off their first order. You earn ${REFERRER_COMMISSION_USD} commission + {REFERRER_REWARD_POINTS} loyalty points per conversion.
+              Share your personal promo code at checkout. Friends get{' '}
+              <strong>${promoTerms?.customerDiscount ?? 10} off</strong>
+              {promoTerms?.firstOrderOnly ? ' their first order' : ''}. You earn{' '}
+              <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on the order subtotal plus{' '}
+              <strong>{promoTerms?.referrerRewardPoints ?? 100} loyalty points</strong> per use.
             </p>
+
+            {user.referralCode && (
+              <div className="bg-black border border-[#00ff9d]/30 rounded-2xl p-5">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Your promo code</p>
+                <div className="flex flex-col sm:flex-row gap-3 items-center">
+                  <code className="text-2xl font-bold text-[#00ff9d] tracking-wider">{user.referralCode}</code>
+                  <button onClick={copyPromoCode} className="bg-[#00ff9d] text-black px-5 py-2 rounded-xl font-medium text-sm">
+                    {copiedPromo ? 'Copied!' : 'Copy Code'}
+                  </button>
+                </div>
+                <p className="text-xs text-zinc-500 mt-3">Friends enter this at checkout — or share your link below.</p>
+              </div>
+            )}
+
+            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5">
+              <p className="text-sm font-medium mb-3">Customize your promo code</p>
+              <div className="flex gap-2">
+                <input
+                  value={customPromoCode}
+                  onChange={(e) => setCustomPromoCode(e.target.value.toUpperCase())}
+                  placeholder={user.referralCode || 'MYCODE'}
+                  className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-3 text-sm uppercase"
+                />
+                <button
+                  onClick={saveCustomPromoCode}
+                  disabled={savingPromo || !customPromoCode.trim()}
+                  className="bg-zinc-800 hover:bg-zinc-700 px-5 rounded-xl text-sm font-medium disabled:opacity-40"
+                >
+                  {savingPromo ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+              <p className="text-xs text-zinc-500 mt-2">4–20 characters. Letters, numbers, and hyphens only.</p>
+            </div>
 
             {user.referralLink && (
               <div className="bg-black border border-zinc-700 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-center">
                 <code className="text-sm text-[#00ff9d] break-all flex-1">{user.referralLink}</code>
-                <button onClick={copyReferralLink} className="bg-[#00ff9d] text-black px-5 py-2 rounded-xl font-medium text-sm">
+                <button onClick={copyReferralLink} className="bg-zinc-800 hover:bg-zinc-700 px-5 py-2 rounded-xl font-medium text-sm">
                   {copied ? 'Copied!' : 'Copy Link'}
                 </button>
               </div>

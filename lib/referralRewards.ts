@@ -1,5 +1,5 @@
-import { REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
 import { getReferralByCode, type Referral } from '@/lib/referrals';
+import { getSettings } from '@/lib/settings';
 import { addLoyaltyPoints, getUserByEmail } from '@/lib/users';
 import fs from 'fs/promises';
 import path from 'path';
@@ -12,7 +12,8 @@ async function markReferralPointsClaimed(referral: Referral) {
   const index = referrals.findIndex((r) => r.code === referral.code);
   if (index === -1) return;
 
-  referrals[index].pointsClaimed = referrals[index].conversions * REFERRER_REWARD_POINTS;
+  const settings = await getSettings();
+  referrals[index].pointsClaimed = referrals[index].conversions * settings.referrerRewardPoints;
   await fs.writeFile(REFERRALS_FILE, JSON.stringify(referrals, null, 2));
 }
 
@@ -23,7 +24,8 @@ export async function creditReferrerForConversion(code: string): Promise<void> {
   const user = await getUserByEmail(referral.referrerEmail);
   if (!user) return;
 
-  const earned = referral.conversions * REFERRER_REWARD_POINTS;
+  const settings = await getSettings();
+  const earned = referral.conversions * settings.referrerRewardPoints;
   const pending = Math.max(0, earned - referral.pointsClaimed);
   if (pending <= 0) return;
 

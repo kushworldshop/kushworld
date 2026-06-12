@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { createOrGetReferral, getReferralByEmail } from '@/lib/referrals';
-import { REFERRER_COMMISSION_USD, REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
+import { getSettings } from '@/lib/settings';
 import type { SpinPrize } from '@/lib/spinWheelTypes';
 
 const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
@@ -252,12 +252,11 @@ export async function getUserDashboard(userId: string): Promise<PublicUserProfil
   let referralStats: PublicUserProfile['referralStats'];
 
   if (referral) {
-    const pointsEarned = referral.conversions * REFERRER_REWARD_POINTS;
-    const commissionEarned =
-      referral.commissionEarned ?? referral.conversions * REFERRER_COMMISSION_USD;
+    const settings = await getSettings();
+    const pointsEarned = referral.conversions * settings.referrerRewardPoints;
+    const commissionEarned = referral.commissionEarned ?? 0;
     const claimedPoints = referral.pointsClaimed;
     const pendingPoints = Math.max(0, pointsEarned - claimedPoints);
-    const pendingCommission = (pendingPoints / REFERRER_REWARD_POINTS) * REFERRER_COMMISSION_USD;
 
     referralStats = {
       clicks: referral.clicks,
@@ -265,7 +264,7 @@ export async function getUserDashboard(userId: string): Promise<PublicUserProfil
       pointsEarned,
       commissionEarned,
       pendingPoints,
-      pendingCommission,
+      pendingCommission: 0,
     };
   }
 

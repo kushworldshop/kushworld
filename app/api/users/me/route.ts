@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUserId } from '@/lib/auth';
-import { getUserDashboard, updateUser } from '@/lib/users';
+import { updateReferralCode } from '@/lib/referrals';
+import { getUserById, getUserDashboard, updateUser } from '@/lib/users';
 
 export async function GET() {
   const userId = await getSessionUserId();
@@ -29,6 +30,18 @@ export async function PATCH(request: NextRequest) {
 
     for (const key of allowed) {
       if (body[key] !== undefined) updates[key] = body[key];
+    }
+
+    if (body.promoCode) {
+      const user = await getUserById(userId);
+      if (!user) {
+        return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+      }
+      const result = await updateReferralCode(user.email, body.promoCode);
+      if (!result.success) {
+        return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+      }
+      updates.referralCode = result.code;
     }
 
     const updated = await updateUser(userId, updates);

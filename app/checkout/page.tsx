@@ -46,10 +46,14 @@ export default function Checkout() {
   const [uploadError, setUploadError] = useState('');
   const [paymentError, setPaymentError] = useState('');
   const [couponCode, setCouponCode] = useState('');
-  const [couponDiscount, setCouponDiscount] = useState(0);
-  const [referralDiscount, setReferralDiscount] = useState(0);
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    discount: number;
+    source: 'coupon' | 'loyalty';
+    referrerName?: string;
+    referrerCode?: string;
+  } | null>(null);
   const [couponMessage, setCouponMessage] = useState('');
-  const [referralMessage, setReferralMessage] = useState('');
   const [cardReady, setCardReady] = useState(false);
   const [availablePoints, setAvailablePoints] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -164,8 +168,8 @@ export default function Checkout() {
   };
 
   const sub = subtotal();
-  const promoDiscount = Math.max(couponDiscount, referralDiscount);
-  const usingReferralDiscount = referralDiscount > 0 && referralDiscount >= couponDiscount;
+  const promoDiscount = appliedPromo?.discount ?? 0;
+  const usingLoyaltyPromo = appliedPromo?.source === 'loyalty';
   const spinPreview = computeSpinPrizePreview(activeSpinPrize, sub, useSpinPrize);
   const spinDiscount = spinPreview.spinDiscount;
   const maxRedeemablePoints = calculateMaxRedeemablePoints(
@@ -189,37 +193,36 @@ export default function Checkout() {
   };
 
   useEffect(() => {
-    if (!storedReferralCode || sub <= 0) {
-      setReferralDiscount(0);
-      setReferralMessage('');
-      return;
-    }
+    if (!storedReferralCode || sub <= 0) return;
 
-    const isFirstOrder = customerInfo.email
+    setCouponCode(storedReferralCode);
+    const firstOrder = customerInfo.email
       ? !localStorage.getItem(`ordered_${customerInfo.email}`)
       : true;
 
-    fetch(
-      `/api/referrals?code=${encodeURIComponent(storedReferralCode)}&subtotal=${sub}&isFirstOrder=${isFirstOrder}`
-    )
+    fetch('/api/promo/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: storedReferralCode, subtotal: sub, isFirstOrder: firstOrder }),
+    })
       .then((res) => res.json())
       .then((data) => {
-        if (data.valid && data.discountResult?.valid) {
-          setReferralDiscount(data.discountResult.discount);
-          setReferralMessage(
-            referrerName
-              ? `Referral from ${referrerName}: -$${data.discountResult.discount.toFixed(2)}`
-              : `Referral discount: -$${data.discountResult.discount.toFixed(2)}`
+        if (data.valid && data.source === 'loyalty') {
+          setAppliedPromo({
+            code: data.code,
+            discount: data.discount,
+            source: 'loyalty',
+            referrerName: data.referrerName || referrerName,
+            referrerCode: data.referrerCode,
+          });
+          setCouponMessage(
+            data.referrerName || referrerName
+              ? `Promo from ${data.referrerName || referrerName}: -$${data.discount.toFixed(2)}`
+              : `Promo applied: -$${data.discount.toFixed(2)}`
           );
-        } else {
-          setReferralDiscount(0);
-          setReferralMessage(data.discountResult?.error || '');
         }
       })
-      .catch(() => {
-        setReferralDiscount(0);
-        setReferralMessage('');
-      });
+      .catch(() => {});
   }, [storedReferralCode, sub, customerInfo.email, referrerName]);
 
   useEffect(() => {
@@ -247,19 +250,31 @@ export default function Checkout() {
   };
 
   const applyCoupon = async () => {
-    const isFirstOrder = !localStorage.getItem(`ordered_${customerInfo.email}`);
-    const res = await fetch('/api/coupons/validate', {
+    const firstOrder = customerInfo.email
+      ? !localStorage.getItem(`ordered_${customerInfo.email}`)
+      : true;
+    const res = await fetch('/api/promo/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: couponCode, subtotal: sub, isFirstOrder }),
+      body: JSON.stringify({ code: couponCode, subtotal: sub, isFirstOrder: firstOrder }),
     });
     const data = await res.json();
     if (data.valid) {
-      setCouponDiscount(data.discount);
-      setCouponMessage(`Coupon applied: -$${data.discount.toFixed(2)}`);
+      setAppliedPromo({
+        code: data.code,
+        discount: data.discount,
+        source: data.source,
+        referrerName: data.referrerName,
+        referrerCode: data.referrerCode,
+      });
+      setCouponMessage(
+        data.source === 'loyalty' && data.referrerName
+          ? `Promo from ${data.referrerName}: -$${data.discount.toFixed(2)}`
+          : `Promo applied: -$${data.discount.toFixed(2)}`
+      );
     } else {
-      setCouponDiscount(0);
-      setCouponMessage(data.error || 'Invalid coupon');
+      setAppliedPromo(null);
+      setCouponMessage(data.error || 'Invalid promo code');
     }
   };
 
@@ -343,11 +358,11 @@ export default function Checkout() {
           promoDiscount,
           loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
           spinPrizeId: useSpinPrize && activeSpinPrize ? activeSpinPrize.id : undefined,
+          promoCode: appliedPromo?.code,
+          isFirstOrder,
           discount,
           shipping: totals.shipping,
           total: totals.total,
-          couponCode: couponCode || undefined,
-          referralCode: storedReferralCode && isFirstOrder ? storedReferralCode : undefined,
           opaqueData,
         }),
       });
@@ -377,11 +392,11 @@ export default function Checkout() {
       promoDiscount,
       loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
       spinPrizeId: useSpinPrize && activeSpinPrize ? activeSpinPrize.id : undefined,
+      promoCode: appliedPromo?.code,
+      isFirstOrder,
       discount,
       shipping: totals.shipping,
       total: totals.total,
-      couponCode: couponCode || undefined,
-      referralCode: storedReferralCode && isFirstOrder ? storedReferralCode : undefined,
       paymentMethod,
     };
 
@@ -513,7 +528,7 @@ export default function Checkout() {
               <div className="flex justify-between"><span>Subtotal</span><span>${totals.subtotal.toFixed(2)}</span></div>
               {promoDiscount > 0 && (
                 <div className="flex justify-between text-[#00ff9d]">
-                  <span>{usingReferralDiscount ? 'Referral' : 'Coupon'} discount</span>
+                  <span>{usingLoyaltyPromo ? 'Promo code' : 'Coupon'} discount</span>
                   <span>-${promoDiscount.toFixed(2)}</span>
                 </div>
               )}
@@ -557,7 +572,7 @@ export default function Checkout() {
 
             <div className="flex gap-2 mb-6">
               <input
-                placeholder="Coupon code (try FIRST20)"
+                placeholder="Promo code (try FIRST20 or a friend's code)"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                 className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm"
@@ -566,15 +581,7 @@ export default function Checkout() {
                 Apply
               </button>
             </div>
-            {referralMessage && usingReferralDiscount && (
-              <p className="text-sm text-[#00ff9d] mb-2">{referralMessage}</p>
-            )}
-            {storedReferralCode && referralDiscount > 0 && !usingReferralDiscount && (
-              <p className="text-sm text-zinc-500 mb-2">
-                Referral saved — a better coupon is applied.
-              </p>
-            )}
-            {couponMessage && <p className="text-sm text-zinc-400 mb-4">{couponMessage}</p>}
+            {couponMessage && <p className="text-sm text-[#00ff9d] mb-4">{couponMessage}</p>}
 
             {isLoggedIn && activeSpinPrize && (
               <div className="bg-zinc-900 border border-[#00ff9d]/30 rounded-2xl p-4 mb-6">

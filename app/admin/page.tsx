@@ -4,17 +4,32 @@ import { useState, useEffect } from 'react';
 
 const ADMIN_PASSWORD = "kushworld2026"; // Change this anytime you want
 
+type AdminTab = 'orders' | 'promo';
+
+interface SiteSettings {
+  referrerCommissionPercent: number;
+  referrerRewardPoints: number;
+  promoCustomerDiscount: number;
+  promoFirstOrderOnly: boolean;
+  promoMinOrder: number;
+}
+
 export default function AdminOrders() {
   const [authenticated, setAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState('');
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<AdminTab>('orders');
+  const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [settingsMessage, setSettingsMessage] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem('adminAuthenticated') === 'true') {
       setAuthenticated(true);
       loadOrders();
+      loadSettings();
     } else {
       setLoading(false);
     }
@@ -26,6 +41,7 @@ export default function AdminOrders() {
       setAuthenticated(true);
       setError('');
       loadOrders();
+      loadSettings();
     } else {
       setError('Incorrect password');
     }
@@ -48,6 +64,47 @@ export default function AdminOrders() {
       console.error('Failed to load orders');
     }
     setLoading(false);
+  };
+
+  const loadSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings', {
+        headers: { 'x-admin-password': ADMIN_PASSWORD },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSettings(data.settings);
+      }
+    } catch (e) {
+      console.error('Failed to load settings');
+    }
+  };
+
+  const saveSettings = async () => {
+    if (!settings) return;
+    setSavingSettings(true);
+    setSettingsMessage('');
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': ADMIN_PASSWORD,
+        },
+        body: JSON.stringify(settings),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSettings(data.settings);
+        setSettingsMessage('Promo settings saved.');
+      } else {
+        setSettingsMessage(data.error || 'Failed to save');
+      }
+    } catch {
+      setSettingsMessage('Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
   };
 
   const updateStatus = async (orderId: string, newStatus: string) => {
@@ -126,8 +183,8 @@ export default function AdminOrders() {
   return (
     <div className="min-h-screen bg-black text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-12">
-          <h1 className="text-5xl font-bold">Admin Orders Dashboard</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-5xl font-bold">KushWorld Admin</h1>
           <button 
             onClick={logout}
             className="px-8 py-4 bg-red-600 hover:bg-red-700 rounded-2xl font-medium transition"
@@ -136,11 +193,105 @@ export default function AdminOrders() {
           </button>
         </div>
 
-        {loading ? (
+        <div className="flex gap-3 mb-10">
+          <button
+            onClick={() => setTab('orders')}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'orders' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Orders
+          </button>
+          <button
+            onClick={() => setTab('promo')}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'promo' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Promo & Commission
+          </button>
+        </div>
+
+        {tab === 'promo' && settings && (
+          <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-10 max-w-2xl">
+            <h2 className="text-2xl font-bold mb-2">Loyalty Promo Settings</h2>
+            <p className="text-zinc-400 text-sm mb-8">
+              Control what customers get when using a shared promo code, and what the code owner earns.
+            </p>
+
+            <div className="space-y-6">
+              <div>
+                <label className="text-sm text-zinc-400 block mb-2">Referrer commission (% of order subtotal)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  step={0.5}
+                  value={settings.referrerCommissionPercent}
+                  onChange={(e) => setSettings({ ...settings, referrerCommissionPercent: Number(e.target.value) })}
+                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                />
+                <p className="text-xs text-zinc-500 mt-1">Example: 5% on a $100 order = $5 commission</p>
+              </div>
+
+              <div>
+                <label className="text-sm text-zinc-400 block mb-2">Loyalty points per promo use</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={settings.referrerRewardPoints}
+                  onChange={(e) => setSettings({ ...settings, referrerRewardPoints: Number(e.target.value) })}
+                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-zinc-400 block mb-2">Customer discount ($ off when using promo code)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={settings.promoCustomerDiscount}
+                  onChange={(e) => setSettings({ ...settings, promoCustomerDiscount: Number(e.target.value) })}
+                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-zinc-400 block mb-2">Minimum order for promo codes ($)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={settings.promoMinOrder}
+                  onChange={(e) => setSettings({ ...settings, promoMinOrder: Number(e.target.value) })}
+                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                />
+              </div>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.promoFirstOrderOnly}
+                  onChange={(e) => setSettings({ ...settings, promoFirstOrderOnly: e.target.checked })}
+                  className="w-4 h-4 accent-[#00ff9d]"
+                />
+                <span className="text-sm">First order only (promo codes work on first purchase)</span>
+              </label>
+
+              <button
+                onClick={saveSettings}
+                disabled={savingSettings}
+                className="bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold disabled:opacity-50"
+              >
+                {savingSettings ? 'Saving...' : 'Save Promo Settings'}
+              </button>
+              {settingsMessage && <p className="text-sm text-[#00ff9d]">{settingsMessage}</p>}
+            </div>
+          </div>
+        )}
+
+        {tab === 'orders' && loading ? (
           <p className="text-center py-20 text-xl text-zinc-400">Loading orders...</p>
-        ) : orders.length === 0 ? (
+        ) : tab === 'orders' && orders.length === 0 ? (
           <p className="text-center py-20 text-xl text-zinc-400">No orders placed yet.</p>
-        ) : (
+        ) : tab === 'orders' ? (
           <div className="space-y-10">
             {orders.map((order: any) => (
               <div key={order.id} className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl">
@@ -191,6 +342,12 @@ export default function AdminOrders() {
                     <p className="text-sm mt-2">
                       Status: <span className="text-[#00ff9d] uppercase">{order.status || 'pending'}</span>
                     </p>
+                    {order.promoCode && (
+                      <p className="text-sm mt-1 text-zinc-400">
+                        Promo: <span className="text-[#00ff9d]">{order.promoCode}</span>
+                        {order.referrerName && ` (by ${order.referrerName})`}
+                      </p>
+                    )}
                     <p className="text-sm mt-1">
                       ID Verification:{' '}
                       <span className={`uppercase font-medium ${
@@ -248,7 +405,7 @@ export default function AdminOrders() {
               </div>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
