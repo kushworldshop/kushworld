@@ -10,11 +10,12 @@ import {
   sendPhoneVerificationCode,
 } from '@/lib/accountVerification';
 import { resolveSignupVerificationChannel } from '@/lib/signupBonus';
-import { createUser, getUserDashboard } from '@/lib/users';
+import { updateReferralCode } from '@/lib/referrals';
+import { createUser, getUserDashboard, updateUser } from '@/lib/users';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name, phone } = await request.json();
+    const { email, password, name, phone, promoCode } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json({ success: false, error: 'Email and password required' }, { status: 400 });
@@ -31,6 +32,14 @@ export async function POST(request: NextRequest) {
       name,
       phone: typeof phone === 'string' ? phone : undefined,
     });
+
+    if (typeof promoCode === 'string' && promoCode.trim()) {
+      const codeResult = await updateReferralCode(user.email, promoCode.trim(), user.name);
+      if (!codeResult.success) {
+        return NextResponse.json({ success: false, error: codeResult.error }, { status: 400 });
+      }
+      await updateUser(user.id, { referralCode: codeResult.code });
+    }
 
     const channel = resolveSignupVerificationChannel(user);
     if (channel === 'phone') {

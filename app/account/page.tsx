@@ -40,6 +40,7 @@ export default function Account() {
   const [isLogin, setIsLogin] = useState(true);
   const [signupName, setSignupName] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
+  const [signupPromoCode, setSignupPromoCode] = useState('');
 
   const [emailCode, setEmailCode] = useState('');
   const [phoneCode, setPhoneCode] = useState('');
@@ -53,6 +54,7 @@ export default function Account() {
     phone: '',
     bio: '',
     avatarUrl: '',
+    promoCode: '',
     socials: { ...emptySocials },
     address: '',
     city: '',
@@ -63,9 +65,6 @@ export default function Account() {
   const [copied, setCopied] = useState(false);
   const [copiedPromo, setCopiedPromo] = useState(false);
   const [promoTerms, setPromoTerms] = useState<PromoTerms | null>(null);
-  const [customPromoCode, setCustomPromoCode] = useState('');
-  const [savingPromo, setSavingPromo] = useState(false);
-
   const loadProfile = async () => {
     const res = await fetch('/api/users/me');
     if (!res.ok) {
@@ -86,6 +85,7 @@ export default function Account() {
       phone: profile.phone || '',
       bio: profile.bio || '',
       avatarUrl: profile.avatarUrl || '',
+      promoCode: profile.referralCode || '',
       socials: { ...emptySocials, ...profile.socials },
       address: profile.shippingAddress?.address || '',
       city: profile.shippingAddress?.city || '',
@@ -125,7 +125,13 @@ export default function Account() {
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     const body = isLogin
       ? { email, password }
-      : { email, password, name: signupName || undefined, phone: signupPhone || undefined };
+      : {
+          email,
+          password,
+          name: signupName || undefined,
+          phone: signupPhone || undefined,
+          promoCode: signupPromoCode.trim() || undefined,
+        };
 
     try {
       const res = await fetch(endpoint, {
@@ -168,22 +174,30 @@ export default function Account() {
     setError('');
 
     try {
+      const payload: Record<string, unknown> = {
+        name: profileForm.name,
+        phone: profileForm.phone,
+        bio: profileForm.bio,
+        avatarUrl: profileForm.avatarUrl,
+        socials: profileForm.socials,
+        shippingAddress: {
+          address: profileForm.address,
+          city: profileForm.city,
+          state: profileForm.state,
+          zip: profileForm.zip,
+        },
+      };
+
+      const nextPromo = profileForm.promoCode.trim().toUpperCase();
+      const currentPromo = (user?.referralCode || '').toUpperCase();
+      if (nextPromo && nextPromo !== currentPromo) {
+        payload.promoCode = nextPromo;
+      }
+
       const res = await fetch('/api/users/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: profileForm.name,
-          phone: profileForm.phone,
-          bio: profileForm.bio,
-          avatarUrl: profileForm.avatarUrl,
-          socials: profileForm.socials,
-          shippingAddress: {
-            address: profileForm.address,
-            city: profileForm.city,
-            state: profileForm.state,
-            zip: profileForm.zip,
-          },
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
@@ -269,32 +283,6 @@ export default function Account() {
     }
   };
 
-  const saveCustomPromoCode = async () => {
-    if (!customPromoCode.trim()) return;
-    setSavingPromo(true);
-    setError('');
-    setMessage('');
-    try {
-      const res = await fetch('/api/users/me', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ promoCode: customPromoCode.trim().toUpperCase() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setUser(data.user);
-        setCustomPromoCode('');
-        setMessage('Promo code updated!');
-      } else {
-        setError(data.error || 'Could not update promo code');
-      }
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
-      setSavingPromo(false);
-    }
-  };
-
   if (!user) {
     return (
       <SiteLayout>
@@ -329,6 +317,16 @@ export default function Account() {
                   onChange={(e) => setSignupPhone(e.target.value)}
                   className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
                 />
+                <input
+                  type="text"
+                  placeholder="Promo code (optional — e.g. MYNAME10)"
+                  value={signupPromoCode}
+                  onChange={(e) => setSignupPromoCode(e.target.value.toUpperCase())}
+                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4 uppercase"
+                />
+                <p className="text-xs text-zinc-500 -mt-2 mb-4">
+                  Pick your own referral code at signup, or customize it later in your account.
+                </p>
               </>
             )}
 
@@ -496,6 +494,30 @@ export default function Account() {
               />
             </div>
 
+            <h3 className="text-lg font-semibold pt-2">Your Promo Code</h3>
+            <p className="text-sm text-zinc-500 mb-4">
+              Create a custom code friends enter at checkout. You earn commission and loyalty points on each use.
+            </p>
+            <div className="grid md:grid-cols-2 gap-4 mb-2">
+              <Field
+                label="Promo code"
+                value={profileForm.promoCode}
+                onChange={(v) => setProfileForm({ ...profileForm, promoCode: v.toUpperCase() })}
+                placeholder="MY-CODE"
+              />
+              {user.referralLink && (
+                <div>
+                  <label className="text-sm text-zinc-400 mb-2 block">Share link</label>
+                  <input
+                    value={user.referralLink}
+                    readOnly
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded-2xl p-4 text-sm text-[#00ff9d]"
+                  />
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-zinc-500 mb-6">4–20 characters. Letters, numbers, and hyphens only.</p>
+
             <h3 className="text-lg font-semibold pt-2">Social Links</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <Field label="Instagram" value={profileForm.socials.instagram || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, instagram: v } })} placeholder="@yourhandle" />
@@ -608,25 +630,9 @@ export default function Account() {
               </div>
             )}
 
-            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5">
-              <p className="text-sm font-medium mb-3">Customize your promo code</p>
-              <div className="flex gap-2">
-                <input
-                  value={customPromoCode}
-                  onChange={(e) => setCustomPromoCode(e.target.value.toUpperCase())}
-                  placeholder={user.referralCode || 'MYCODE'}
-                  className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-3 text-sm uppercase"
-                />
-                <button
-                  onClick={saveCustomPromoCode}
-                  disabled={savingPromo || !customPromoCode.trim()}
-                  className="bg-zinc-800 hover:bg-zinc-700 px-5 rounded-xl text-sm font-medium disabled:opacity-40"
-                >
-                  {savingPromo ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-              <p className="text-xs text-zinc-500 mt-2">4–20 characters. Letters, numbers, and hyphens only.</p>
-            </div>
+            <p className="text-sm text-zinc-500">
+              Change your code anytime under the <button type="button" onClick={() => setTab('profile')} className="text-[#00ff9d] hover:underline">Profile</button> tab, then save.
+            </p>
 
             {user.referralLink && (
               <div className="bg-black border border-zinc-700 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-center">

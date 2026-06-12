@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { readOrders } from '@/lib/ordersStore';
 import {
+  createOrGetReferral,
   getReferralByEmail,
   getReferralLink,
   resolveReferralCommissionPercent,
   resolveReferralRewardPoints,
+  updateReferralCode,
   updateReferralCommissionByEmail,
   updateReferralRewardPointsByEmail,
 } from '@/lib/referrals';
@@ -216,6 +218,23 @@ export async function PATCH(request: NextRequest) {
           { status: 400 }
         );
       }
+    }
+
+    if (body.promoCode !== undefined) {
+      const trimmed = String(body.promoCode).trim();
+      if (!trimmed) {
+        return NextResponse.json({ success: false, error: 'Promo code cannot be empty' }, { status: 400 });
+      }
+
+      await createOrGetReferral(users[index].name, users[index].email);
+      const codeResult = await updateReferralCode(users[index].email, trimmed, users[index].name);
+      if (!codeResult.success) {
+        return NextResponse.json(
+          { success: false, error: codeResult.error || 'Failed to update promo code' },
+          { status: 400 }
+        );
+      }
+      users[index].referralCode = codeResult.code;
     }
 
     await writeUsers(users);

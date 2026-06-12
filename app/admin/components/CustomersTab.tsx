@@ -48,6 +48,7 @@ type MemberDraft = {
   bio: string;
   avatarUrl: string;
   socials: UserSocials;
+  promoCode: string;
   loyaltyPoints: number;
   lockedLoyaltyPoints: number;
   idVerified: boolean;
@@ -120,6 +121,7 @@ export default function CustomersTab() {
       bio: patch?.bio ?? user.bio ?? '',
       avatarUrl: patch?.avatarUrl ?? user.avatarUrl ?? '',
       socials: { ...emptySocials, ...user.socials, ...patch?.socials },
+      promoCode: patch?.promoCode ?? user.promoCode ?? '',
       loyaltyPoints: patch?.loyaltyPoints ?? user.loyaltyPoints,
       lockedLoyaltyPoints: patch?.lockedLoyaltyPoints ?? user.lockedLoyaltyPoints,
       idVerified: patch?.idVerified ?? user.idVerified ?? false,
@@ -171,6 +173,11 @@ export default function CustomersTab() {
       commissionPercent: draft.useDefaultCommission ? null : Number(draft.commissionPercent),
       referrerRewardPoints: draft.useDefaultRewardPoints ? null : Number(draft.referrerRewardPoints),
     };
+
+    const normalizedPromo = draft.promoCode.trim().toUpperCase();
+    if (normalizedPromo && normalizedPromo !== (user.promoCode || '').toUpperCase()) {
+      payload.promoCode = normalizedPromo;
+    }
 
     try {
       const res = await adminFetch('/api/admin/users', {
@@ -432,28 +439,37 @@ function MemberProfilePanel({
       </section>
 
       <section className="bg-black/40 border border-zinc-800 rounded-2xl p-5">
-        <SectionTitle>Commission & Promo Code</SectionTitle>
-        {user.promoCode ? (
-          <>
-            <div className="grid md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="text-sm text-zinc-400 block mb-1">Promo code</label>
-                <input
-                  value={user.promoCode}
-                  readOnly
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-[#00ff9d] font-mono"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-zinc-400 block mb-1">Referral link</label>
-                <input
-                  value={user.referralLink || ''}
-                  readOnly
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-xs text-zinc-400"
-                />
-              </div>
-            </div>
+        <SectionTitle>Promo Code & Commission</SectionTitle>
+        <p className="text-sm text-zinc-500 mb-4">
+          Members can also set their own code on their account page. Edit it here anytime.
+        </p>
+        <div className="grid md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="text-sm text-zinc-400 block mb-1">Promo code</label>
+            <input
+              value={draft.promoCode}
+              onChange={(e) => onDraftChange({ promoCode: e.target.value.toUpperCase() })}
+              placeholder="MEMBER-CODE"
+              className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 text-[#00ff9d] font-mono uppercase"
+            />
+            <p className="text-xs text-zinc-500 mt-1">4–20 characters. Letters, numbers, and hyphens only.</p>
+          </div>
+          <div>
+            <label className="text-sm text-zinc-400 block mb-1">Referral link</label>
+            <input
+              value={
+                draft.promoCode.trim()
+                  ? `https://kushworld.shop/ref/${draft.promoCode.trim().toUpperCase()}`
+                  : user.referralLink || ''
+              }
+              readOnly
+              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-xs text-zinc-400"
+            />
+          </div>
+        </div>
 
+        {draft.promoCode.trim() ? (
+          <>
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="text-sm text-zinc-400 block mb-1">Commission %</label>
@@ -515,7 +531,9 @@ function MemberProfilePanel({
             </div>
           </>
         ) : (
-          <p className="text-sm text-zinc-500">No promo code on file for this member yet.</p>
+          <p className="text-sm text-zinc-500">
+            Enter a promo code above and save to activate this member&apos;s referral link.
+          </p>
         )}
       </section>
     </div>

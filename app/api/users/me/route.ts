@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest) {
       if (!user) {
         return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
       }
-      const result = await updateReferralCode(user.email, body.promoCode);
+      const result = await updateReferralCode(user.email, body.promoCode, user.name);
       if (!result.success) {
         return NextResponse.json({ success: false, error: result.error }, { status: 400 });
       }

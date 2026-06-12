@@ -196,19 +196,25 @@ export async function recordReferralConversion(
 
 export async function updateReferralCode(
   email: string,
-  newCode: string
+  newCode: string,
+  referrerName?: string
 ): Promise<{ success: boolean; code?: string; error?: string }> {
   const normalized = normalizeCode(newCode);
   if (!/^[A-Z0-9-]{4,20}$/.test(normalized)) {
     return { success: false, error: 'Code must be 4–20 characters (letters, numbers, hyphens)' };
   }
 
-  const referrals = await readReferrals();
-  const userIndex = referrals.findIndex(
-    (r) => r.referrerEmail.toLowerCase() === email.trim().toLowerCase()
-  );
+  const normalizedEmail = email.trim().toLowerCase();
+  let referrals = await readReferrals();
+  let userIndex = referrals.findIndex((r) => r.referrerEmail.toLowerCase() === normalizedEmail);
+
   if (userIndex === -1) {
-    return { success: false, error: 'Referral record not found' };
+    await createOrGetReferral(referrerName || normalizedEmail.split('@')[0], normalizedEmail);
+    referrals = await readReferrals();
+    userIndex = referrals.findIndex((r) => r.referrerEmail.toLowerCase() === normalizedEmail);
+    if (userIndex === -1) {
+      return { success: false, error: 'Referral record not found' };
+    }
   }
 
   if (referrals.some((r, i) => i !== userIndex && r.code === normalized)) {
