@@ -6,7 +6,7 @@ import {
   sessionCookieOptions,
 } from '@/lib/auth';
 import { claimReferralPoints } from '@/lib/referrals';
-import { addLoyaltyPoints, getUserByEmail, getUserDashboard } from '@/lib/users';
+import { addLoyaltyPoints, getUserByEmail, getUserDashboard, isUserBlocked } from '@/lib/users';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +15,18 @@ export async function POST(request: NextRequest) {
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return NextResponse.json({ success: false, error: 'Invalid credentials' }, { status: 401 });
+    }
+
+    if (isUserBlocked(user)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: user.blockReason
+            ? `Account suspended: ${user.blockReason}`
+            : 'This account has been suspended. Contact support if you think this is a mistake.',
+        },
+        { status: 403 }
+      );
     }
 
     const { pointsToAdd } = await claimReferralPoints(user.email);

@@ -46,6 +46,9 @@ export interface UserProfile {
   loyaltyPoints: number;
   lockedLoyaltyPoints?: number;
   referralCode?: string;
+  blocked?: boolean;
+  blockedAt?: string;
+  blockReason?: string;
   activeSpinPrize?: SpinPrize;
   shippingAddress?: {
     address: string;
@@ -123,6 +126,38 @@ export async function writeUsers(users: UserProfile[]) {
 export async function getUserById(id: string): Promise<UserProfile | null> {
   const users = await readUsers();
   return users.find((u) => u.id === id) ?? null;
+}
+
+export function isUserBlocked(user: Pick<UserProfile, 'blocked'> | null | undefined): boolean {
+  return !!user?.blocked;
+}
+
+export async function deleteUserById(userId: string): Promise<boolean> {
+  const users = await readUsers();
+  const next = users.filter((user) => user.id !== userId);
+  if (next.length === users.length) return false;
+  await writeUsers(next);
+  return true;
+}
+
+export async function setUserBlocked(
+  userId: string,
+  blocked: boolean,
+  blockReason?: string
+): Promise<UserProfile | null> {
+  const users = await readUsers();
+  const index = users.findIndex((user) => user.id === userId);
+  if (index === -1) return null;
+
+  users[index] = {
+    ...users[index],
+    blocked,
+    blockedAt: blocked ? new Date().toISOString() : undefined,
+    blockReason: blocked ? blockReason?.trim() || undefined : undefined,
+  };
+
+  await writeUsers(users);
+  return users[index];
 }
 
 export async function getUserByEmail(email: string): Promise<UserProfile | null> {
@@ -313,7 +348,7 @@ export async function markUserSpinPrizeUsed(userId: string, prizeId: string): Pr
 
 export async function getUserDashboard(userId: string): Promise<PublicUserProfile | null> {
   const user = await getUserById(userId);
-  if (!user) return null;
+  if (!user || isUserBlocked(user)) return null;
 
   const referral = await getReferralByEmail(user.email);
   let referralStats: PublicUserProfile['referralStats'];

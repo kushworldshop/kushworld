@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { cookies } from 'next/headers';
+import { getUserById, isUserBlocked } from '@/lib/users';
 
 const SESSION_COOKIE = 'kushworld_session';
 const SESSION_DAYS = 30;
@@ -63,5 +64,12 @@ export async function getSessionUserId(): Promise<string | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return verifySessionToken(token)?.userId ?? null;
+
+  const session = verifySessionToken(token);
+  if (!session) return null;
+
+  const user = await getUserById(session.userId);
+  if (!user || isUserBlocked(user)) return null;
+
+  return session.userId;
 }

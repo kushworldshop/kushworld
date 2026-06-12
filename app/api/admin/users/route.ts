@@ -13,7 +13,13 @@ import {
 } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
 import { tryClaimSignupBonus } from '@/lib/accountVerification';
-import { getRedeemableLoyaltyPoints, readUsers, writeUsers, type UserSocials } from '@/lib/users';
+import {
+  deleteUserById,
+  getRedeemableLoyaltyPoints,
+  readUsers,
+  writeUsers,
+  type UserSocials,
+} from '@/lib/users';
 
 export interface AdminUserSummary {
   id: string;
@@ -28,6 +34,9 @@ export interface AdminUserSummary {
   signupBonusClaimed?: boolean;
   emailVerified?: boolean;
   phoneVerified?: boolean;
+  blocked?: boolean;
+  blockedAt?: string;
+  blockReason?: string;
   bio?: string;
   avatarUrl?: string;
   socials?: UserSocials;
@@ -103,6 +112,9 @@ async function toAdminSummary(
     signupBonusClaimed: user.signupBonusClaimed,
     emailVerified: !!user.emailVerifiedAt,
     phoneVerified: !!user.phoneVerifiedAt,
+    blocked: !!user.blocked,
+    blockedAt: user.blockedAt,
+    blockReason: user.blockReason,
     bio: user.bio,
     avatarUrl: user.avatarUrl,
     socials: user.socials ?? {},
@@ -203,6 +215,19 @@ export async function PATCH(request: NextRequest) {
           : body.phoneVerified === false
             ? undefined
             : current.phoneVerifiedAt,
+      blocked: body.blocked !== undefined ? Boolean(body.blocked) : current.blocked,
+      blockedAt:
+        body.blocked === true
+          ? current.blockedAt || new Date().toISOString()
+          : body.blocked === false
+            ? undefined
+            : current.blockedAt,
+      blockReason:
+        body.blocked === false
+          ? undefined
+          : body.blockReason !== undefined
+            ? String(body.blockReason).trim() || undefined
+            : current.blockReason,
     };
 
     if (body.commissionPercent !== undefined) {
@@ -262,5 +287,36 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, user });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to update user' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const userId = request.nextUrl.searchParams.get('id')?.trim();
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'User id required' }, { status: 400 });
+    }
+
+    const users = await readUsers();
+    const user = users.find((entry) => entry.id === userId);
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+
+    const deleted = await deleteUserById(userId);
+    if (!deleted) {
+      return NextResponse.json({ success: false, error: 'Failed to delete user' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Deleted member ${user.email}`,
+    });
+  } catch {
+    return NextResponse.json({ success: false, error: 'Failed to delete user' }, { status: 500 });
   }
 }

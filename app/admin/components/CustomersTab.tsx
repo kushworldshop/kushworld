@@ -17,6 +17,9 @@ interface AdminUser {
   signupBonusClaimed?: boolean;
   emailVerified?: boolean;
   phoneVerified?: boolean;
+  blocked?: boolean;
+  blockedAt?: string;
+  blockReason?: string;
   bio?: string;
   avatarUrl?: string;
   socials?: UserSocials;
@@ -55,6 +58,8 @@ type MemberDraft = {
   emailVerified: boolean;
   phoneVerified: boolean;
   signupBonusClaimed: boolean;
+  blocked: boolean;
+  blockReason: string;
   useDefaultCommission: boolean;
   commissionPercent: string;
   useDefaultRewardPoints: boolean;
@@ -75,6 +80,7 @@ export default function CustomersTab() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, Partial<MemberDraft>>>({});
 
@@ -130,6 +136,8 @@ export default function CustomersTab() {
       emailVerified: patch?.emailVerified ?? user.emailVerified ?? false,
       phoneVerified: patch?.phoneVerified ?? user.phoneVerified ?? false,
       signupBonusClaimed: patch?.signupBonusClaimed ?? user.signupBonusClaimed ?? false,
+      blocked: patch?.blocked ?? user.blocked ?? false,
+      blockReason: patch?.blockReason ?? user.blockReason ?? '',
       useDefaultCommission: patch?.useDefaultCommission ?? !hasCommissionOverride,
       commissionPercent:
         patch?.commissionPercent !== undefined
@@ -176,6 +184,8 @@ export default function CustomersTab() {
       emailVerified: draft.emailVerified,
       phoneVerified: draft.phoneVerified,
       signupBonusClaimed: draft.signupBonusClaimed,
+      blocked: draft.blocked,
+      blockReason: draft.blockReason,
       commissionPercent: draft.useDefaultCommission ? null : Number(draft.commissionPercent),
       referrerRewardPoints: draft.useDefaultRewardPoints ? null : Number(draft.referrerRewardPoints),
     };
@@ -204,6 +214,37 @@ export default function CustomersTab() {
       setMessage(error instanceof Error ? error.message : 'Failed to save member');
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const deleteUser = async (user: AdminUser) => {
+    const confirmed = window.confirm(
+      `Delete ${user.email} permanently?\n\nThis removes their account, login access, and loyalty balance. Order history is kept.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(user.id);
+    setMessage('');
+
+    try {
+      const res = await adminFetch(`/api/admin/users?id=${encodeURIComponent(user.id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+
+      setUsers((prev) => prev.filter((item) => item.id !== user.id));
+      setEdits((prev) => {
+        const next = { ...prev };
+        delete next[user.id];
+        return next;
+      });
+      setSelectedId((current) => (current === user.id ? null : current));
+      setMessage(data.message || `Deleted ${user.email}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to delete member');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -242,8 +283,12 @@ export default function CustomersTab() {
                   onClick={() => setSelectedId(user.id)}
                   className={`w-full text-left rounded-2xl px-4 py-3 border transition ${
                     active
-                      ? 'border-[#00ff9d] bg-[#00ff9d]/10'
-                      : 'border-zinc-800 bg-black/40 hover:border-zinc-600'
+                      ? user.blocked
+                        ? 'border-red-500 bg-red-500/10'
+                        : 'border-[#00ff9d] bg-[#00ff9d]/10'
+                      : user.blocked
+                        ? 'border-red-900 bg-red-950/30 hover:border-red-700'
+                        : 'border-zinc-800 bg-black/40 hover:border-zinc-600'
                   }`}
                 >
                   <p className="font-medium truncate">{user.name}</p>
@@ -251,6 +296,7 @@ export default function CustomersTab() {
                   <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-zinc-400">
                     <span>{user.loyaltyPoints.toLocaleString()} pts</span>
                     <span>{user.orderCount} orders</span>
+                    {user.blocked && <span className="text-red-400">Blocked</span>}
                     {user.promoCode && <span className="text-[#00ff9d]">{user.promoCode}</span>}
                   </div>
                 </button>
@@ -272,10 +318,12 @@ export default function CustomersTab() {
               user={selectedUser}
               draft={getDraft(selectedUser)}
               saving={savingId === selectedUser.id}
+              deleting={deletingId === selectedUser.id}
               message={message}
               onDraftChange={(patch) => updateDraft(selectedUser.id, patch)}
               onAdjustPoints={(delta) => adjustPoints(selectedUser, delta)}
               onSave={() => saveUser(selectedUser)}
+              onDelete={() => deleteUser(selectedUser)}
             />
           )}
         </div>
@@ -288,18 +336,22 @@ function MemberProfilePanel({
   user,
   draft,
   saving,
+  deleting,
   message,
   onDraftChange,
   onAdjustPoints,
   onSave,
+  onDelete,
 }: {
   user: AdminUser;
   draft: MemberDraft;
   saving: boolean;
+  deleting: boolean;
   message: string;
   onDraftChange: (patch: Partial<MemberDraft>) => void;
   onAdjustPoints: (delta: number) => void;
   onSave: () => void;
+  onDelete: () => void;
 }) {
   const redeemable = Math.max(0, draft.loyaltyPoints - draft.lockedLoyaltyPoints);
 
@@ -318,18 +370,59 @@ function MemberProfilePanel({
             {user.phoneVerified && <Badge label="Phone verified" tone="green" />}
             {user.idVerified && <Badge label="ID verified" tone="green" />}
             {user.signupBonusClaimed && <Badge label="Signup bonus" tone="amber" />}
+            {draft.blocked && <Badge label="Blocked" tone="red" />}
           </div>
         </div>
-        <button
-          onClick={onSave}
-          disabled={saving}
-          className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : 'Save Profile'}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={onSave}
+            disabled={saving || deleting}
+            className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save Profile'}
+          </button>
+          <button
+            onClick={onDelete}
+            disabled={saving || deleting}
+            className="bg-red-950 border border-red-800 text-red-300 px-6 py-3 rounded-xl font-bold disabled:opacity-50 hover:bg-red-900"
+          >
+            {deleting ? 'Deleting...' : 'Delete Member'}
+          </button>
+        </div>
       </div>
 
-      {message && <p className="text-sm text-[#00ff9d]">{message}</p>}
+      {message && (
+        <p className={`text-sm ${message.toLowerCase().includes('fail') || message.toLowerCase().includes('error') ? 'text-red-400' : 'text-[#00ff9d]'}`}>
+          {message}
+        </p>
+      )}
+
+      <section className="bg-red-950/20 border border-red-900/50 rounded-2xl p-5">
+        <SectionTitle>Access Control</SectionTitle>
+        <p className="text-sm text-zinc-500 mb-4">
+          Blocked members cannot log in or use account features. Their session is invalidated immediately after you save.
+        </p>
+        <Checkbox
+          label="Block site access"
+          checked={draft.blocked}
+          onChange={(v) => onDraftChange({ blocked: v })}
+        />
+        {draft.blocked && (
+          <div className="mt-4">
+            <Field
+              label="Block reason (optional — shown to member at login)"
+              value={draft.blockReason}
+              onChange={(v) => onDraftChange({ blockReason: v })}
+              placeholder="Policy violation, chargeback, etc."
+            />
+            {user.blockedAt && (
+              <p className="text-xs text-zinc-500 mt-2">
+                Blocked since {new Date(user.blockedAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
 
       <section>
         <SectionTitle>Basic Info</SectionTitle>
@@ -633,7 +726,12 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
-function Badge({ label, tone }: { label: string; tone: 'green' | 'amber' }) {
-  const colors = tone === 'green' ? 'text-green-400 border-green-800' : 'text-amber-400 border-amber-800';
+function Badge({ label, tone }: { label: string; tone: 'green' | 'amber' | 'red' }) {
+  const colors =
+    tone === 'green'
+      ? 'text-green-400 border-green-800'
+      : tone === 'red'
+        ? 'text-red-400 border-red-800'
+        : 'text-amber-400 border-amber-800';
   return <span className={`px-2 py-1 rounded-full border text-xs ${colors}`}>{label}</span>;
 }
