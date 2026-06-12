@@ -14,6 +14,24 @@ export function isSmsVerificationConfigured(): boolean {
   return !!(TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM);
 }
 
+function parseTwilioError(body: string): string {
+  try {
+    const data = JSON.parse(body) as { message?: string; code?: number };
+    if (data.message) {
+      if (data.code === 21608) {
+        return 'This number is not verified on your Twilio trial account. Add it under Verified Caller IDs in Twilio.';
+      }
+      if (data.code === 21610) {
+        return 'This number is on the do-not-contact list and cannot receive SMS.';
+      }
+      return data.message;
+    }
+  } catch {
+    // fall through
+  }
+  return 'Failed to send SMS';
+}
+
 export async function sendVerificationSms(
   to: string,
   code: string
@@ -46,7 +64,7 @@ export async function sendVerificationSms(
     if (!res.ok) {
       const err = await res.text();
       console.error('Twilio error:', err);
-      return { sent: false, error: 'Failed to send SMS' };
+      return { sent: false, error: parseTwilioError(err) };
     }
 
     return { sent: true };

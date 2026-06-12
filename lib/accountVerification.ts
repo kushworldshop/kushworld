@@ -1,7 +1,11 @@
 import { addLoyaltyPoints, getUserById, readUsers, writeUsers, type UserProfile } from '@/lib/users';
 import { isEmailVerificationConfigured, sendVerificationEmail } from '@/lib/email';
 import { isSmsVerificationConfigured, sendVerificationSms } from '@/lib/sms';
-import { isSignupChannelVerified, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
+import {
+  getSignupVerificationChannel,
+  isSignupChannelVerified,
+  SIGNUP_BONUS_POINTS,
+} from '@/lib/signupBonus';
 
 const CODE_TTL_MS = 15 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -238,12 +242,20 @@ export async function handlePhoneChange(userId: string, newPhone: string): Promi
   const previous = user.phone ? normalizePhone(user.phone) : '';
 
   if (normalized !== previous) {
+    const trimmed = newPhone.trim();
+    const canSwitchToPhone =
+      !user.signupBonusClaimed &&
+      !user.emailVerifiedAt &&
+      user.signupVerificationChannel === 'email' &&
+      getSignupVerificationChannel(trimmed) === 'phone';
+
     await updateUserRecord(userId, (u) => ({
       ...u,
-      phone: newPhone.trim(),
+      phone: trimmed,
       phoneVerifiedAt: undefined,
       pendingPhoneCode: undefined,
       pendingPhoneCodeExp: undefined,
+      ...(canSwitchToPhone ? { signupVerificationChannel: 'phone' as const } : {}),
     }));
   }
 }
