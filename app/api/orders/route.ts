@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
         promoDiscount: promoMeta.promoDiscount,
         loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
         shipping: body.shipping,
+        shippingCarrier: body.shippingCarrier,
         spinPrizeId: body.spinPrizeId,
       });
     } catch (err) {
@@ -129,6 +130,8 @@ export async function POST(request: NextRequest) {
     const {
       discount,
       shipping,
+      shippingCarrier,
+      shippingMethod,
       total,
       loyaltyPointsUsed,
       loyaltyDiscount,
@@ -168,6 +171,8 @@ export async function POST(request: NextRequest) {
       referrerName: promoMeta.referrerName,
       discount,
       shipping,
+      shippingCarrier,
+      shippingMethod,
       total,
       email,
       name: customer.name ?? body.name,

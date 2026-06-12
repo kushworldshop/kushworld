@@ -11,7 +11,10 @@ import {
   getSeoDescription,
   productJsonLd,
 } from '@/lib/seo';
-import { getProductBySlug, getProductSlug, type Product } from '@/lib/products';
+import { getProductSlug, type Product } from '@/lib/products';
+import { getProductBySlug, getProducts } from '@/lib/productCatalog';
+
+export const dynamic = 'force-dynamic';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -27,7 +30,7 @@ function getCategoryLabel(product: Product): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) return { title: 'Product Not Found' };
 
   const image = product.image.startsWith('http') ? product.image : absoluteUrl(product.image);
@@ -48,13 +51,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export async function generateStaticParams() {
-  const { products, getProductSlug } = await import('@/lib/products');
+  const products = await getProducts();
   return products.map((p) => ({ slug: getProductSlug(p) }));
 }
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) notFound();
 
   const productPath = `/products/${getProductSlug(product)}`;

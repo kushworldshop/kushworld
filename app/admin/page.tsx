@@ -4,7 +4,20 @@ import { useState, useEffect } from 'react';
 
 const ADMIN_PASSWORD = "kushworld2026"; // Change this anytime you want
 
-type AdminTab = 'orders' | 'promo';
+type AdminTab = 'orders' | 'promo' | 'products';
+
+interface AdminProduct {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  description?: string;
+  category: string;
+  hasOverride?: boolean;
+  baseName?: string;
+  basePrice?: number;
+  baseImage?: string;
+}
 
 interface SiteSettings {
   referrerCommissionPercent: number;
@@ -24,12 +37,20 @@ export default function AdminOrders() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [settingsMessage, setSettingsMessage] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
+  const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([]);
+  const [productEdits, setProductEdits] = useState<Record<string, Partial<AdminProduct>>>({});
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategory, setProductCategory] = useState('all');
+  const [productsMessage, setProductsMessage] = useState('');
+  const [savingProductId, setSavingProductId] = useState<string | null>(null);
+  const [loadingProducts, setLoadingProducts] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem('adminAuthenticated') === 'true') {
       setAuthenticated(true);
       loadOrders();
       loadSettings();
+      loadProducts();
     } else {
       setLoading(false);
     }
@@ -42,6 +63,7 @@ export default function AdminOrders() {
       setError('');
       loadOrders();
       loadSettings();
+      loadProducts();
     } else {
       setError('Incorrect password');
     }
@@ -77,6 +99,75 @@ export default function AdminOrders() {
       }
     } catch (e) {
       console.error('Failed to load settings');
+    }
+  };
+
+  const loadProducts = async () => {
+    setLoadingProducts(true);
+    try {
+      const res = await fetch('/api/admin/products', {
+        headers: { 'x-admin-password': ADMIN_PASSWORD },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminProducts(data.products || []);
+      }
+    } catch (e) {
+      console.error('Failed to load products');
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const getProductDraft = (product: AdminProduct) => ({
+    name: productEdits[product.id]?.name ?? product.name,
+    price: productEdits[product.id]?.price ?? product.price,
+    image: productEdits[product.id]?.image ?? product.image,
+    description: productEdits[product.id]?.description ?? product.description ?? '',
+  });
+
+  const updateProductDraft = (id: string, field: keyof AdminProduct, value: string | number) => {
+    setProductEdits((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value },
+    }));
+  };
+
+  const saveProduct = async (product: AdminProduct) => {
+    const draft = getProductDraft(product);
+    setSavingProductId(product.id);
+    setProductsMessage('');
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': ADMIN_PASSWORD,
+        },
+        body: JSON.stringify({
+          id: product.id,
+          name: draft.name,
+          price: draft.price,
+          image: draft.image,
+          description: draft.description,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProductsMessage(`Saved ${draft.name}`);
+        setProductEdits((prev) => {
+          const next = { ...prev };
+          delete next[product.id];
+          return next;
+        });
+        await loadProducts();
+      } else {
+        setProductsMessage(data.error || 'Failed to save product');
+      }
+    } catch {
+      setProductsMessage('Failed to save product');
+    } finally {
+      setSavingProductId(null);
     }
   };
 
@@ -206,6 +297,12 @@ export default function AdminOrders() {
           >
             Promo & Commission
           </button>
+          <button
+            onClick={() => setTab('products')}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'products' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Products
+          </button>
         </div>
 
         {tab === 'promo' && settings && (
@@ -287,6 +384,123 @@ export default function AdminOrders() {
           </div>
         )}
 
+        {tab === 'products' && (
+          <div className="mb-10">
+            <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
+              <h2 className="text-2xl font-bold mb-2">Product Catalog</h2>
+              <p className="text-zinc-400 text-sm mb-6">
+                Edit names, prices, image URLs, and descriptions. Changes go live immediately on the shop.
+                Image paths usually look like <code className="text-[#00ff9d]">/products/your-image.jpg</code>
+              </p>
+              <div className="flex flex-wrap gap-4 mb-4">
+                <input
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="Search products..."
+                  className="flex-1 min-w-[220px] bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                />
+                <select
+                  value={productCategory}
+                  onChange={(e) => setProductCategory(e.target.value)}
+                  className="bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                >
+                  <option value="all">All categories</option>
+                  <option value="vapes">Vapes</option>
+                  <option value="concentrates">Concentrates</option>
+                  <option value="flower">Flower</option>
+                  <option value="mushrooms">Mushrooms</option>
+                  <option value="merch">Merch</option>
+                </select>
+              </div>
+              {productsMessage && <p className="text-sm text-[#00ff9d] mb-4">{productsMessage}</p>}
+            </div>
+
+            {loadingProducts ? (
+              <p className="text-center py-20 text-zinc-400">Loading products...</p>
+            ) : (
+              <div className="space-y-6">
+                {adminProducts
+                  .filter((product) => productCategory === 'all' || product.category === productCategory)
+                  .filter((product) => {
+                    const q = productSearch.toLowerCase().trim();
+                    if (!q) return true;
+                    return (
+                      product.name.toLowerCase().includes(q) ||
+                      product.id.includes(q) ||
+                      product.category.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((product) => {
+                    const draft = getProductDraft(product);
+                    const dirty = !!productEdits[product.id];
+                    return (
+                      <div key={product.id} className="bg-zinc-900 border border-zinc-700 p-6 rounded-3xl">
+                        <div className="flex flex-col lg:flex-row gap-6">
+                          <img
+                            src={draft.image}
+                            alt={draft.name}
+                            className="w-28 h-28 object-cover rounded-2xl border border-zinc-700"
+                          />
+                          <div className="flex-1 grid md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs text-zinc-500 block mb-1">Name</label>
+                              <input
+                                value={draft.name}
+                                onChange={(e) => updateProductDraft(product.id, 'name', e.target.value)}
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-zinc-500 block mb-1">Price ($)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={draft.price}
+                                onChange={(e) => updateProductDraft(product.id, 'price', Number(e.target.value))}
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="text-xs text-zinc-500 block mb-1">Image URL</label>
+                              <input
+                                value={draft.image}
+                                onChange={(e) => updateProductDraft(product.id, 'image', e.target.value)}
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="text-xs text-zinc-500 block mb-1">Description</label>
+                              <textarea
+                                value={draft.description}
+                                onChange={(e) => updateProductDraft(product.id, 'description', e.target.value)}
+                                rows={3}
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">
+                          <div className="text-xs text-zinc-500">
+                            ID: {product.id} · {product.category}
+                            {product.hasOverride && <span className="text-[#00ff9d] ml-2">Customized</span>}
+                          </div>
+                          <button
+                            onClick={() => saveProduct(product)}
+                            disabled={savingProductId === product.id}
+                            className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-medium disabled:opacity-50"
+                          >
+                            {savingProductId === product.id ? 'Saving...' : dirty ? 'Save Changes' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === 'orders' && loading ? (
           <p className="text-center py-20 text-xl text-zinc-400">Loading orders...</p>
         ) : tab === 'orders' && orders.length === 0 ? (
@@ -342,6 +556,11 @@ export default function AdminOrders() {
                     <p className="text-sm mt-2">
                       Status: <span className="text-[#00ff9d] uppercase">{order.status || 'pending'}</span>
                     </p>
+                    {order.shippingMethod && (
+                      <p className="text-sm mt-1 text-zinc-400">
+                        Shipping: <span className="text-white">{order.shippingMethod}</span>
+                      </p>
+                    )}
                     {order.promoCode && (
                       <p className="text-sm mt-1 text-zinc-400">
                         Promo: <span className="text-[#00ff9d]">{order.promoCode}</span>

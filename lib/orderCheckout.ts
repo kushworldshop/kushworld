@@ -1,4 +1,4 @@
-import { calculateShipping } from '@/lib/checkout';
+import { calculateShipping, getShippingLabel, type ShippingCarrier } from '@/lib/checkout';
 import { computeLoyaltyDiscount } from '@/lib/loyalty';
 import { getSessionUserId } from '@/lib/auth';
 import { validateSpinPrizeForCheckout } from '@/lib/spinWheel';
@@ -13,6 +13,8 @@ export interface ResolvedOrderTotals {
   freeTshirt: boolean;
   discount: number;
   shipping: number;
+  shippingCarrier: ShippingCarrier;
+  shippingMethod: string;
   total: number;
 }
 
@@ -21,6 +23,7 @@ export async function resolveOrderTotals(input: {
   promoDiscount?: number;
   loyaltyPointsUsed?: number;
   shipping?: number;
+  shippingCarrier?: ShippingCarrier;
   spinPrizeId?: string;
 }): Promise<ResolvedOrderTotals> {
   const subtotal = input.subtotal ?? 0;
@@ -51,7 +54,8 @@ export async function resolveOrderTotals(input: {
   );
 
   const discount = Math.min(subtotal, promoDiscount + loyaltyDiscount + spinDiscount);
-  let shipping = input.shipping ?? calculateShipping(subtotal);
+  const shippingCarrier = input.shippingCarrier ?? 'usps';
+  let shipping = input.shipping ?? calculateShipping(subtotal, shippingCarrier);
   if (freeShippingFromPrize) {
     shipping = 0;
   }
@@ -67,6 +71,8 @@ export async function resolveOrderTotals(input: {
     freeTshirt,
     discount,
     shipping,
+    shippingCarrier,
+    shippingMethod: getShippingLabel(shippingCarrier),
     total,
   };
 }

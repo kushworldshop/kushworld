@@ -8,10 +8,13 @@ import Image from 'next/image';
 import CreditCardForm, { tokenizeCard } from '@/app/components/CreditCardForm';
 import SiteLayout from '@/app/components/SiteLayout';
 import {
+  calculateShipping,
   calculateTotals,
+  getShippingOptions,
   MIN_ORDER_AMOUNT,
   RESTRICTED_STATES,
   FREE_SHIPPING_THRESHOLD,
+  type ShippingCarrier,
 } from '@/lib/checkout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { useAgeAccess } from '@/lib/useAgeAccess';
@@ -78,6 +81,8 @@ export default function Checkout() {
   } | null>(null);
 
   const btcAddress = "32Un3zH14ovKpSyfLWtk6pVex69CmSYVjp";
+
+  const [shippingCarrier, setShippingCarrier] = useState<ShippingCarrier>('usps');
 
   const [customerInfo, setCustomerInfo] = useState({
     name: '', email: '', address: '', city: '', state: '', zip: '', phone: ''
@@ -186,14 +191,18 @@ export default function Checkout() {
   const isFirstOrder = customerInfo.email
     ? !localStorage.getItem(`ordered_${customerInfo.email}`)
     : true;
-  const baseTotals = calculateTotals(sub, discount);
-  const shipping = spinPreview.freeShipping ? 0 : baseTotals.shipping;
+  const shippingOptions = getShippingOptions(sub);
+  const selectedShipping = shippingOptions.find((option) => option.id === shippingCarrier) ?? shippingOptions[0];
+  const baseTotals = calculateTotals(sub, discount, shippingCarrier);
+  const shipping = spinPreview.freeShipping ? 0 : calculateShipping(sub, shippingCarrier);
   const total = Math.max(0, sub - discount + shipping);
   const totals = {
     ...baseTotals,
     shipping,
     total,
     freeShipping: shipping === 0 && sub > 0,
+    shippingCarrier,
+    shippingLabel: selectedShipping.label,
   };
 
   useEffect(() => {
@@ -366,6 +375,7 @@ export default function Checkout() {
           isFirstOrder,
           discount,
           shipping: totals.shipping,
+          shippingCarrier,
           total: totals.total,
           opaqueData,
         }),
@@ -400,6 +410,7 @@ export default function Checkout() {
       isFirstOrder,
       discount,
       shipping: totals.shipping,
+      shippingCarrier,
       total: totals.total,
       paymentMethod,
     };
@@ -556,9 +567,12 @@ export default function Checkout() {
                   </span>
                 </div>
               )}
-              <div className="flex justify-between"><span>Shipping</span><span>{totals.freeShipping ? 'FREE' : `$${totals.shipping.toFixed(2)}`}</span></div>
+              <div className="flex justify-between">
+                <span>Shipping ({totals.shippingLabel})</span>
+                <span>{totals.freeShipping ? 'FREE' : `$${totals.shipping.toFixed(2)}`}</span>
+              </div>
               <div className="flex justify-between font-bold text-xl pt-2"><span>Total</span><span className="text-[#00ff9d]">${totals.total.toFixed(2)}</span></div>
-              {sub < FREE_SHIPPING_THRESHOLD && <p className="text-xs text-zinc-500">Free shipping at ${FREE_SHIPPING_THRESHOLD}+</p>}
+              {sub < FREE_SHIPPING_THRESHOLD && <p className="text-xs text-zinc-500">Free shipping at ${FREE_SHIPPING_THRESHOLD}+ on either carrier</p>}
             </div>
           </div>
 
@@ -572,7 +586,38 @@ export default function Checkout() {
               <input type="text" name="city" placeholder="City" value={customerInfo.city} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl" required />
               <input type="text" name="state" placeholder="State" value={customerInfo.state} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl" required />
             </div>
-            <input type="text" name="zip" placeholder="ZIP Code" value={customerInfo.zip} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
+            <input type="text" name="zip" placeholder="ZIP Code" value={customerInfo.zip} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-6" required />
+
+            <h3 className="text-lg font-semibold mb-3">Shipping Method</h3>
+            <div className="space-y-3 mb-6">
+              {shippingOptions.map((option) => (
+                <label
+                  key={option.id}
+                  className={`flex items-center justify-between gap-4 p-4 rounded-2xl border cursor-pointer transition ${
+                    shippingCarrier === option.id
+                      ? 'border-[#00ff9d] bg-[#00ff9d]/10'
+                      : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="shippingCarrier"
+                      checked={shippingCarrier === option.id}
+                      onChange={() => setShippingCarrier(option.id)}
+                      className="mt-1 accent-[#00ff9d]"
+                    />
+                    <div>
+                      <p className="font-medium">{option.label}</p>
+                      <p className="text-xs text-zinc-400">{option.eta}</p>
+                    </div>
+                  </div>
+                  <span className="font-semibold text-[#00ff9d]">
+                    {option.rate === 0 ? 'FREE' : `$${option.rate.toFixed(2)}`}
+                  </span>
+                </label>
+              ))}
+            </div>
 
             <div className="flex gap-2 mb-6">
               <input

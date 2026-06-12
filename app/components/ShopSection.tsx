@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProductCard from './ProductCard';
-import { products, searchProducts } from '@/lib/products';
+import { getProductDescription, type Product } from '@/lib/products';
 
 const filters = [
   { id: 'all', label: 'All' },
@@ -39,6 +39,18 @@ export default function ShopSection({
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('name-asc');
   const [maxPrice, setMaxPrice] = useState(2000);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.products) setProducts(data.products);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingProducts(false));
+  }, []);
 
   useEffect(() => {
     const q = searchParams.get('q');
@@ -74,7 +86,15 @@ export default function ShopSection({
   const visibleFilters = merchOnly ? filters.filter((f) => f.id === 'merch') : filters;
 
   const filteredProducts = useMemo(() => {
-    let result = searchQuery ? searchProducts(searchQuery) : [...products];
+    const q = searchQuery.toLowerCase().trim();
+    let result = q
+      ? products.filter(
+          (product) =>
+            product.name.toLowerCase().includes(q) ||
+            product.category.toLowerCase().includes(q) ||
+            getProductDescription(product).toLowerCase().includes(q)
+        )
+      : [...products];
 
     if (merchOnly) {
       result = result.filter((p) => p.category === 'merch');
@@ -94,7 +114,7 @@ export default function ShopSection({
     });
 
     return result;
-  }, [activeFilter, searchQuery, sortBy, maxPrice, merchOnly]);
+  }, [activeFilter, searchQuery, sortBy, maxPrice, merchOnly, products]);
 
   return (
     <section id="shop" className="py-16 bg-black">
@@ -155,7 +175,9 @@ export default function ShopSection({
           )}
         </div>
 
-        {filteredProducts.length === 0 ? (
+        {loadingProducts ? (
+          <p className="text-center text-zinc-400 py-20">Loading products...</p>
+        ) : filteredProducts.length === 0 ? (
           <p className="text-center text-zinc-400 py-20">No products match your filters.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
