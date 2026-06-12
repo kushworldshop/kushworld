@@ -8,7 +8,9 @@ import { useAgeAccess } from '@/lib/useAgeAccess';
 
 export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const totalItems = useCartStore((state) => state.totalItems());
-  const points = useLoyaltyStore((state) => state.points);
+  const localPoints = useLoyaltyStore((state) => state.points);
+  const [serverPoints, setServerPoints] = useState<number | null>(null);
+  const points = serverPoints ?? localPoints;
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,7 +19,19 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const { isMerchOnly } = useAgeAccess();
 
   useEffect(() => {
-    setIsLoggedIn(!!localStorage.getItem('currentUser'));
+    fetch('/api/users/me')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.user) {
+          setIsLoggedIn(true);
+          setServerPoints(data.user.loyaltyPoints);
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+        } else {
+          setServerPoints(null);
+          setIsLoggedIn(!!localStorage.getItem('currentUser'));
+        }
+      })
+      .catch(() => setIsLoggedIn(!!localStorage.getItem('currentUser')));
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -66,6 +80,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               {!isMerchOnly && <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>}
               <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
               <Link href="/cart" className="hover:text-[#00ff9d] transition">Cart</Link>
+              <Link href="/account" className="hover:text-[#00ff9d] transition">Account</Link>
             </div>
 
             <div className="flex items-center gap-4">
@@ -111,7 +126,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               {!isMerchOnly && <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>}
               <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
               <Link href="/cart" className="block hover:text-[#00ff9d]">Cart</Link>
-              <Link href="/account" className="block hover:text-[#00ff9d]">Account</Link>
+              <Link href="/account" className="block hover:text-[#00ff9d]">My Account</Link>
             </div>
           )}
         </div>

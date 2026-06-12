@@ -7,6 +7,9 @@ import { sendOrderConfirmation } from '@/lib/email';
 import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { recordReferralConversion } from '@/lib/referrals';
+import { creditReferrerForConversion } from '@/lib/referralRewards';
+import { getSessionUserId } from '@/lib/auth';
+import { awardPurchaseLoyalty } from '@/lib/loyalty';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -137,6 +140,12 @@ export async function POST(request: NextRequest) {
 
     if (body.referralCode) {
       await recordReferralConversion(body.referralCode, newOrder.id);
+      await creditReferrerForConversion(body.referralCode);
+    }
+
+    const userId = await getSessionUserId();
+    if (userId) {
+      await awardPurchaseLoyalty(userId, subtotal);
     }
 
     if (email) {

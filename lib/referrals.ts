@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { MIN_ORDER_AMOUNT } from '@/lib/checkout';
-import { REFERRAL_DISCOUNT, REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
+import { REFERRAL_DISCOUNT, REFERRER_COMMISSION_USD, REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
 
 export { REFERRAL_DISCOUNT, REFERRER_REWARD_POINTS };
 
@@ -14,6 +14,7 @@ export interface Referral {
   clicks: number;
   conversions: number;
   pointsClaimed: number;
+  commissionEarned: number;
   createdAt: string;
 }
 
@@ -100,6 +101,7 @@ export async function createOrGetReferral(
     clicks: 0,
     conversions: 0,
     pointsClaimed: 0,
+    commissionEarned: 0,
     createdAt: new Date().toISOString(),
   };
 
@@ -145,16 +147,19 @@ export function calculateReferralDiscount(
 export async function recordReferralConversion(
   code: string,
   orderId: string
-): Promise<void> {
+): Promise<Referral | null> {
   const referrals = await readReferrals();
   const normalized = normalizeCode(code);
   const index = referrals.findIndex((r) => r.code === normalized);
 
-  if (index === -1) return;
+  if (index === -1) return null;
 
   referrals[index].conversions += 1;
+  referrals[index].commissionEarned =
+    (referrals[index].commissionEarned ?? 0) + REFERRER_COMMISSION_USD;
   await writeReferrals(referrals);
   console.log(`Referral conversion: ${normalized} -> order ${orderId}`);
+  return referrals[index];
 }
 
 export async function claimReferralPoints(email: string): Promise<{

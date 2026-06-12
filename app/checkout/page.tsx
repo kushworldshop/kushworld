@@ -197,13 +197,19 @@ export default function Checkout() {
     return null;
   };
 
-  const completeOrder = (result: { orderId: string; requiresIdUpload: boolean }, paid: boolean) => {
+  const completeOrder = async (result: { orderId: string; requiresIdUpload: boolean }, paid: boolean) => {
     setOrderId(result.orderId);
     setRequiresIdUpload(result.requiresIdUpload);
     setPaymentComplete(paid);
     setOrderPlaced(true);
     clearCart();
-    addPoints(Math.floor(sub / 10));
+
+    const sessionRes = await fetch('/api/users/me');
+    if (sessionRes.ok) {
+      await sessionRes.json();
+    } else {
+      addPoints(Math.floor(sub / 10));
+    }
     if (customerInfo.email) {
       localStorage.setItem(`ordered_${customerInfo.email}`, 'true');
     }

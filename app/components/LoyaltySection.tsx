@@ -1,9 +1,22 @@
 'use client';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 
 export default function LoyaltySection() {
-  const points = useLoyaltyStore((state) => state.points);
+  const localPoints = useLoyaltyStore((state) => state.points);
+  const [serverPoints, setServerPoints] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch('/api/users/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) setServerPoints(data.user.loyaltyPoints);
+      })
+      .catch(() => {});
+  }, []);
+
+  const points = serverPoints ?? localPoints;
 
   return (
     <section id="loyalty" className="py-24 bg-zinc-950">
@@ -20,7 +33,7 @@ export default function LoyaltySection() {
           <div className="bg-zinc-900 p-10 rounded-3xl">
             <div className="text-6xl mb-6">💰</div>
             <h3 className="text-2xl font-bold mb-3">Earn Points</h3>
-            <p className="text-zinc-400">1 point per $1 spent. Add items to see points grow.</p>
+            <p className="text-zinc-400">1 point per $10 spent when logged in. Refer friends for bonus points.</p>
           </div>
           <div className="bg-zinc-900 p-10 rounded-3xl">
             <div className="text-6xl mb-6">🎁</div>

@@ -1,0 +1,204 @@
+import fs from 'fs/promises';
+import path from 'path';
+import { createOrGetReferral, getReferralByEmail } from '@/lib/referrals';
+import { REFERRER_COMMISSION_USD, REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
+
+const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
+
+export interface UserSocials {
+  instagram?: string;
+  twitter?: string;
+  tiktok?: string;
+  youtube?: string;
+  website?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  password: string;
+  createdAt: string;
+  idVerified?: boolean;
+  phone?: string;
+  bio?: string;
+  avatarUrl?: string;
+  socials?: UserSocials;
+  loyaltyPoints: number;
+  referralCode?: string;
+  shippingAddress?: {
+    address: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
+}
+
+export interface PublicUserProfile {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: string;
+  idVerified?: boolean;
+  phone?: string;
+  bio?: string;
+  avatarUrl?: string;
+  socials?: UserSocials;
+  loyaltyPoints: number;
+  referralCode?: string;
+  referralLink?: string;
+  shippingAddress?: UserProfile['shippingAddress'];
+  referralStats?: {
+    clicks: number;
+    conversions: number;
+    pointsEarned: number;
+    commissionEarned: number;
+    pendingPoints: number;
+    pendingCommission: number;
+  };
+}
+
+async function ensureUsersFile() {
+  const dataDir = path.join(process.cwd(), 'data');
+  await fs.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.access(USERS_FILE);
+  } catch {
+    await fs.writeFile(USERS_FILE, JSON.stringify([], null, 2));
+  }
+}
+
+export async function readUsers(): Promise<UserProfile[]> {
+  await ensureUsersFile();
+  const data = await fs.readFile(USERS_FILE, 'utf8');
+  const users = JSON.parse(data) as UserProfile[];
+  return users.map((user) => ({
+    ...user,
+    loyaltyPoints: user.loyaltyPoints ?? 0,
+    socials: user.socials ?? {},
+  }));
+}
+
+async function writeUsers(users: UserProfile[]) {
+  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+export async function getUserById(id: string): Promise<UserProfile | null> {
+  const users = await readUsers();
+  return users.find((u) => u.id === id) ?? null;
+}
+
+export async function getUserByEmail(email: string): Promise<UserProfile | null> {
+  const normalized = email.trim().toLowerCase();
+  const users = await readUsers();
+  return users.find((u) => u.email.toLowerCase() === normalized) ?? null;
+}
+
+export async function createUser(input: {
+  email: string;
+  password: string;
+  name?: string;
+}): Promise<UserProfile> {
+  const users = await readUsers();
+  const normalizedEmail = input.email.trim().toLowerCase();
+
+  if (users.some((u) => u.email.toLowerCase() === normalizedEmail)) {
+    throw new Error('User already exists');
+  }
+
+  const name = input.name?.trim() || normalizedEmail.split('@')[0];
+  const referral = await createOrGetReferral(name, normalizedEmail);
+
+  const newUser: UserProfile = {
+    id: `user_${Date.now()}`,
+    email: normalizedEmail,
+    name,
+    password: input.password,
+    createdAt: new Date().toISOString(),
+    loyaltyPoints: 0,
+    referralCode: referral.code,
+    socials: {},
+  };
+
+  users.push(newUser);
+  await writeUsers(users);
+  return newUser;
+}
+
+export async function updateUser(
+  id: string,
+  updates: Partial<
+    Pick<UserProfile, 'name' | 'phone' | 'bio' | 'avatarUrl' | 'socials' | 'shippingAddress' | 'loyaltyPoints' | 'referralCode'>
+  >
+): Promise<UserProfile | null> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === id);
+  if (index === -1) return null;
+
+  users[index] = {
+    ...users[index],
+    ...updates,
+    socials: updates.socials ?? users[index].socials,
+  };
+
+  await writeUsers(users);
+  return users[index];
+}
+
+export async function addLoyaltyPoints(userId: string, points: number): Promise<number> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) return 0;
+
+  users[index].loyaltyPoints = (users[index].loyaltyPoints ?? 0) + Math.floor(points);
+  await writeUsers(users);
+  return users[index].loyaltyPoints;
+}
+
+export function toPublicProfile(user: UserProfile, referralStats?: PublicUserProfile['referralStats']): PublicUserProfile {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://kushworld.shop';
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    createdAt: user.createdAt,
+    idVerified: user.idVerified,
+    phone: user.phone,
+    bio: user.bio,
+    avatarUrl: user.avatarUrl,
+    socials: user.socials,
+    loyaltyPoints: user.loyaltyPoints ?? 0,
+    referralCode: user.referralCode,
+    referralLink: user.referralCode ? `${base}/ref/${user.referralCode}` : undefined,
+    shippingAddress: user.shippingAddress,
+    referralStats,
+  };
+}
+
+export async function getUserDashboard(userId: string): Promise<PublicUserProfile | null> {
+  const user = await getUserById(userId);
+  if (!user) return null;
+
+  const referral = await getReferralByEmail(user.email);
+  let referralStats: PublicUserProfile['referralStats'];
+
+  if (referral) {
+    const pointsEarned = referral.conversions * REFERRER_REWARD_POINTS;
+    const commissionEarned =
+      referral.commissionEarned ?? referral.conversions * REFERRER_COMMISSION_USD;
+    const claimedPoints = referral.pointsClaimed;
+    const pendingPoints = Math.max(0, pointsEarned - claimedPoints);
+    const pendingCommission = (pendingPoints / REFERRER_REWARD_POINTS) * REFERRER_COMMISSION_USD;
+
+    referralStats = {
+      clicks: referral.clicks,
+      conversions: referral.conversions,
+      pointsEarned,
+      commissionEarned,
+      pendingPoints,
+      pendingCommission,
+    };
+  }
+
+  return toPublicProfile(user, referralStats);
+}
