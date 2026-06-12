@@ -1,24 +1,42 @@
 'use client';
 import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import CreditCardForm, { tokenizeCard } from '@/app/components/CreditCardForm';
+
+type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
 
 export default function Checkout() {
   const { items, subtotal, clearCart } = useCartStore();
   const { addPoints } = useLoyaltyStore();
-  const [paymentMethod, setPaymentMethod] = useState<'zelle' | 'paypal' | 'chime' | 'btc' | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [requiresIdUpload, setRequiresIdUpload] = useState(false);
   const [idUploaded, setIdUploaded] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [paymentComplete, setPaymentComplete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadingId, setUploadingId] = useState(false);
   const [idPreview, setIdPreview] = useState<string | null>(null);
   const [idFile, setIdFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState('');
+  const [paymentError, setPaymentError] = useState('');
+  const [cardReady, setCardReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [cardNumber, setCardNumber] = useState('');
+  const [expMonth, setExpMonth] = useState('');
+  const [expYear, setExpYear] = useState('');
+  const [cardCode, setCardCode] = useState('');
+  const [paymentConfig, setPaymentConfig] = useState<{
+    configured: boolean;
+    apiLoginId: string;
+    clientKey: string;
+    acceptJsUrl: string;
+    environment: string;
+  } | null>(null);
 
   const btcAddress = "32Un3zH14ovKpSyfLWtk6pVex69CmSYVjp";
 
@@ -32,6 +50,17 @@ export default function Checkout() {
 
   const [qrUrl, setQrUrl] = useState("");
 
+  const handleCardReadyChange = useCallback((ready: boolean) => {
+    setCardReady(ready);
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/payments/config')
+      .then((res) => res.json())
+      .then((data) => setPaymentConfig(data))
+      .catch(() => setPaymentConfig(null));
+  }, []);
+
   useEffect(() => {
     if (paymentMethod === 'btc') {
       const amount = (subtotal() * 0.000008).toFixed(8);
@@ -44,7 +73,6 @@ export default function Checkout() {
   const handleIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploadError('');
     setIdFile(file);
     setIdPreview(URL.createObjectURL(file));
@@ -64,12 +92,8 @@ export default function Checkout() {
     formData.append('idImage', idFile);
 
     try {
-      const res = await fetch('/api/orders/upload-id', {
-        method: 'POST',
-        body: formData,
-      });
+      const res = await fetch('/api/orders/upload-id', { method: 'POST', body: formData });
       const result = await res.json();
-
       if (result.success) {
         setIdUploaded(true);
       } else {
@@ -82,17 +106,69 @@ export default function Checkout() {
     }
   };
 
-  const handlePlaceOrder = async () => {
-    if (!paymentMethod || !customerInfo.name || !customerInfo.email) {
-      alert("Please fill customer info and select payment method");
+  const completeOrder = (result: { orderId: string; requiresIdUpload: boolean }, paid: boolean) => {
+    setOrderId(result.orderId);
+    setRequiresIdUpload(result.requiresIdUpload);
+    setPaymentComplete(paid);
+    setOrderPlaced(true);
+    clearCart();
+    addPoints(Math.floor(subtotal() / 10));
+  };
+
+  const handleCardPayment = async () => {
+    if (!paymentConfig?.configured) {
+      setPaymentError('Credit card payments are not configured yet.');
+      return;
+    }
+
+    if (!cardNumber || !expMonth || !expYear || !cardCode) {
+      setPaymentError('Please enter your full card details.');
       return;
     }
 
     setLoading(true);
+    setPaymentError('');
+
+    try {
+      const opaqueData = await tokenizeCard(paymentConfig, {
+        cardNumber,
+        expMonth,
+        expYear,
+        cardCode,
+      });
+
+      const res = await fetch('/api/payments/charge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: customerInfo,
+          items,
+          subtotal: subtotal(),
+          opaqueData,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (result.success) {
+        completeOrder(result, true);
+      } else {
+        setPaymentError(result.error || 'Payment failed. Please try again.');
+      }
+    } catch (err) {
+      setPaymentError(err instanceof Error ? err.message : 'Payment failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleManualOrder = async () => {
+    setLoading(true);
+    setPaymentError('');
 
     const orderData = {
       customer: customerInfo,
-      items: items,
+      items,
       subtotal: subtotal(),
       paymentMethod,
       loyaltyUsed: 0,
@@ -108,18 +184,27 @@ export default function Checkout() {
       const result = await res.json();
 
       if (result.success) {
-        setOrderId(result.orderId);
-        setRequiresIdUpload(result.requiresIdUpload);
-        setOrderPlaced(true);
-        clearCart();
-        addPoints(Math.floor(subtotal() / 10));
+        completeOrder(result, false);
       } else {
-        alert("Failed to save order. Try again.");
+        setPaymentError('Failed to save order. Try again.');
       }
     } catch {
-      alert("Network error. Please try again.");
+      setPaymentError('Network error. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!paymentMethod || !customerInfo.name || !customerInfo.email) {
+      setPaymentError('Please fill customer info and select a payment method.');
+      return;
+    }
+
+    if (paymentMethod === 'card') {
+      await handleCardPayment();
+    } else {
+      await handleManualOrder();
     }
   };
 
@@ -128,12 +213,11 @@ export default function Checkout() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
         <div className="max-w-lg w-full bg-zinc-900 border border-zinc-700 rounded-3xl p-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#00ff9d]/20 text-[#00ff9d] text-2xl mb-4">
-              ✓
-            </div>
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#00ff9d]/20 text-[#00ff9d] text-2xl mb-4">✓</div>
             <h1 className="text-3xl font-bold text-[#00ff9d] mb-2">Order Placed!</h1>
             <p className="text-zinc-400">
               Order <span className="font-mono text-white">{orderId}</span> received.
+              {paymentComplete && <span className="block mt-2 text-green-400">Payment approved.</span>}
             </p>
           </div>
 
@@ -141,23 +225,13 @@ export default function Checkout() {
             <h2 className="text-xl font-bold mb-2">21+ ID Verification Required</h2>
             <p className="text-sm text-zinc-400 leading-relaxed">
               As a new customer, you must upload a clear photo of your government-issued ID
-              before we can process your order. Your ID is stored securely and only used for age verification.
+              before we can process your order.
             </p>
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic"
-            capture="environment"
-            onChange={handleIdFileChange}
-            className="hidden"
-          />
+          <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" onChange={handleIdFileChange} className="hidden" />
 
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full py-4 mb-4 border-2 border-dashed border-zinc-600 hover:border-[#00ff9d] rounded-2xl transition text-zinc-300 hover:text-white"
-          >
+          <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 mb-4 border-2 border-dashed border-zinc-600 hover:border-[#00ff9d] rounded-2xl transition text-zinc-300 hover:text-white">
             {idFile ? 'Change ID Photo' : 'Take or Upload ID Photo'}
           </button>
 
@@ -167,21 +241,11 @@ export default function Checkout() {
             </div>
           )}
 
-          {uploadError && (
-            <p className="text-red-400 text-sm mb-4 text-center">{uploadError}</p>
-          )}
+          {uploadError && <p className="text-red-400 text-sm mb-4 text-center">{uploadError}</p>}
 
-          <button
-            onClick={handleUploadId}
-            disabled={uploadingId || !idFile}
-            className="w-full py-5 bg-[#00ff9d] text-black rounded-2xl font-bold text-lg disabled:opacity-50"
-          >
+          <button onClick={handleUploadId} disabled={uploadingId || !idFile} className="w-full py-5 bg-[#00ff9d] text-black rounded-2xl font-bold text-lg disabled:opacity-50">
             {uploadingId ? 'Uploading...' : 'Submit ID & Complete Order'}
           </button>
-
-          <p className="text-xs text-zinc-500 text-center mt-4">
-            JPG, PNG, or WEBP • Max 5MB • Must show date of birth
-          </p>
         </div>
       </div>
     );
@@ -193,12 +257,19 @@ export default function Checkout() {
         <div className="max-w-md text-center">
           <h1 className="text-4xl font-bold text-[#00ff9d] mb-6">Thank You!</h1>
           <p className="text-xl mb-4">Order <span className="font-mono text-[#00ff9d]">{orderId}</span> received.</p>
+          {paymentComplete && (
+            <p className="text-green-400 mb-4">Your card payment was approved.</p>
+          )}
           {idUploaded && (
             <p className="text-sm text-zinc-400 mb-4">
-              Your ID has been submitted. We will verify your age and payment, then ship your order.
+              Your ID has been submitted. We will verify and ship your order.
             </p>
           )}
-          <p className="mb-8 text-zinc-400">We will contact you at {customerInfo.email} once payment is verified.</p>
+          <p className="mb-8 text-zinc-400">
+            {paymentComplete
+              ? `Confirmation sent to ${customerInfo.email}.`
+              : `We will contact you at ${customerInfo.email} once payment is verified.`}
+          </p>
           <Link href="/" className="inline-block bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold">
             Back to Shop
           </Link>
@@ -206,6 +277,8 @@ export default function Checkout() {
       </div>
     );
   }
+
+  const cardConfigured = paymentConfig?.configured ?? false;
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
@@ -241,16 +314,25 @@ export default function Checkout() {
             <input type="text" name="zip" placeholder="ZIP Code" value={customerInfo.zip} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
 
             <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6 text-sm text-zinc-400">
-              <span className="text-[#00ff9d] font-medium">New customers:</span> You will be asked to upload a photo ID after placing your order for 21+ verification.
+              <span className="text-[#00ff9d] font-medium">New customers:</span> ID upload required after checkout for 21+ verification.
             </div>
 
             <div className="mt-8">
               <h3 className="text-xl mb-4">Payment Method</h3>
               <div className="grid grid-cols-2 gap-4">
-                {['zelle', 'paypal', 'chime', 'btc'].map((method) => (
+                {cardConfigured && (
+                  <button
+                    onClick={() => setPaymentMethod('card')}
+                    className={`p-6 rounded-3xl border transition col-span-2 ${paymentMethod === 'card' ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
+                  >
+                    <p className="font-semibold">Credit / Debit Card</p>
+                    <p className="text-xs text-zinc-400 mt-1">Secure checkout via Authorize.net</p>
+                  </button>
+                )}
+                {(['zelle', 'paypal', 'chime', 'btc'] as const).map((method) => (
                   <button
                     key={method}
-                    onClick={() => setPaymentMethod(method as 'zelle' | 'paypal' | 'chime' | 'btc')}
+                    onClick={() => setPaymentMethod(method)}
                     className={`p-6 rounded-3xl border transition ${paymentMethod === method ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
                   >
                     <p className="font-semibold capitalize">{method}</p>
@@ -259,11 +341,26 @@ export default function Checkout() {
               </div>
             </div>
 
+            {paymentMethod === 'card' && cardConfigured && (
+              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
+                <CreditCardForm
+                  cardNumber={cardNumber}
+                  expMonth={expMonth}
+                  expYear={expYear}
+                  cardCode={cardCode}
+                  onCardNumberChange={setCardNumber}
+                  onExpMonthChange={setExpMonth}
+                  onExpYearChange={setExpYear}
+                  onCardCodeChange={setCardCode}
+                  onReadyChange={handleCardReadyChange}
+                />
+              </div>
+            )}
+
             {paymentMethod === 'zelle' && (
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
                 <p className="font-semibold mb-2">Send Zelle payment to:</p>
                 <p className="text-[#00ff9d]">kushworldshop@gmail.com</p>
-                <p className="text-sm text-zinc-400 mt-3">Include your order ID in the memo after placing the order.</p>
               </div>
             )}
 
@@ -271,7 +368,6 @@ export default function Checkout() {
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
                 <p className="font-semibold mb-2">PayPal Friends & Family:</p>
                 <p className="text-[#00ff9d]">@kushworldshop</p>
-                <p className="text-sm text-zinc-400 mt-3">Do not mention product names in the payment note.</p>
               </div>
             )}
 
@@ -279,7 +375,6 @@ export default function Checkout() {
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
                 <p className="font-semibold mb-2">Chime payment to:</p>
                 <p className="text-[#00ff9d]">$KushWorldShop</p>
-                <p className="text-sm text-zinc-400 mt-3">Send exact order total and include your order ID.</p>
               </div>
             )}
 
@@ -290,12 +385,20 @@ export default function Checkout() {
               </div>
             )}
 
+            {paymentError && (
+              <p className="text-red-400 text-sm mt-6 text-center">{paymentError}</p>
+            )}
+
             <button
               onClick={handlePlaceOrder}
-              disabled={loading || !paymentMethod}
+              disabled={loading || (paymentMethod === 'card' && !cardReady)}
               className="w-full mt-10 py-6 bg-[#00ff9d] text-black rounded-3xl font-bold text-xl disabled:opacity-50"
             >
-              {loading ? 'Saving Order...' : 'PLACE ORDER — PAYMENT WILL BE VERIFIED MANUALLY'}
+              {loading
+                ? 'Processing...'
+                : paymentMethod === 'card'
+                  ? `PAY $${subtotal().toFixed(2)} NOW`
+                  : 'PLACE ORDER — PAYMENT VERIFIED MANUALLY'}
             </button>
           </div>
         </div>

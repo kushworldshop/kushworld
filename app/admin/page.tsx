@@ -154,6 +154,14 @@ export default function AdminOrders() {
                   <div className="text-right">
                     <div className="text-2xl font-bold">${order.subtotal?.toFixed(2) || '0.00'}</div>
                     <div className="text-sm uppercase tracking-widest text-zinc-400">{order.paymentMethod}</div>
+                    {order.paymentStatus && (
+                      <div className={`text-sm mt-1 ${order.paymentStatus === 'paid' ? 'text-green-400' : 'text-yellow-400'}`}>
+                        Payment: {order.paymentStatus}
+                      </div>
+                    )}
+                    {order.transactionId && (
+                      <div className="text-xs text-zinc-500 mt-1 font-mono">Txn: {order.transactionId}</div>
+                    )}
                   </div>
                 </div>
 
