@@ -6,10 +6,13 @@ import {
   getProductSlug,
   getProductDescription,
 } from '@/lib/products';
+import { getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
 
 const OVERRIDES_FILE = path.join(process.cwd(), 'data', 'product-overrides.json');
 
-export type ProductOverride = Partial<Pick<Product, 'name' | 'price' | 'image' | 'description'>>;
+export type ProductOverride = Partial<
+  Pick<Product, 'name' | 'price' | 'image' | 'description' | 'optionGroups'>
+>;
 
 export type ProductOverridesMap = Record<string, ProductOverride>;
 
@@ -36,11 +39,17 @@ async function writeProductOverrides(overrides: ProductOverridesMap): Promise<vo
 
 function mergeProduct(base: Product, override?: ProductOverride): Product {
   if (!override) return { ...base };
-  return {
+  const merged: Product = {
     ...base,
     ...override,
     price: override.price ?? base.price,
   };
+
+  if (override.optionGroups !== undefined) {
+    merged.optionGroups = override.optionGroups;
+  }
+
+  return merged;
 }
 
 export async function getProducts(): Promise<Product[]> {
@@ -89,11 +98,20 @@ export async function updateProductOverride(
     if (desc) next.description = desc;
     else delete next.description;
   }
+  if (updates.optionGroups !== undefined) {
+    const cleanedGroups = sanitizeOptionGroups(updates.optionGroups);
+    if (cleanedGroups.length > 0) next.optionGroups = cleanedGroups;
+    else delete next.optionGroups;
+  }
 
   const cleaned = Object.fromEntries(
     Object.entries(next).filter(([key, value]) => {
+      if (value === undefined || value === '') return false;
+      if (key === 'optionGroups') {
+        return JSON.stringify(value) !== JSON.stringify(getProductOptionGroups(base));
+      }
       const baseValue = base[key as keyof Product];
-      return value !== undefined && value !== '' && value !== baseValue;
+      return value !== baseValue;
     })
   ) as ProductOverride;
 
@@ -105,6 +123,23 @@ export async function updateProductOverride(
 
   await writeProductOverrides(overrides);
   return mergeProduct(base, overrides[id]);
+}
+
+function sanitizeOptionGroups(groups: ProductOptionGroup[]): ProductOptionGroup[] {
+  return groups
+    .map((group) => ({
+      name: group.name.trim(),
+      values: group.values
+        .map((value) => ({
+          label: value.label.trim(),
+          priceAdjustment:
+            value.priceAdjustment !== undefined && !Number.isNaN(Number(value.priceAdjustment))
+              ? Number(value.priceAdjustment)
+              : undefined,
+        }))
+        .filter((value) => value.label),
+    }))
+    .filter((group) => group.name && group.values.length > 0);
 }
 
 export async function getAdminProducts(): Promise<

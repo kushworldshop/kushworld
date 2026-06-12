@@ -6,6 +6,7 @@ import SiteLayout from '@/app/components/SiteLayout';
 import { useCartStore } from '@/lib/cartStore';
 import { calculateTotals, FREE_SHIPPING_THRESHOLD, MIN_ORDER_AMOUNT } from '@/lib/checkout';
 import { orderRequiresIdVerification } from '@/lib/products';
+import { formatCartItemOptions } from '@/lib/productOptions';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 
 export default function CartPage() {
@@ -38,6 +39,9 @@ export default function CartPage() {
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold">{item.name}</p>
+                    {formatCartItemOptions(item) && (
+                      <p className="text-sm text-zinc-400">{formatCartItemOptions(item)}</p>
+                    )}
                     <p className="text-[#00ff9d]">${item.price}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <button onClick={() => updateQuantity(index, item.quantity - 1)} className="w-8 h-8 bg-zinc-800 rounded-lg">−</button>

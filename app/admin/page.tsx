@@ -5,6 +5,8 @@ import { adminFetch } from '@/lib/adminClient';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import SiteContentTab from '@/app/admin/components/SiteContentTab';
 import CustomersTab from '@/app/admin/components/CustomersTab';
+import ProductOptionsEditor from '@/app/admin/components/ProductOptionsEditor';
+import { formatCartItemOptions, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
 
 type AdminTab = 'orders' | 'promo' | 'products' | 'wishlist' | 'site' | 'customers';
 
@@ -24,6 +26,9 @@ interface AdminProduct {
   image: string;
   description?: string;
   category: string;
+  optionGroups?: ProductOptionGroup[];
+  sizes?: string[];
+  colors?: string[];
   hasOverride?: boolean;
   baseName?: string;
   basePrice?: number;
@@ -167,9 +172,17 @@ export default function AdminOrders() {
     price: productEdits[product.id]?.price ?? product.price,
     image: productEdits[product.id]?.image ?? product.image,
     description: productEdits[product.id]?.description ?? product.description ?? '',
+    optionGroups:
+      productEdits[product.id]?.optionGroups ??
+      product.optionGroups ??
+      getProductOptionGroups(product),
   });
 
-  const updateProductDraft = (id: string, field: keyof AdminProduct, value: string | number) => {
+  const updateProductDraft = (
+    id: string,
+    field: keyof AdminProduct,
+    value: string | number | ProductOptionGroup[]
+  ) => {
     setProductEdits((prev) => ({
       ...prev,
       [id]: { ...prev[id], [field]: value },
@@ -244,6 +257,7 @@ export default function AdminOrders() {
           price: draft.price,
           image: draft.image,
           description: draft.description,
+          optionGroups: draft.optionGroups,
         }),
       });
       const data = await res.json();
@@ -624,6 +638,10 @@ export default function AdminOrders() {
                                 className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
                               />
                             </div>
+                            <ProductOptionsEditor
+                              value={draft.optionGroups}
+                              onChange={(groups) => updateProductDraft(product.id, 'optionGroups', groups)}
+                            />
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">
@@ -858,7 +876,9 @@ export default function AdminOrders() {
                         />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium leading-tight">{item.name}</p>
-                          {item.selectedSize && <p className="text-xs text-zinc-400 mt-1">Size: {item.selectedSize}</p>}
+                          {formatCartItemOptions(item) && (
+                            <p className="text-xs text-zinc-400 mt-1">{formatCartItemOptions(item)}</p>
+                          )}
                           <p className="text-xs text-zinc-400">Qty: {item.quantity}</p>
                         </div>
                       </div>

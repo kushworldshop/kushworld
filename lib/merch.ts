@@ -1,5 +1,7 @@
 import catalog from '@/lib/merch-catalog.json';
 
+import type { ProductOptionGroup } from '@/lib/productOptions';
+
 export interface MerchProduct {
   id: string;
   slug: string;
@@ -9,6 +11,7 @@ export interface MerchProduct {
   images?: string[];
   sizes?: string[];
   colors?: string[];
+  optionGroups?: ProductOptionGroup[];
   category: string;
   description?: string;
   compareAtPrice?: number;

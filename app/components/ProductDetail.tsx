@@ -1,13 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCartStore } from '@/lib/cartStore';
 import { getCoaPdfPath, getProductDescription, getTierPricing, type Product } from '@/lib/products';
 import { getMerchSubcategoryLabel, MERCH_FREE_SHIPPING } from '@/lib/merch';
 import { getTierPrice } from '@/lib/checkout';
+import {
+  formatSelectedOptionsLabel,
+  getDefaultSelectedOptions,
+  getSelectedOptionsUnitPrice,
+  productHasOptions,
+  validateSelectedOptions,
+} from '@/lib/productOptions';
 import CoaLink from './CoaLink';
+import ProductOptionSelector from './ProductOptionSelector';
 import ProductReviews from './ProductReviews';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 
@@ -17,18 +25,29 @@ export default function ProductDetail({ product }: { product: Product }) {
   const blocked = ready && isMerchOnly && !isMerch;
   const gallery = product.images?.length ? product.images : [product.image];
   const [activeImage, setActiveImage] = useState(0);
-  const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || '');
-  const [selectedColor, setSelectedColor] = useState(product.colors?.[0] || '');
+  const [selectedOptions, setSelectedOptions] = useState(() => getDefaultSelectedOptions(product));
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const addToCart = useCartStore((s) => s.addToCart);
 
   const tiers = getTierPricing(product);
-  const unitPrice = getTierPrice(product.price, quantity, tiers);
+  const hasOptions = productHasOptions(product);
+  const unitPrice = useMemo(
+    () =>
+      getSelectedOptionsUnitPrice(product, selectedOptions, quantity, (basePrice, qty) =>
+        getTierPrice(basePrice, qty, tiers)
+      ),
+    [product, selectedOptions, quantity, tiers]
+  );
 
   const handleAdd = () => {
-    if (product.sizes?.length && !selectedSize) return;
-    const variantLabel = [selectedSize, selectedColor].filter(Boolean).join(' / ');
+    const validation = validateSelectedOptions(product, selectedOptions);
+    if (!validation.valid) {
+      alert(`Please select ${validation.missingGroup}`);
+      return;
+    }
+
+    const variantLabel = formatSelectedOptionsLabel(selectedOptions);
 
     addToCart({
       id: product.id,
@@ -36,6 +55,7 @@ export default function ProductDetail({ product }: { product: Product }) {
       price: unitPrice,
       image: product.image,
       category: product.category,
+      selectedOptions: Object.keys(selectedOptions).length > 0 ? selectedOptions : undefined,
       selectedSize: variantLabel || undefined,
       quantity,
     });
@@ -122,7 +142,7 @@ export default function ProductDetail({ product }: { product: Product }) {
 
             <div className="flex items-baseline gap-3 mb-6">
               <p className="text-3xl font-bold text-[#00ff9d]">
-                {product.sizes?.length ? 'From ' : ''}${unitPrice}
+                {hasOptions ? 'From ' : ''}${unitPrice}
               </p>
               {product.compareAtPrice && product.compareAtPrice < product.price && (
                 <p className="text-lg text-zinc-500 line-through">${product.compareAtPrice}</p>
@@ -131,47 +151,11 @@ export default function ProductDetail({ product }: { product: Product }) {
 
             <p className="text-zinc-400 leading-relaxed mb-8">{getProductDescription(product)}</p>
 
-            {product.colors && product.colors.length > 0 && (
-              <div className="mb-6">
-                <p className="text-sm text-zinc-400 mb-3">Color</p>
-                <div className="flex flex-wrap gap-2">
-                  {product.colors.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setSelectedColor(color)}
-                      className={`px-4 py-2 rounded-xl text-sm transition ${
-                        selectedColor === color
-                          ? 'bg-[#00ff9d] text-black font-medium'
-                          : 'bg-zinc-800 hover:bg-zinc-700'
-                      }`}
-                    >
-                      {color}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {product.sizes && product.sizes.length > 0 && (
-              <div className="mb-6">
-                <p className="text-sm text-zinc-400 mb-3">Size</p>
-                <div className="flex flex-wrap gap-2">
-                  {product.sizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`px-4 py-2 rounded-xl text-sm transition ${
-                        selectedSize === size
-                          ? 'bg-[#00ff9d] text-black font-medium'
-                          : 'bg-zinc-800 hover:bg-zinc-700'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <ProductOptionSelector
+              product={product}
+              selected={selectedOptions}
+              onChange={setSelectedOptions}
+            />
 
             {!isMerch && tiers.length > 0 && (
               <div className="bg-zinc-900 rounded-2xl p-5 mb-6 border border-zinc-700">

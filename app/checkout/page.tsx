@@ -8,6 +8,7 @@ import Image from 'next/image';
 import CreditCardForm, { tokenizeCard } from '@/app/components/CreditCardForm';
 import BtcPaymentScreen from '@/app/components/BtcPaymentScreen';
 import SiteLayout from '@/app/components/SiteLayout';
+import { formatCartItemOptions } from '@/lib/productOptions';
 import {
   calculateShipping,
   calculateTotals,
@@ -607,7 +608,9 @@ export default function Checkout() {
                 <Image src={item.image} alt={item.name} width={80} height={80} className="rounded-xl object-cover" />
                 <div className="flex-1">
                   <p className="font-semibold">{item.name}</p>
-                  {item.selectedSize && <p className="text-sm text-zinc-400">Size: {item.selectedSize}</p>}
+                  {formatCartItemOptions(item) && (
+                    <p className="text-sm text-zinc-400">{formatCartItemOptions(item)}</p>
+                  )}
                   <p>${item.price} × {item.quantity}</p>
                 </div>
               </div>

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { getHomepageMerch, getMerchSubcategoryLabel } from '@/lib/merch';
 import { useSiteContent } from '@/lib/useSiteContent';
 import { getProductSlug } from '@/lib/products';
+import { productHasOptions } from '@/lib/productOptions';
 
 const featured = getHomepageMerch(4);
 
@@ -48,7 +49,7 @@ export default function MerchSection() {
                   {product.name}
                 </p>
                 <p className="text-[#00ff9d] font-bold text-sm">
-                  {product.sizes?.length ? 'From ' : ''}${product.price}
+                  {productHasOptions(product) ? 'From ' : ''}${product.price}
                 </p>
               </div>
             </Link>

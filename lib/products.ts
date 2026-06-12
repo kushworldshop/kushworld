@@ -3,6 +3,8 @@ export interface TierPrice {
   price: number;
 }
 
+import type { ProductOptionGroup } from '@/lib/productOptions';
+
 export interface Product {
   id: string;
   name: string;
@@ -11,6 +13,7 @@ export interface Product {
   slug?: string;
   sizes?: string[];
   colors?: string[];
+  optionGroups?: ProductOptionGroup[];
   images?: string[];
   category: string;
   description?: string;

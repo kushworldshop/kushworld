@@ -1,6 +1,7 @@
 'use client';
 import Image from 'next/image';
 import { useCartStore } from '@/lib/cartStore';
+import { formatCartItemOptions } from '@/lib/productOptions';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 
 interface CartDrawerProps {
@@ -82,8 +83,8 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold leading-tight pr-8">{item.name}</h4>
                   
-                  {item.selectedSize && (
-                    <p className="text-sm text-[#00ff9d] mt-1">Size: {item.selectedSize}</p>
+                  {formatCartItemOptions(item) && (
+                    <p className="text-sm text-[#00ff9d] mt-1">{formatCartItemOptions(item)}</p>
                   )}
 
                   <p className="text-[#00ff9d] font-bold mt-3 text-lg">

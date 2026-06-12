@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { cartItemsMatchVariant, type SelectedProductOptions } from '@/lib/productOptions';
 
 export interface CartItem {
   id: string;
@@ -7,6 +8,7 @@ export interface CartItem {
   price: number;
   image: string;
   quantity: number;
+  selectedOptions?: SelectedProductOptions;
   selectedSize?: string;
   category?: string;
 }
@@ -29,7 +31,7 @@ export const useCartStore = create<CartStore>()(
       addToCart: (product) =>
         set((state) => {
           const existingIndex = state.items.findIndex(
-            (item) => item.id === product.id && item.selectedSize === product.selectedSize
+            (item) => item.id === product.id && cartItemsMatchVariant(item, product)
           );
 
           if (existingIndex !== -1) {
