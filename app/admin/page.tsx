@@ -513,7 +513,7 @@ export default function AdminOrders() {
             onClick={() => setTab('customers')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'customers' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
-            Customers
+            Members
           </button>
         </div>
 
@@ -525,14 +525,15 @@ export default function AdminOrders() {
 
         {tab === 'promo' && settings && (
           <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-10 max-w-2xl">
-            <h2 className="text-2xl font-bold mb-2">Loyalty Promo Settings</h2>
+            <h2 className="text-2xl font-bold mb-2">Promo Defaults</h2>
             <p className="text-zinc-400 text-sm mb-8">
-              Control what customers get when using a shared promo code, and what the code owner earns.
+              Site-wide defaults for promo codes and referral rewards. Override commission % and referral
+              points per member in the Members tab.
             </p>
 
             <div className="space-y-6">
               <div>
-                <label className="text-sm text-zinc-400 block mb-2">Referrer commission (% of order subtotal)</label>
+                <label className="text-sm text-zinc-400 block mb-2">Default referrer commission (% of order subtotal)</label>
                 <input
                   type="number"
                   min={0}
@@ -546,7 +547,7 @@ export default function AdminOrders() {
               </div>
 
               <div>
-                <label className="text-sm text-zinc-400 block mb-2">Loyalty points per promo use</label>
+                <label className="text-sm text-zinc-400 block mb-2">Default loyalty points per promo use</label>
                 <input
                   type="number"
                   min={0}

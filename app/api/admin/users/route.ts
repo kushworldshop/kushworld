@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
+import { readOrders } from '@/lib/ordersStore';
 import {
   getReferralByEmail,
+  getReferralLink,
   resolveReferralCommissionPercent,
+  resolveReferralRewardPoints,
   updateReferralCommissionByEmail,
+  updateReferralRewardPointsByEmail,
 } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
-import { readUsers, writeUsers } from '@/lib/users';
+import { getRedeemableLoyaltyPoints, readUsers, writeUsers, type UserSocials } from '@/lib/users';
 
 export interface AdminUserSummary {
   id: string;
@@ -16,20 +20,57 @@ export interface AdminUserSummary {
   createdAt: string;
   loyaltyPoints: number;
   lockedLoyaltyPoints: number;
+  redeemableLoyaltyPoints: number;
   idVerified?: boolean;
   signupBonusClaimed?: boolean;
-  emailVerifiedAt?: string;
-  phoneVerifiedAt?: string;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
   bio?: string;
   avatarUrl?: string;
+  socials?: UserSocials;
+  shippingAddress?: {
+    address: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
   referralCode?: string;
   promoCode?: string;
+  referralLink?: string;
+  orderCount: number;
   commissionPercent?: number;
   commissionPercentOverride?: number | null;
   defaultCommissionPercent?: number;
+  referrerRewardPoints?: number;
+  referrerRewardPointsOverride?: number | null;
+  defaultReferrerRewardPoints?: number;
   commissionEarned?: number;
+  pointsEarnedFromReferrals?: number;
+  pointsClaimedFromReferrals?: number;
   promoConversions?: number;
   promoClicks?: number;
+}
+
+function sanitizeSocials(socials: unknown): UserSocials | undefined {
+  if (!socials || typeof socials !== 'object') return undefined;
+  const input = socials as Record<string, unknown>;
+  const cleaned: UserSocials = {};
+  for (const key of ['instagram', 'twitter', 'tiktok', 'youtube', 'website'] as const) {
+    const value = input[key];
+    if (typeof value === 'string' && value.trim()) {
+      cleaned[key] = value.trim();
+    }
+  }
+  return Object.keys(cleaned).length > 0 ? cleaned : {};
+}
+
+async function countOrdersByEmail(email: string): Promise<number> {
+  const orders = await readOrders<{ email?: string; customer?: { email?: string } }>();
+  const normalized = email.toLowerCase();
+  return orders.filter((order) => {
+    const orderEmail = (order.customer?.email || order.email || '').toLowerCase();
+    return orderEmail === normalized;
+  }).length;
 }
 
 async function toAdminSummary(
@@ -40,6 +81,11 @@ async function toAdminSummary(
   const effectiveCommission = referral
     ? resolveReferralCommissionPercent(referral, settings.referrerCommissionPercent)
     : settings.referrerCommissionPercent;
+  const effectiveRewardPoints = referral
+    ? resolveReferralRewardPoints(referral, settings.referrerRewardPoints)
+    : settings.referrerRewardPoints;
+  const promoCode = referral?.code ?? user.referralCode;
+  const pointsEarnedFromReferrals = referral ? referral.conversions * effectiveRewardPoints : 0;
 
   return {
     id: user.id,
@@ -49,21 +95,34 @@ async function toAdminSummary(
     createdAt: user.createdAt,
     loyaltyPoints: user.loyaltyPoints ?? 0,
     lockedLoyaltyPoints: user.lockedLoyaltyPoints ?? 0,
+    redeemableLoyaltyPoints: getRedeemableLoyaltyPoints(user),
     idVerified: user.idVerified,
     signupBonusClaimed: user.signupBonusClaimed,
-    emailVerifiedAt: user.emailVerifiedAt,
-    phoneVerifiedAt: user.phoneVerifiedAt,
+    emailVerified: !!user.emailVerifiedAt,
+    phoneVerified: !!user.phoneVerifiedAt,
     bio: user.bio,
     avatarUrl: user.avatarUrl,
+    socials: user.socials ?? {},
+    shippingAddress: user.shippingAddress,
     referralCode: user.referralCode,
-    promoCode: referral?.code ?? user.referralCode,
+    promoCode,
+    referralLink: promoCode ? getReferralLink(promoCode) : undefined,
+    orderCount: await countOrdersByEmail(user.email),
     commissionPercent: effectiveCommission,
     commissionPercentOverride:
       referral?.commissionPercent !== undefined && referral?.commissionPercent !== null
         ? referral.commissionPercent
         : null,
     defaultCommissionPercent: settings.referrerCommissionPercent,
+    referrerRewardPoints: effectiveRewardPoints,
+    referrerRewardPointsOverride:
+      referral?.rewardPointsOverride !== undefined && referral?.rewardPointsOverride !== null
+        ? referral.rewardPointsOverride
+        : null,
+    defaultReferrerRewardPoints: settings.referrerRewardPoints,
     commissionEarned: referral?.commissionEarned ?? 0,
+    pointsEarnedFromReferrals,
+    pointsClaimedFromReferrals: referral?.pointsClaimed ?? 0,
     promoConversions: referral?.conversions ?? 0,
     promoClicks: referral?.clicks ?? 0,
   };
@@ -78,11 +137,13 @@ export async function GET(request: NextRequest) {
   const users = await readUsers();
   const filtered = users.filter((user) => {
     if (!search) return true;
+    const socialText = Object.values(user.socials ?? {}).join(' ').toLowerCase();
     return (
       user.email.toLowerCase().includes(search) ||
       user.name.toLowerCase().includes(search) ||
       (user.phone || '').includes(search) ||
-      (user.referralCode || '').toLowerCase().includes(search)
+      (user.referralCode || '').toLowerCase().includes(search) ||
+      socialText.includes(search)
     );
   });
 
@@ -117,6 +178,7 @@ export async function PATCH(request: NextRequest) {
       phone: body.phone !== undefined ? String(body.phone).trim() || undefined : current.phone,
       bio: body.bio !== undefined ? String(body.bio) : current.bio,
       avatarUrl: body.avatarUrl !== undefined ? String(body.avatarUrl) || undefined : current.avatarUrl,
+      socials: body.socials !== undefined ? sanitizeSocials(body.socials) : current.socials,
       loyaltyPoints:
         body.loyaltyPoints !== undefined ? Math.max(0, Math.floor(Number(body.loyaltyPoints))) : current.loyaltyPoints,
       lockedLoyaltyPoints:
@@ -137,6 +199,20 @@ export async function PATCH(request: NextRequest) {
       if (!commissionResult.success) {
         return NextResponse.json(
           { success: false, error: commissionResult.error || 'Failed to update commission' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (body.referrerRewardPoints !== undefined) {
+      const useDefault = body.referrerRewardPoints === '' || body.referrerRewardPoints === null;
+      const rewardResult = await updateReferralRewardPointsByEmail(
+        users[index].email,
+        useDefault ? null : Number(body.referrerRewardPoints)
+      );
+      if (!rewardResult.success) {
+        return NextResponse.json(
+          { success: false, error: rewardResult.error || 'Failed to update referral reward points' },
           { status: 400 }
         );
       }

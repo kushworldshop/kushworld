@@ -18,6 +18,8 @@ export interface Referral {
   commissionEarned: number;
   /** Per-code override; when unset, uses global referrerCommissionPercent from settings */
   commissionPercent?: number;
+  /** Per-code override; when unset, uses global referrerRewardPoints from settings */
+  rewardPointsOverride?: number;
   createdAt: string;
 }
 
@@ -29,6 +31,16 @@ export function resolveReferralCommissionPercent(
     return referral.commissionPercent;
   }
   return globalPercent;
+}
+
+export function resolveReferralRewardPoints(
+  referral: Pick<Referral, 'rewardPointsOverride'>,
+  globalPoints: number
+): number {
+  if (referral.rewardPointsOverride !== undefined && referral.rewardPointsOverride !== null) {
+    return referral.rewardPointsOverride;
+  }
+  return globalPoints;
 }
 
 function normalizeCode(code: string): string {
@@ -214,6 +226,32 @@ export async function updateReferralCode(
   return { success: true, code: normalized };
 }
 
+export async function updateReferralRewardPointsByEmail(
+  email: string,
+  rewardPoints: number | null
+): Promise<{ success: boolean; referral?: Referral; error?: string }> {
+  const referrals = await readReferrals();
+  const normalized = email.trim().toLowerCase();
+  const index = referrals.findIndex((r) => r.referrerEmail.toLowerCase() === normalized);
+
+  if (index === -1) {
+    return { success: false, error: 'No promo code found for this customer' };
+  }
+
+  if (rewardPoints === null) {
+    delete referrals[index].rewardPointsOverride;
+  } else {
+    const clamped = Math.min(10000, Math.max(0, Math.floor(Number(rewardPoints))));
+    if (!Number.isFinite(clamped)) {
+      return { success: false, error: 'Invalid reward points amount' };
+    }
+    referrals[index].rewardPointsOverride = clamped;
+  }
+
+  await writeReferrals(referrals);
+  return { success: true, referral: referrals[index] };
+}
+
 export async function updateReferralCommissionByEmail(
   email: string,
   commissionPercent: number | null
@@ -254,7 +292,8 @@ export async function claimReferralPoints(email: string): Promise<{
 
   const referral = referrals[index];
   const settings = await getSettings();
-  const earned = referral.conversions * settings.referrerRewardPoints;
+  const rewardPoints = resolveReferralRewardPoints(referral, settings.referrerRewardPoints);
+  const earned = referral.conversions * rewardPoints;
   const pointsToAdd = Math.max(0, earned - referral.pointsClaimed);
 
   if (pointsToAdd > 0) {

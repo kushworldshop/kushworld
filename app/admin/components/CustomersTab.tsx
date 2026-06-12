@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { adminFetch } from '@/lib/adminClient';
+import type { UserSocials } from '@/lib/users';
 
 interface AdminUser {
   id: string;
@@ -11,30 +12,58 @@ interface AdminUser {
   createdAt: string;
   loyaltyPoints: number;
   lockedLoyaltyPoints: number;
+  redeemableLoyaltyPoints: number;
   idVerified?: boolean;
   signupBonusClaimed?: boolean;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
   bio?: string;
   avatarUrl?: string;
+  socials?: UserSocials;
+  shippingAddress?: {
+    address: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
   promoCode?: string;
+  referralLink?: string;
+  orderCount: number;
   commissionPercent?: number;
   commissionPercentOverride?: number | null;
   defaultCommissionPercent?: number;
+  referrerRewardPoints?: number;
+  referrerRewardPointsOverride?: number | null;
+  defaultReferrerRewardPoints?: number;
   commissionEarned?: number;
+  pointsEarnedFromReferrals?: number;
+  pointsClaimedFromReferrals?: number;
   promoConversions?: number;
   promoClicks?: number;
 }
 
-type CustomerDraft = {
+type MemberDraft = {
   name: string;
   phone: string;
   bio: string;
   avatarUrl: string;
+  socials: UserSocials;
   loyaltyPoints: number;
   lockedLoyaltyPoints: number;
   idVerified: boolean;
   signupBonusClaimed: boolean;
   useDefaultCommission: boolean;
   commissionPercent: string;
+  useDefaultRewardPoints: boolean;
+  referrerRewardPoints: string;
+};
+
+const emptySocials: UserSocials = {
+  instagram: '',
+  twitter: '',
+  tiktok: '',
+  youtube: '',
+  website: '',
 };
 
 export default function CustomersTab() {
@@ -43,7 +72,8 @@ export default function CustomersTab() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
-  const [edits, setEdits] = useState<Record<string, Partial<CustomerDraft>>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [edits, setEdits] = useState<Record<string, Partial<MemberDraft>>>({});
 
   const loadUsers = async (query = search) => {
     setLoading(true);
@@ -51,10 +81,14 @@ export default function CustomersTab() {
       const res = await adminFetch(`/api/admin/users?q=${encodeURIComponent(query)}`);
       if (res.ok) {
         const data = await res.json();
-        setUsers(data.users || []);
+        const nextUsers = data.users || [];
+        setUsers(nextUsers);
+        if (nextUsers.length > 0 && !nextUsers.some((user: AdminUser) => user.id === selectedId)) {
+          setSelectedId(nextUsers[0].id);
+        }
       }
     } catch {
-      setMessage('Failed to load customers');
+      setMessage('Failed to load members');
     } finally {
       setLoading(false);
     }
@@ -64,35 +98,58 @@ export default function CustomersTab() {
     loadUsers();
   }, []);
 
-  const getDraft = (user: AdminUser): CustomerDraft => {
-    const hasOverride =
-      edits[user.id]?.useDefaultCommission !== undefined
-        ? !edits[user.id]?.useDefaultCommission
-        : user.commissionPercentOverride !== null && user.commissionPercentOverride !== undefined;
+  const selectedUser = useMemo(
+    () => users.find((user) => user.id === selectedId) ?? null,
+    [users, selectedId]
+  );
 
-    const commissionValue =
-      edits[user.id]?.commissionPercent !== undefined
-        ? edits[user.id]!.commissionPercent!
-        : hasOverride
-          ? String(user.commissionPercentOverride)
-          : String(user.defaultCommissionPercent ?? 5);
+  const getDraft = (user: AdminUser): MemberDraft => {
+    const patch = edits[user.id];
+    const hasCommissionOverride =
+      patch?.useDefaultCommission !== undefined
+        ? !patch.useDefaultCommission
+        : user.commissionPercentOverride !== null && user.commissionPercentOverride !== undefined;
+    const hasRewardOverride =
+      patch?.useDefaultRewardPoints !== undefined
+        ? !patch.useDefaultRewardPoints
+        : user.referrerRewardPointsOverride !== null && user.referrerRewardPointsOverride !== undefined;
 
     return {
-      name: edits[user.id]?.name ?? user.name,
-      phone: edits[user.id]?.phone ?? user.phone ?? '',
-      bio: edits[user.id]?.bio ?? user.bio ?? '',
-      avatarUrl: edits[user.id]?.avatarUrl ?? user.avatarUrl ?? '',
-      loyaltyPoints: edits[user.id]?.loyaltyPoints ?? user.loyaltyPoints,
-      lockedLoyaltyPoints: edits[user.id]?.lockedLoyaltyPoints ?? user.lockedLoyaltyPoints,
-      idVerified: edits[user.id]?.idVerified ?? user.idVerified ?? false,
-      signupBonusClaimed: edits[user.id]?.signupBonusClaimed ?? user.signupBonusClaimed ?? false,
-      useDefaultCommission: edits[user.id]?.useDefaultCommission ?? !hasOverride,
-      commissionPercent: commissionValue,
+      name: patch?.name ?? user.name,
+      phone: patch?.phone ?? user.phone ?? '',
+      bio: patch?.bio ?? user.bio ?? '',
+      avatarUrl: patch?.avatarUrl ?? user.avatarUrl ?? '',
+      socials: { ...emptySocials, ...user.socials, ...patch?.socials },
+      loyaltyPoints: patch?.loyaltyPoints ?? user.loyaltyPoints,
+      lockedLoyaltyPoints: patch?.lockedLoyaltyPoints ?? user.lockedLoyaltyPoints,
+      idVerified: patch?.idVerified ?? user.idVerified ?? false,
+      signupBonusClaimed: patch?.signupBonusClaimed ?? user.signupBonusClaimed ?? false,
+      useDefaultCommission: patch?.useDefaultCommission ?? !hasCommissionOverride,
+      commissionPercent:
+        patch?.commissionPercent !== undefined
+          ? patch.commissionPercent
+          : hasCommissionOverride
+            ? String(user.commissionPercentOverride)
+            : String(user.defaultCommissionPercent ?? 5),
+      useDefaultRewardPoints: patch?.useDefaultRewardPoints ?? !hasRewardOverride,
+      referrerRewardPoints:
+        patch?.referrerRewardPoints !== undefined
+          ? patch.referrerRewardPoints
+          : hasRewardOverride
+            ? String(user.referrerRewardPointsOverride)
+            : String(user.defaultReferrerRewardPoints ?? 100),
     };
   };
 
-  const updateDraft = (id: string, patch: Partial<CustomerDraft>) => {
+  const updateDraft = (id: string, patch: Partial<MemberDraft>) => {
     setEdits((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+  };
+
+  const adjustPoints = (user: AdminUser, delta: number) => {
+    const draft = getDraft(user);
+    updateDraft(user.id, {
+      loyaltyPoints: Math.max(0, draft.loyaltyPoints + delta),
+    });
   };
 
   const saveUser = async (user: AdminUser) => {
@@ -106,15 +163,14 @@ export default function CustomersTab() {
       phone: draft.phone,
       bio: draft.bio,
       avatarUrl: draft.avatarUrl,
+      socials: draft.socials,
       loyaltyPoints: draft.loyaltyPoints,
       lockedLoyaltyPoints: draft.lockedLoyaltyPoints,
       idVerified: draft.idVerified,
       signupBonusClaimed: draft.signupBonusClaimed,
+      commissionPercent: draft.useDefaultCommission ? null : Number(draft.commissionPercent),
+      referrerRewardPoints: draft.useDefaultRewardPoints ? null : Number(draft.referrerRewardPoints),
     };
-
-    if (user.promoCode) {
-      payload.commissionPercent = draft.useDefaultCommission ? null : Number(draft.commissionPercent);
-    }
 
     try {
       const res = await adminFetch('/api/admin/users', {
@@ -132,7 +188,7 @@ export default function CustomersTab() {
       });
       setMessage(`Saved ${user.email}`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Failed to save customer');
+      setMessage(error instanceof Error ? error.message : 'Failed to save member');
     } finally {
       setSavingId(null);
     }
@@ -141,180 +197,409 @@ export default function CustomersTab() {
   return (
     <div className="mb-10">
       <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
-        <h2 className="text-2xl font-bold mb-2">Customers</h2>
-        <p className="text-zinc-400 text-sm mb-6">
-          Edit customer profiles, loyalty points, and commission rate per promo code. Passwords are never shown.
+        <h2 className="text-2xl font-bold mb-2">Site Members</h2>
+        <p className="text-zinc-400 text-sm">
+          View every registered member, edit profiles and social links, and manage loyalty points and
+          commission settings per person. Site-wide promo defaults live under the Promo tab.
         </p>
-        <div className="flex gap-3">
+      </div>
+
+      <div className="grid lg:grid-cols-[320px_1fr] gap-6 min-h-[640px]">
+        <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 flex flex-col">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email, phone, or promo code..."
-            className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-3"
+            onKeyDown={(e) => e.key === 'Enter' && loadUsers(search)}
+            placeholder="Search name, email, phone, promo..."
+            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 mb-3"
           />
-          <button onClick={() => loadUsers(search)} className="px-6 py-3 bg-zinc-800 rounded-xl">
+          <button onClick={() => loadUsers(search)} className="w-full px-4 py-2 bg-zinc-800 rounded-xl text-sm mb-4">
             Search
           </button>
+          <p className="text-xs text-zinc-500 mb-3 px-1">
+            {loading ? 'Loading...' : `${users.length} member${users.length === 1 ? '' : 's'}`}
+          </p>
+
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {users.map((user) => {
+              const active = user.id === selectedId;
+              return (
+                <button
+                  key={user.id}
+                  onClick={() => setSelectedId(user.id)}
+                  className={`w-full text-left rounded-2xl px-4 py-3 border transition ${
+                    active
+                      ? 'border-[#00ff9d] bg-[#00ff9d]/10'
+                      : 'border-zinc-800 bg-black/40 hover:border-zinc-600'
+                  }`}
+                >
+                  <p className="font-medium truncate">{user.name}</p>
+                  <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                  <div className="flex flex-wrap gap-2 mt-2 text-[11px] text-zinc-400">
+                    <span>{user.loyaltyPoints.toLocaleString()} pts</span>
+                    <span>{user.orderCount} orders</span>
+                    {user.promoCode && <span className="text-[#00ff9d]">{user.promoCode}</span>}
+                  </div>
+                </button>
+              );
+            })}
+            {!loading && users.length === 0 && (
+              <p className="text-center text-zinc-500 text-sm py-10">No members found.</p>
+            )}
+          </div>
         </div>
-        {message && <p className="text-sm text-[#00ff9d] mt-4">{message}</p>}
+
+        <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 lg:p-8">
+          {!selectedUser ? (
+            <div className="h-full flex items-center justify-center text-zinc-500">
+              Select a member to view their profile
+            </div>
+          ) : (
+            <MemberProfilePanel
+              user={selectedUser}
+              draft={getDraft(selectedUser)}
+              saving={savingId === selectedUser.id}
+              message={message}
+              onDraftChange={(patch) => updateDraft(selectedUser.id, patch)}
+              onAdjustPoints={(delta) => adjustPoints(selectedUser, delta)}
+              onSave={() => saveUser(selectedUser)}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MemberProfilePanel({
+  user,
+  draft,
+  saving,
+  message,
+  onDraftChange,
+  onAdjustPoints,
+  onSave,
+}: {
+  user: AdminUser;
+  draft: MemberDraft;
+  saving: boolean;
+  message: string;
+  onDraftChange: (patch: Partial<MemberDraft>) => void;
+  onAdjustPoints: (delta: number) => void;
+  onSave: () => void;
+}) {
+  const redeemable = Math.max(0, draft.loyaltyPoints - draft.lockedLoyaltyPoints);
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-wrap justify-between gap-4 items-start">
+        <div>
+          <h3 className="text-2xl font-bold">{user.name}</h3>
+          <p className="text-zinc-400">{user.email}</p>
+          <p className="text-sm text-zinc-500 mt-1">
+            Joined {new Date(user.createdAt).toLocaleDateString()} · {user.orderCount} order
+            {user.orderCount === 1 ? '' : 's'}
+          </p>
+          <div className="flex flex-wrap gap-2 mt-3 text-xs">
+            {user.emailVerified && <Badge label="Email verified" tone="green" />}
+            {user.phoneVerified && <Badge label="Phone verified" tone="green" />}
+            {user.idVerified && <Badge label="ID verified" tone="green" />}
+            {user.signupBonusClaimed && <Badge label="Signup bonus" tone="amber" />}
+          </div>
+        </div>
+        <button
+          onClick={onSave}
+          disabled={saving}
+          className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : 'Save Profile'}
+        </button>
       </div>
 
-      {loading ? (
-        <p className="text-center py-20 text-zinc-400">Loading customers...</p>
-      ) : users.length === 0 ? (
-        <p className="text-center py-20 text-zinc-400">No customers found.</p>
-      ) : (
-        <div className="space-y-6">
-          {users.map((user) => {
-            const draft = getDraft(user);
-            return (
-              <div key={user.id} className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6">
-                <div className="flex flex-wrap justify-between gap-4 mb-4">
-                  <div>
-                    <p className="font-bold text-lg">{user.email}</p>
-                    <p className="text-sm text-zinc-500">Joined {new Date(user.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  <button
-                    onClick={() => saveUser(user)}
-                    disabled={savingId === user.id}
-                    className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50"
-                  >
-                    {savingId === user.id ? 'Saving...' : 'Save Customer'}
-                  </button>
-                </div>
+      {message && <p className="text-sm text-[#00ff9d]">{message}</p>}
 
-                {user.promoCode && (
-                  <div className="bg-black/50 border border-zinc-800 rounded-2xl p-5 mb-5">
-                    <h3 className="font-semibold mb-3 text-[#00ff9d]">Promo Code</h3>
-                    <div className="grid md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="text-sm text-zinc-400 block mb-1">Code</label>
-                        <input
-                          value={user.promoCode}
-                          readOnly
-                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-300"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm text-zinc-400 block mb-1">Commission %</label>
-                        <input
-                          type="number"
-                          min={0}
-                          max={50}
-                          step={0.5}
-                          disabled={draft.useDefaultCommission}
-                          value={draft.commissionPercent}
-                          onChange={(e) => updateDraft(user.id, { commissionPercent: e.target.value })}
-                          className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 disabled:opacity-50"
-                        />
-                        <p className="text-xs text-zinc-500 mt-1">
-                          Site default: {user.defaultCommissionPercent ?? 5}%
-                        </p>
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-2 text-sm mb-3">
-                      <input
-                        type="checkbox"
-                        checked={draft.useDefaultCommission}
-                        onChange={(e) =>
-                          updateDraft(user.id, {
-                            useDefaultCommission: e.target.checked,
-                            commissionPercent: e.target.checked
-                              ? String(user.defaultCommissionPercent ?? 5)
-                              : draft.commissionPercent,
-                          })
-                        }
-                        className="accent-[#00ff9d]"
-                      />
-                      Use site default commission ({user.defaultCommissionPercent ?? 5}%)
-                    </label>
-                    <div className="flex flex-wrap gap-6 text-sm text-zinc-400">
-                      <span>{user.promoClicks ?? 0} clicks</span>
-                      <span>{user.promoConversions ?? 0} orders</span>
-                      <span>${(user.commissionEarned ?? 0).toFixed(2)} earned</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-zinc-400 block mb-1">Name</label>
-                    <input
-                      value={draft.name}
-                      onChange={(e) => updateDraft(user.id, { name: e.target.value })}
-                      className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-zinc-400 block mb-1">Phone</label>
-                    <input
-                      value={draft.phone}
-                      onChange={(e) => updateDraft(user.id, { phone: e.target.value })}
-                      className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-zinc-400 block mb-1">Loyalty points</label>
-                    <input
-                      type="number"
-                      value={draft.loyaltyPoints}
-                      onChange={(e) => updateDraft(user.id, { loyaltyPoints: Number(e.target.value) })}
-                      className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-zinc-400 block mb-1">Locked points</label>
-                    <input
-                      type="number"
-                      value={draft.lockedLoyaltyPoints}
-                      onChange={(e) => updateDraft(user.id, { lockedLoyaltyPoints: Number(e.target.value) })}
-                      className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="text-sm text-zinc-400 block mb-1">Bio</label>
-                    <textarea
-                      value={draft.bio}
-                      onChange={(e) => updateDraft(user.id, { bio: e.target.value })}
-                      rows={2}
-                      className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="text-sm text-zinc-400 block mb-1">Avatar URL</label>
-                    <input
-                      value={draft.avatarUrl}
-                      onChange={(e) => updateDraft(user.id, { avatarUrl: e.target.value })}
-                      className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-6 mt-4 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={draft.idVerified}
-                      onChange={(e) => updateDraft(user.id, { idVerified: e.target.checked })}
-                      className="accent-[#00ff9d]"
-                    />
-                    ID verified (21+)
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={draft.signupBonusClaimed}
-                      onChange={(e) => updateDraft(user.id, { signupBonusClaimed: e.target.checked })}
-                      className="accent-[#00ff9d]"
-                    />
-                    Signup bonus claimed
-                  </label>
-                </div>
-              </div>
-            );
-          })}
+      <section>
+        <SectionTitle>Basic Info</SectionTitle>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Display name" value={draft.name} onChange={(v) => onDraftChange({ name: v })} />
+          <Field label="Phone" value={draft.phone} onChange={(v) => onDraftChange({ phone: v })} />
+          <div className="md:col-span-2">
+            <Field label="Bio" value={draft.bio} onChange={(v) => onDraftChange({ bio: v })} multiline />
+          </div>
+          <div className="md:col-span-2">
+            <Field label="Avatar URL" value={draft.avatarUrl} onChange={(v) => onDraftChange({ avatarUrl: v })} />
+          </div>
         </div>
+        {user.shippingAddress && (
+          <p className="text-sm text-zinc-500 mt-3">
+            Shipping: {user.shippingAddress.address}, {user.shippingAddress.city}{' '}
+            {user.shippingAddress.state} {user.shippingAddress.zip}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-6 mt-4 text-sm">
+          <Checkbox
+            label="ID verified (21+)"
+            checked={draft.idVerified}
+            onChange={(v) => onDraftChange({ idVerified: v })}
+          />
+          <Checkbox
+            label="Signup bonus claimed"
+            checked={draft.signupBonusClaimed}
+            onChange={(v) => onDraftChange({ signupBonusClaimed: v })}
+          />
+        </div>
+      </section>
+
+      <section>
+        <SectionTitle>Social Links</SectionTitle>
+        <p className="text-sm text-zinc-500 mb-4">
+          Members can also edit these on their account page. Handles or full URLs both work.
+        </p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field
+            label="Instagram"
+            value={draft.socials.instagram || ''}
+            onChange={(v) => onDraftChange({ socials: { ...draft.socials, instagram: v } })}
+            placeholder="@handle"
+          />
+          <Field
+            label="X / Twitter"
+            value={draft.socials.twitter || ''}
+            onChange={(v) => onDraftChange({ socials: { ...draft.socials, twitter: v } })}
+            placeholder="@handle"
+          />
+          <Field
+            label="TikTok"
+            value={draft.socials.tiktok || ''}
+            onChange={(v) => onDraftChange({ socials: { ...draft.socials, tiktok: v } })}
+            placeholder="@handle"
+          />
+          <Field
+            label="YouTube"
+            value={draft.socials.youtube || ''}
+            onChange={(v) => onDraftChange({ socials: { ...draft.socials, youtube: v } })}
+            placeholder="Channel URL"
+          />
+          <div className="md:col-span-2">
+            <Field
+              label="Website"
+              value={draft.socials.website || ''}
+              onChange={(v) => onDraftChange({ socials: { ...draft.socials, website: v } })}
+              placeholder="https://..."
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-black/40 border border-zinc-800 rounded-2xl p-5">
+        <SectionTitle>Loyalty Points</SectionTitle>
+        <div className="grid sm:grid-cols-3 gap-4 mb-4">
+          <Stat label="Total points" value={draft.loyaltyPoints.toLocaleString()} accent />
+          <Stat label="Locked" value={draft.lockedLoyaltyPoints.toLocaleString()} />
+          <Stat label="Redeemable" value={redeemable.toLocaleString()} accent />
+        </div>
+        <div className="grid md:grid-cols-2 gap-4 mb-4">
+          <Field
+            label="Total loyalty points"
+            type="number"
+            value={String(draft.loyaltyPoints)}
+            onChange={(v) => onDraftChange({ loyaltyPoints: Math.max(0, Number(v) || 0) })}
+          />
+          <Field
+            label="Locked points"
+            type="number"
+            value={String(draft.lockedLoyaltyPoints)}
+            onChange={(v) => onDraftChange({ lockedLoyaltyPoints: Math.max(0, Number(v) || 0) })}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[100, 500, 1000, -100, -500].map((delta) => (
+            <button
+              key={delta}
+              onClick={() => onAdjustPoints(delta)}
+              className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm"
+            >
+              {delta > 0 ? `+${delta}` : delta} pts
+            </button>
+          ))}
+        </div>
+        {(user.pointsEarnedFromReferrals ?? 0) > 0 && (
+          <p className="text-xs text-zinc-500 mt-4">
+            Referral points earned: {user.pointsEarnedFromReferrals?.toLocaleString()} · claimed:{' '}
+            {user.pointsClaimedFromReferrals?.toLocaleString()}
+          </p>
+        )}
+      </section>
+
+      <section className="bg-black/40 border border-zinc-800 rounded-2xl p-5">
+        <SectionTitle>Commission & Promo Code</SectionTitle>
+        {user.promoCode ? (
+          <>
+            <div className="grid md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-sm text-zinc-400 block mb-1">Promo code</label>
+                <input
+                  value={user.promoCode}
+                  readOnly
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-[#00ff9d] font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 block mb-1">Referral link</label>
+                <input
+                  value={user.referralLink || ''}
+                  readOnly
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-xs text-zinc-400"
+                />
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-sm text-zinc-400 block mb-1">Commission %</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  step={0.5}
+                  disabled={draft.useDefaultCommission}
+                  value={draft.commissionPercent}
+                  onChange={(e) => onDraftChange({ commissionPercent: e.target.value })}
+                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 disabled:opacity-50"
+                />
+                <Checkbox
+                  label={`Use site default (${user.defaultCommissionPercent ?? 5}%)`}
+                  checked={draft.useDefaultCommission}
+                  onChange={(checked) =>
+                    onDraftChange({
+                      useDefaultCommission: checked,
+                      commissionPercent: checked
+                        ? String(user.defaultCommissionPercent ?? 5)
+                        : draft.commissionPercent,
+                    })
+                  }
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-zinc-400 block mb-1">Points per promo use</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  disabled={draft.useDefaultRewardPoints}
+                  value={draft.referrerRewardPoints}
+                  onChange={(e) => onDraftChange({ referrerRewardPoints: e.target.value })}
+                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 disabled:opacity-50"
+                />
+                <Checkbox
+                  label={`Use site default (${user.defaultReferrerRewardPoints ?? 100} pts)`}
+                  checked={draft.useDefaultRewardPoints}
+                  onChange={(checked) =>
+                    onDraftChange({
+                      useDefaultRewardPoints: checked,
+                      referrerRewardPoints: checked
+                        ? String(user.defaultReferrerRewardPoints ?? 100)
+                        : draft.referrerRewardPoints,
+                    })
+                  }
+                  className="mt-2"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-6 text-sm text-zinc-400">
+              <span>{user.promoClicks ?? 0} link clicks</span>
+              <span>{user.promoConversions ?? 0} orders</span>
+              <span className="text-[#00ff9d]">${(user.commissionEarned ?? 0).toFixed(2)} commission earned</span>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-zinc-500">No promo code on file for this member yet.</p>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h4 className="text-lg font-semibold text-[#00ff9d] mb-4">{children}</h4>;
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  multiline,
+  type = 'text',
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  type?: string;
+}) {
+  const className = 'w-full bg-black border border-zinc-700 rounded-xl px-4 py-3';
+  return (
+    <div>
+      <label className="text-sm text-zinc-400 block mb-1">{label}</label>
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={2}
+          className={className}
+          placeholder={placeholder}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={className}
+          placeholder={placeholder}
+        />
       )}
     </div>
   );
+}
+
+function Checkbox({
+  label,
+  checked,
+  onChange,
+  className = '',
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  className?: string;
+}) {
+  return (
+    <label className={`flex items-center gap-2 text-sm cursor-pointer ${className}`}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-[#00ff9d]"
+      />
+      {label}
+    </label>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+      <p className="text-xs text-zinc-500 mb-1">{label}</p>
+      <p className={`text-2xl font-bold ${accent ? 'text-[#00ff9d]' : 'text-white'}`}>{value}</p>
+    </div>
+  );
+}
+
+function Badge({ label, tone }: { label: string; tone: 'green' | 'amber' }) {
+  const colors = tone === 'green' ? 'text-green-400 border-green-800' : 'text-amber-400 border-amber-800';
+  return <span className={`px-2 py-1 rounded-full border text-xs ${colors}`}>{label}</span>;
 }

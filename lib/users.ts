@@ -5,7 +5,12 @@ import {
   isSignupChannelVerified,
   resolveSignupVerificationChannel,
 } from '@/lib/signupBonus';
-import { createOrGetReferral, getReferralByEmail, resolveReferralCommissionPercent } from '@/lib/referrals';
+import {
+  createOrGetReferral,
+  getReferralByEmail,
+  resolveReferralCommissionPercent,
+  resolveReferralRewardPoints,
+} from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
 import type { SpinPrize } from '@/lib/spinWheelTypes';
 
@@ -315,7 +320,8 @@ export async function getUserDashboard(userId: string): Promise<PublicUserProfil
 
   if (referral) {
     const settings = await getSettings();
-    const pointsEarned = referral.conversions * settings.referrerRewardPoints;
+    const rewardPoints = resolveReferralRewardPoints(referral, settings.referrerRewardPoints);
+    const pointsEarned = referral.conversions * rewardPoints;
     const commissionEarned = referral.commissionEarned ?? 0;
     const claimedPoints = referral.pointsClaimed;
     const pendingPoints = Math.max(0, pointsEarned - claimedPoints);
