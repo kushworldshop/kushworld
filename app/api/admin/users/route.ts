@@ -13,6 +13,8 @@ import {
 } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
 import { tryClaimSignupBonus } from '@/lib/accountVerification';
+import { markUserIdRejected, markUserIdVerified } from '@/lib/verification';
+import type { UserIdVerification } from '@/lib/verification';
 import {
   deleteUserById,
   getRedeemableLoyaltyPoints,
@@ -34,6 +36,7 @@ export interface AdminUserSummary {
   signupBonusClaimed?: boolean;
   emailVerified?: boolean;
   phoneVerified?: boolean;
+  idVerification?: Pick<UserIdVerification, 'status' | 'uploadedAt' | 'verifiedAt' | 'rejectedAt' | 'rejectionReason'>;
   blocked?: boolean;
   blockedAt?: string;
   blockReason?: string;
@@ -112,6 +115,17 @@ async function toAdminSummary(
     signupBonusClaimed: user.signupBonusClaimed,
     emailVerified: !!user.emailVerifiedAt,
     phoneVerified: !!user.phoneVerifiedAt,
+    idVerification: user.idVerification
+      ? {
+          status: user.idVerification.status,
+          uploadedAt: user.idVerification.uploadedAt,
+          verifiedAt: user.idVerification.verifiedAt,
+          rejectedAt: user.idVerification.rejectedAt,
+          rejectionReason: user.idVerification.rejectionReason,
+        }
+      : user.idVerified
+        ? { status: 'verified' as const }
+        : { status: 'none' as const },
     blocked: !!user.blocked,
     blockedAt: user.blockedAt,
     blockReason: user.blockReason,
@@ -276,6 +290,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     await writeUsers(users);
+
+    if (body.idVerificationAction === 'verify' || (body.idVerified === true && !body.idVerificationAction)) {
+      await markUserIdVerified(userId);
+    } else if (body.idVerificationAction === 'reject' || (body.idVerified === false && current.idVerified)) {
+      await markUserIdRejected(userId, body.idRejectionReason);
+    }
 
     if (body.emailVerified === true || body.phoneVerified === true) {
       await tryClaimSignupBonus(userId);

@@ -17,6 +17,13 @@ interface AdminUser {
   signupBonusClaimed?: boolean;
   emailVerified?: boolean;
   phoneVerified?: boolean;
+  idVerification?: {
+    status: 'none' | 'uploaded' | 'verified' | 'rejected';
+    uploadedAt?: string;
+    verifiedAt?: string;
+    rejectedAt?: string;
+    rejectionReason?: string;
+  };
   blocked?: boolean;
   blockedAt?: string;
   blockReason?: string;
@@ -217,6 +224,53 @@ export default function CustomersTab() {
     }
   };
 
+  const viewUserId = async (userId: string) => {
+    try {
+      const res = await adminFetch(`/api/admin/id-image?userId=${encodeURIComponent(userId)}`);
+      if (!res.ok) {
+        setMessage('No ID image on file for this member');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch {
+      setMessage('Failed to load ID image');
+    }
+  };
+
+  const updateIdVerification = async (
+    user: AdminUser,
+    action: 'verify' | 'reject',
+    idRejectionReason?: string
+  ) => {
+    setSavingId(user.id);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          idVerificationAction: action,
+          idRejectionReason,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Update failed');
+      setUsers((prev) => prev.map((item) => (item.id === user.id ? data.user : item)));
+      setMessage(
+        action === 'verify'
+          ? `ID verified for ${user.email}`
+          : `ID rejected for ${user.email}`
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to update ID status');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const deleteUser = async (user: AdminUser) => {
     const confirmed = window.confirm(
       `Delete ${user.email} permanently?\n\nThis removes their account, login access, and loyalty balance. Order history is kept.`
@@ -297,6 +351,9 @@ export default function CustomersTab() {
                     <span>{user.loyaltyPoints.toLocaleString()} pts</span>
                     <span>{user.orderCount} orders</span>
                     {user.blocked && <span className="text-red-400">Blocked</span>}
+                    {user.idVerification?.status === 'uploaded' && (
+                      <span className="text-yellow-400">ID pending</span>
+                    )}
                     {user.promoCode && <span className="text-[#00ff9d]">{user.promoCode}</span>}
                   </div>
                 </button>
@@ -324,6 +381,9 @@ export default function CustomersTab() {
               onAdjustPoints={(delta) => adjustPoints(selectedUser, delta)}
               onSave={() => saveUser(selectedUser)}
               onDelete={() => deleteUser(selectedUser)}
+              onViewId={() => viewUserId(selectedUser.id)}
+              onVerifyId={() => updateIdVerification(selectedUser, 'verify')}
+              onRejectId={(reason) => updateIdVerification(selectedUser, 'reject', reason)}
             />
           )}
         </div>
@@ -342,6 +402,9 @@ function MemberProfilePanel({
   onAdjustPoints,
   onSave,
   onDelete,
+  onViewId,
+  onVerifyId,
+  onRejectId,
 }: {
   user: AdminUser;
   draft: MemberDraft;
@@ -352,8 +415,13 @@ function MemberProfilePanel({
   onAdjustPoints: (delta: number) => void;
   onSave: () => void;
   onDelete: () => void;
+  onViewId: () => void;
+  onVerifyId: () => void;
+  onRejectId: (reason: string) => void;
 }) {
   const redeemable = Math.max(0, draft.loyaltyPoints - draft.lockedLoyaltyPoints);
+  const idStatus = user.idVerification?.status ?? (user.idVerified ? 'verified' : 'none');
+  const [rejectReason, setRejectReason] = useState('');
 
   return (
     <div className="space-y-8">
@@ -371,6 +439,9 @@ function MemberProfilePanel({
             {user.idVerified && <Badge label="ID verified" tone="green" />}
             {user.signupBonusClaimed && <Badge label="Signup bonus" tone="amber" />}
             {draft.blocked && <Badge label="Blocked" tone="red" />}
+            {idStatus === 'verified' && <Badge label="ID verified" tone="green" />}
+            {idStatus === 'uploaded' && <Badge label="ID pending" tone="amber" />}
+            {idStatus === 'rejected' && <Badge label="ID rejected" tone="red" />}
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -396,6 +467,75 @@ function MemberProfilePanel({
           {message}
         </p>
       )}
+
+      <section className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5">
+        <SectionTitle>ID Verification</SectionTitle>
+        <p className="text-sm text-zinc-500 mb-4">
+          Members can pre-upload ID photos from their account. Review here before approving hemp checkout access.
+        </p>
+        <p className="text-sm mb-4">
+          Status:{' '}
+          <span
+            className={
+              idStatus === 'verified'
+                ? 'text-green-400'
+                : idStatus === 'uploaded'
+                  ? 'text-yellow-400'
+                  : idStatus === 'rejected'
+                    ? 'text-red-400'
+                    : 'text-zinc-400'
+            }
+          >
+            {idStatus}
+          </span>
+          {user.idVerification?.uploadedAt && idStatus !== 'none' && (
+            <span className="text-xs text-zinc-500 block mt-1">
+              Uploaded {new Date(user.idVerification.uploadedAt).toLocaleString()}
+            </span>
+          )}
+          {user.idVerification?.rejectionReason && (
+            <span className="text-xs text-red-400 block mt-1">
+              Rejection reason: {user.idVerification.rejectionReason}
+            </span>
+          )}
+        </p>
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            type="button"
+            onClick={onViewId}
+            disabled={idStatus === 'none' || saving || deleting}
+            className="text-sm bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl disabled:opacity-40"
+          >
+            View ID Photo
+          </button>
+          <button
+            type="button"
+            onClick={onVerifyId}
+            disabled={saving || deleting || idStatus === 'verified'}
+            className="text-sm bg-green-900/50 border border-green-800 text-green-300 px-4 py-2 rounded-xl disabled:opacity-40"
+          >
+            Approve ID
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 items-end">
+          <div className="flex-1 min-w-[200px]">
+            <Field
+              label="Rejection reason (optional)"
+              value={rejectReason}
+              onChange={setRejectReason}
+              placeholder="Blurry photo, expired ID, etc."
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => onRejectId(rejectReason)}
+            disabled={saving || deleting || idStatus === 'none'}
+            className="text-sm bg-red-950 border border-red-800 text-red-300 px-4 py-2 rounded-xl disabled:opacity-40 mb-1"
+          >
+            Reject ID
+          </button>
+        </div>
+      </section>
 
       <section className="bg-red-950/20 border border-red-900/50 rounded-2xl p-5">
         <SectionTitle>Access Control</SectionTitle>

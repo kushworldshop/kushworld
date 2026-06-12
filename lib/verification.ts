@@ -53,8 +53,17 @@ export async function isCustomerVerified(email: string): Promise<boolean> {
   const verified = await getVerifiedEmails();
   if (verified.includes(normalized)) return true;
 
-  const users = await readJson<Array<{ email: string; idVerified?: boolean }>>(USERS_FILE, []);
-  if (users.some((u) => u.email.toLowerCase() === normalized && u.idVerified)) {
+  const users = await readJson<Array<{ email: string; idVerified?: boolean; idVerification?: UserIdVerification }>>(
+    USERS_FILE,
+    []
+  );
+  if (
+    users.some(
+      (u) =>
+        u.email.toLowerCase() === normalized &&
+        (u.idVerified || u.idVerification?.status === 'verified')
+    )
+  ) {
     return true;
   }
 
@@ -65,6 +74,112 @@ export async function isCustomerVerified(email: string): Promise<boolean> {
   });
 }
 
+export type UserIdVerificationStatus = 'none' | 'uploaded' | 'verified' | 'rejected';
+
+export interface UserIdVerification {
+  status: UserIdVerificationStatus;
+  uploadedAt?: string;
+  fileName?: string;
+  mimeType?: string;
+  verifiedAt?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+}
+
+export const ID_EXT_BY_TYPE: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+};
+
 export function getIdStoragePath(orderId: string, ext: string) {
   return path.join(ID_DIR, `${orderId}${ext}`);
+}
+
+export function getUserIdStoragePath(userId: string, ext: string) {
+  const safeId = userId.replace(/[^a-zA-Z0-9_-]/g, '');
+  return path.join(ID_DIR, `user_${safeId}${ext}`);
+}
+
+export async function saveUserIdImage(
+  userId: string,
+  buffer: Buffer,
+  mimeType: string
+): Promise<{ fileName: string; mimeType: string }> {
+  await ensureDataDirs();
+  const ext = ID_EXT_BY_TYPE[mimeType] || '.jpg';
+  const storagePath = getUserIdStoragePath(userId, ext);
+  const fileName = path.basename(storagePath);
+  await fs.writeFile(storagePath, buffer);
+  return { fileName, mimeType };
+}
+
+export async function getUserIdImagePath(userId: string, fileName?: string): Promise<string | null> {
+  if (fileName) {
+    const filePath = path.join(ID_DIR, fileName);
+    try {
+      await fs.access(filePath);
+      return filePath;
+    } catch {
+      return null;
+    }
+  }
+
+  const safeId = userId.replace(/[^a-zA-Z0-9_-]/g, '');
+  for (const ext of Object.values(ID_EXT_BY_TYPE)) {
+    const filePath = path.join(ID_DIR, `user_${safeId}${ext}`);
+    try {
+      await fs.access(filePath);
+      return filePath;
+    } catch {
+      // try next extension
+    }
+  }
+  return null;
+}
+
+export async function markUserIdVerified(userId: string): Promise<boolean> {
+  await ensureDataDirs();
+  const users = await readJson<Array<{ id: string; email: string; idVerified?: boolean; idVerification?: UserIdVerification }>>(
+    USERS_FILE,
+    []
+  );
+  const index = users.findIndex((user) => user.id === userId);
+  if (index === -1) return false;
+
+  const email = users[index].email;
+  users[index].idVerified = true;
+  users[index].idVerification = {
+    ...users[index].idVerification,
+    status: 'verified',
+    verifiedAt: new Date().toISOString(),
+    rejectedAt: undefined,
+    rejectionReason: undefined,
+  };
+  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+  await markEmailVerified(email);
+  return true;
+}
+
+export async function markUserIdRejected(userId: string, reason?: string): Promise<boolean> {
+  await ensureDataDirs();
+  const users = await readJson<Array<{ id: string; idVerified?: boolean; idVerification?: UserIdVerification }>>(
+    USERS_FILE,
+    []
+  );
+  const index = users.findIndex((user) => user.id === userId);
+  if (index === -1) return false;
+
+  users[index].idVerified = false;
+  users[index].idVerification = {
+    ...users[index].idVerification,
+    status: 'rejected',
+    rejectedAt: new Date().toISOString(),
+    rejectionReason: reason?.trim() || undefined,
+    verifiedAt: undefined,
+  };
+  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+  return true;
 }

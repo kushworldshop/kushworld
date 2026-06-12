@@ -7,6 +7,7 @@ import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
 import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { useSiteContent } from '@/lib/useSiteContent';
+import IdVerificationUpload from '@/app/components/IdVerificationUpload';
 
 interface PromoTerms {
   customerDiscount: number;
@@ -543,6 +544,10 @@ export default function Account() {
               <Field label="YouTube" value={profileForm.socials.youtube || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, youtube: v } })} placeholder="Channel URL" />
               <Field label="Website" value={profileForm.socials.website || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, website: v } })} placeholder="https://yoursite.com" />
             </div>
+
+            {features.idVerification.enabled && (
+              <IdVerificationUpload user={user} onUpdated={loadProfile} />
+            )}
 
             <h3 className="text-lg font-semibold pt-2">Default Shipping</h3>
             <Field label="Street Address" value={profileForm.address} onChange={(v) => setProfileForm({ ...profileForm, address: v })} />

@@ -13,6 +13,7 @@ import {
 } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
 import type { SpinPrize } from '@/lib/spinWheelTypes';
+import type { UserIdVerification } from '@/lib/verification';
 
 const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
 
@@ -31,6 +32,7 @@ export interface UserProfile {
   password: string;
   createdAt: string;
   idVerified?: boolean;
+  idVerification?: UserIdVerification;
   emailVerifiedAt?: string;
   phoneVerifiedAt?: string;
   signupBonusClaimed?: boolean;
@@ -64,6 +66,7 @@ export interface PublicUserProfile {
   name: string;
   createdAt: string;
   idVerified?: boolean;
+  idVerification?: Pick<UserIdVerification, 'status' | 'uploadedAt' | 'rejectionReason'>;
   emailVerified?: boolean;
   phoneVerified?: boolean;
   signupBonusClaimed?: boolean;
@@ -288,6 +291,15 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     name: user.name,
     createdAt: user.createdAt,
     idVerified: user.idVerified,
+    idVerification: user.idVerification
+      ? {
+          status: user.idVerification.status,
+          uploadedAt: user.idVerification.uploadedAt,
+          rejectionReason: user.idVerification.rejectionReason,
+        }
+      : user.idVerified
+        ? { status: 'verified' as const }
+        : { status: 'none' as const },
     emailVerified,
     phoneVerified,
     signupBonusClaimed: !!user.signupBonusClaimed,
