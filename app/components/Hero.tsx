@@ -18,7 +18,7 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
 
         <p className="text-lg md:text-xl text-zinc-400 max-w-xl mx-auto mb-10 leading-relaxed">
           {merchOnly
-            ? 'Custom apparel and accessories from Kush World Studio. Free shipping on orders $100+.'
+            ? 'Custom apparel and accessories from Kush World Studio.'
             : 'Lab-tested hemp products and official Kush World Studio merch. Discreet shipping nationwide.'}
         </p>
 
@@ -43,8 +43,8 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
           {merchOnly ? (
             <>
               <span>Custom Made</span>
-              <span>Free Shipping $100+</span>
               <span>Studio Quality</span>
+              <span>Made to Order</span>
             </>
           ) : (
             <>

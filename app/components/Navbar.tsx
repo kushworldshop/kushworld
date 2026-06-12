@@ -44,8 +44,8 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
     <>
       <div className="bg-[#00ff9d] text-black py-3 text-center text-sm font-medium flex items-center justify-center gap-4 flex-wrap px-6">
         {isMerchOnly
-          ? '👕 Studio merch — free shipping $100+ • Custom made to order'
-          : '👕 Studio merch now in shop — free shipping $100+ • 🎁 Code FIRST20 • 🔥 Hemp orders ship free $200+'}
+          ? '👕 Studio merch — Custom made to order'
+          : '👕 Studio merch now in shop • Lab-tested hemp • Discreet shipping nationwide'}
       </div>
 
       <nav className="bg-black border-b border-zinc-800 sticky top-0 z-50">
