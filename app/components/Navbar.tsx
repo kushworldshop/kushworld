@@ -3,9 +3,10 @@ import Link from 'next/link';
 import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
+import { getEnabledShopCategories, MERCH_SHOP_ID } from '@/lib/shopNavigation';
 
 export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const totalItems = useCartStore((state) => state.totalItems());
@@ -14,15 +15,16 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const points = serverPoints ?? localPoints;
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [shopMenuOpen, setShopMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
-  const pathname = usePathname();
   const { isMerchOnly } = useAgeAccess();
   const { content } = useSiteContent();
+  const shopCategories = getEnabledShopCategories(content.shopNavigation);
 
   useEffect(() => {
     fetch('/api/users/me')
-      .then((res) => res.ok ? res.json() : null)
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.user) {
           setIsLoggedIn(true);
@@ -74,8 +76,40 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
             </form>
 
             <div className="hidden md:flex items-center gap-6 text-sm">
-              <Link href="/shop" className="hover:text-[#00ff9d] transition">Shop</Link>
-              <Link href="/#merch" className="hover:text-[#00ff9d] transition">Merch</Link>
+              <div
+                className="relative"
+                onMouseEnter={() => setShopMenuOpen(true)}
+                onMouseLeave={() => setShopMenuOpen(false)}
+              >
+                <Link href="/shop" className="hover:text-[#00ff9d] transition inline-flex items-center gap-1">
+                  Shop
+                  <i className="fa-solid fa-chevron-down text-[10px]" />
+                </Link>
+                {shopMenuOpen && (
+                  <div className="absolute top-full left-0 pt-3 min-w-[220px]">
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-2 shadow-xl">
+                      <Link
+                        href="/shop"
+                        className="block px-4 py-2.5 rounded-xl hover:bg-zinc-900 hover:text-[#00ff9d] transition"
+                      >
+                        All Products
+                      </Link>
+                      {shopCategories.map((category) => (
+                        <Link
+                          key={category.id}
+                          href={`/shop/${category.id}`}
+                          className="block px-4 py-2.5 rounded-xl hover:bg-zinc-900 hover:text-[#00ff9d] transition"
+                        >
+                          {category.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <Link href={`/shop/${MERCH_SHOP_ID}`} className="hover:text-[#00ff9d] transition">
+                Merch
+              </Link>
               {!isMerchOnly && <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>}
               <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
             </div>
@@ -118,8 +152,13 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                   className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 text-sm"
                 />
               </form>
-              <Link href="/shop" className="block hover:text-[#00ff9d]">Shop</Link>
-              <Link href="/#merch" className="block hover:text-[#00ff9d]">Merch</Link>
+              <Link href="/shop" className="block hover:text-[#00ff9d]">Shop — All Products</Link>
+              {shopCategories.map((category) => (
+                <Link key={category.id} href={`/shop/${category.id}`} className="block pl-4 hover:text-[#00ff9d]">
+                  {category.label}
+                </Link>
+              ))}
+              <Link href={`/shop/${MERCH_SHOP_ID}`} className="block hover:text-[#00ff9d]">Merch</Link>
               {!isMerchOnly && <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>}
               <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
             </div>

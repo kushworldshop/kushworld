@@ -22,7 +22,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, name, price, image, description, optionGroups, hidden } = body;
+    const { id, name, price, image, description, optionGroups, hidden, category, subcategory } = body;
 
     if (!id || typeof id !== 'string') {
       return NextResponse.json({ success: false, error: 'Product id required' }, { status: 400 });
@@ -35,6 +35,8 @@ export async function PATCH(request: NextRequest) {
       description: typeof description === 'string' ? description : undefined,
       optionGroups: Array.isArray(optionGroups) ? optionGroups : undefined,
       hidden: typeof hidden === 'boolean' ? hidden : undefined,
+      category: typeof category === 'string' ? category : undefined,
+      subcategory: typeof subcategory === 'string' ? subcategory : undefined,
     });
 
     if (!product) {

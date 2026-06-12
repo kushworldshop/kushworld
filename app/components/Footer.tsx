@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { useWishlistStore } from '@/lib/wishlistStore';
 import { useSiteContent } from '@/lib/useSiteContent';
 import SocialButtons from '@/app/components/SocialButtons';
+import { getEnabledShopCategories } from '@/lib/shopNavigation';
 
 export default function Footer() {
   const wishlistCount = useWishlistStore((state) => state.items.length);
   const { content } = useSiteContent();
+  const shopCategories = getEnabledShopCategories(content.shopNavigation);
 
   return (
     <footer className="bg-black border-t border-zinc-800 pt-16 pb-12">
@@ -26,10 +28,15 @@ export default function Footer() {
             <h3 className="font-semibold text-lg mb-6">Shop</h3>
             <div className="space-y-3 text-sm">
               <Link href="/shop" className="block text-zinc-400 hover:text-[#00ff9d] transition">All Products</Link>
-              <Link href="/shop/merch" className="block text-zinc-400 hover:text-[#00ff9d] transition">Studio Merch</Link>
-              <Link href="/shop/vapes" className="block text-zinc-400 hover:text-[#00ff9d] transition">Vapes & Disposables</Link>
-              <Link href="/shop/concentrates" className="block text-zinc-400 hover:text-[#00ff9d] transition">Concentrates</Link>
-              <Link href="/shop/flower" className="block text-zinc-400 hover:text-[#00ff9d] transition">Exotic Flower</Link>
+              {shopCategories.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/shop/${category.id}`}
+                  className="block text-zinc-400 hover:text-[#00ff9d] transition"
+                >
+                  {category.label}
+                </Link>
+              ))}
               <a href={content.social.studioUrl} target="_blank" rel="noopener noreferrer" className="block text-zinc-400 hover:text-[#00ff9d] transition">Kush World Studio</a>
               <Link href="/coa" className="block text-zinc-400 hover:text-[#00ff9d] transition">Lab COAs</Link>
               <Link href="/wholesale" className="block text-zinc-400 hover:text-[#00ff9d] transition">Wholesale</Link>

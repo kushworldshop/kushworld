@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import { invalidateSiteContentCache } from '@/lib/useSiteContent';
 import type { FaqItem, SiteContent } from '@/lib/siteContentTypes';
+import ShopNavigationEditor from '@/app/admin/components/ShopNavigationEditor';
 
 type SectionKey =
   | 'brand'
@@ -14,7 +15,8 @@ type SectionKey =
   | 'homepage'
   | 'ageGate'
   | 'shipping'
-  | 'policies';
+  | 'policies'
+  | 'shop';
 
 function Field({
   label,
@@ -129,6 +131,7 @@ export default function SiteContentTab({
     { key: 'ageGate', label: 'Age Gate' },
     { key: 'shipping', label: 'Shipping' },
     { key: 'policies', label: 'Policies' },
+    { key: 'shop', label: 'Shop Navigation' },
   ];
 
   return (
@@ -276,6 +279,13 @@ export default function SiteContentTab({
             <Field label="Free shipping threshold — hemp ($)" value={content.shipping.freeShippingThresholdHemp} onChange={(v) => onContentChange({ ...content, shipping: { ...content.shipping, freeShippingThresholdHemp: Number(v) || 0 } })} />
             <Field label="Free shipping threshold — merch ($)" value={content.shipping.freeShippingThresholdMerch} onChange={(v) => onContentChange({ ...content, shipping: { ...content.shipping, freeShippingThresholdMerch: Number(v) || 0 } })} hint="Also updates merch section free shipping mention." />
           </>
+        )}
+
+        {section === 'shop' && (
+          <ShopNavigationEditor
+            value={content.shopNavigation}
+            onChange={(shopNavigation) => onContentChange({ ...content, shopNavigation })}
+          />
         )}
 
         {section === 'policies' && (

@@ -21,6 +21,7 @@ export interface Product {
   tierPricing?: TierPrice[];
   compareAtPrice?: number;
   merchSubcategory?: string;
+  subcategory?: string;
   featured?: boolean;
   studioUrl?: string;
   hidden?: boolean;

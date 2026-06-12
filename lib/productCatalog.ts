@@ -11,7 +11,10 @@ import { getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOp
 const OVERRIDES_FILE = path.join(process.cwd(), 'data', 'product-overrides.json');
 
 export type ProductOverride = Partial<
-  Pick<Product, 'name' | 'price' | 'image' | 'description' | 'optionGroups' | 'hidden'>
+  Pick<
+    Product,
+    'name' | 'price' | 'image' | 'description' | 'optionGroups' | 'hidden' | 'category' | 'subcategory'
+  >
 >;
 
 export function isProductHidden(product: Pick<Product, 'hidden'>): boolean {
@@ -119,6 +122,16 @@ export async function updateProductOverride(
   if (updates.hidden !== undefined) {
     if (updates.hidden) next.hidden = true;
     else delete next.hidden;
+  }
+  if (updates.category !== undefined) {
+    const category = updates.category.trim();
+    if (category) next.category = category;
+    else delete next.category;
+  }
+  if (updates.subcategory !== undefined) {
+    const subcategory = updates.subcategory.trim();
+    if (subcategory) next.subcategory = subcategory;
+    else delete next.subcategory;
   }
 
   const cleaned = Object.fromEntries(

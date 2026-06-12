@@ -23,6 +23,8 @@ export interface PolicyPage {
   body: string;
 }
 
+export type { ShopNavigation, ShopCategory, ShopSubsection } from '@/lib/shopNavigation';
+
 export interface SiteContent {
   updatedAt: string;
   brand: {
@@ -105,7 +107,10 @@ export interface SiteContent {
     shipping: PolicyPage;
     returns: PolicyPage;
   };
+  shopNavigation: import('@/lib/shopNavigation').ShopNavigation;
 }
+
+import { DEFAULT_SHOP_NAVIGATION } from '@/lib/shopNavigation';
 
 export const DEFAULT_SITE_CONTENT: SiteContent = {
   updatedAt: new Date().toISOString(),
@@ -293,6 +298,7 @@ Email kushworldshop@gmail.com with your order number and photos. Approved return
 Questions? Email kushworldshop@gmail.com`,
     },
   },
+  shopNavigation: DEFAULT_SHOP_NAVIGATION,
 };
 
 export function splitHeadline(headline: string): string[] {

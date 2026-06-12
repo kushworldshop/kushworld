@@ -4,15 +4,17 @@ import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProductCard from './ProductCard';
 import { getProductDescription, type Product } from '@/lib/products';
-
-const filters = [
-  { id: 'all', label: 'All' },
-  { id: 'merch', label: 'Studio Merch' },
-  { id: 'vapes', label: 'Vapes' },
-  { id: 'concentrates', label: 'Concentrates' },
-  { id: 'flower', label: 'Flower' },
-  { id: 'mushrooms', label: 'Mushrooms' },
-];
+import { useSiteContent } from '@/lib/useSiteContent';
+import {
+  filterProductsByShopCategory,
+  getEnabledShopCategories,
+  getShopCategoryById,
+  getShopPageHeading,
+  getShopPageSubheading,
+  isMerchShopCategory,
+  MERCH_SHOP_ID,
+  normalizeShopCategoryId,
+} from '@/lib/shopNavigation';
 
 const sortOptions = [
   { id: 'name-asc', label: 'Name A–Z' },
@@ -28,14 +30,25 @@ export default function ShopSection({
   merchOnly?: boolean;
   initialCategory?: string;
 }) {
+  const { content } = useSiteContent();
+  const nav = content.shopNavigation;
+  const shopCategories = getEnabledShopCategories(nav);
+
   const searchParams = useSearchParams();
-  const categoryParam = searchParams.get('category') || initialCategory;
+  const categoryParam = normalizeShopCategoryId(
+    searchParams.get('category') || initialCategory || 'all'
+  );
+
   const initialFilter = merchOnly
-    ? 'merch'
-    : categoryParam && filters.some((f) => f.id === categoryParam)
+    ? MERCH_SHOP_ID
+    : categoryParam === 'all' || isMerchShopCategory(categoryParam)
       ? categoryParam
-      : 'all';
+      : getShopCategoryById(nav, categoryParam)
+        ? categoryParam
+        : 'all';
+
   const [activeFilter, setActiveFilter] = useState(initialFilter);
+  const [activeSubsection, setActiveSubsection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('name-asc');
   const [maxPrice, setMaxPrice] = useState(2000);
@@ -58,32 +71,21 @@ export default function ShopSection({
   }, [searchParams]);
 
   useEffect(() => {
-    const handleCategoryFilter = (event: Event) => {
-      setActiveFilter((event as CustomEvent<string>).detail);
-    };
-    const handleSearch = (event: Event) => {
-      setSearchQuery((event as CustomEvent<string>).detail);
-    };
-
-    window.addEventListener('filter-category', handleCategoryFilter);
-    window.addEventListener('product-search', handleSearch);
-    return () => {
-      window.removeEventListener('filter-category', handleCategoryFilter);
-      window.removeEventListener('product-search', handleSearch);
-    };
-  }, []);
-
-  useEffect(() => {
     if (merchOnly) {
-      setActiveFilter('merch');
+      setActiveFilter(MERCH_SHOP_ID);
       return;
     }
-    if (categoryParam && filters.some((f) => f.id === categoryParam)) {
+    if (categoryParam && categoryParam !== 'all') {
       setActiveFilter(categoryParam);
     }
   }, [merchOnly, categoryParam, initialCategory]);
 
-  const visibleFilters = merchOnly ? filters.filter((f) => f.id === 'merch') : filters;
+  useEffect(() => {
+    setActiveSubsection(null);
+  }, [activeFilter]);
+
+  const activeCategory = getShopCategoryById(nav, activeFilter);
+  const subsections = activeCategory?.subsections ?? [];
 
   const filteredProducts = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -96,53 +98,99 @@ export default function ShopSection({
         )
       : [...products];
 
-    if (merchOnly) {
-      result = result.filter((p) => p.category === 'merch');
+    if (merchOnly || isMerchShopCategory(activeFilter)) {
+      result = result.filter((product) => product.category === 'merch');
     } else if (activeFilter !== 'all') {
-      result = result.filter((p) => p.category === activeFilter);
+      result = filterProductsByShopCategory(result, nav, activeFilter, activeSubsection ?? undefined);
+    } else {
+      result = result.filter((product) => product.category !== 'merch');
     }
 
-    result = result.filter((p) => p.price <= maxPrice);
+    result = result.filter((product) => product.price <= maxPrice);
 
     result.sort((a, b) => {
       switch (sortBy) {
-        case 'price-asc': return a.price - b.price;
-        case 'price-desc': return b.price - a.price;
-        case 'name-desc': return b.name.localeCompare(a.name);
-        default: return a.name.localeCompare(b.name);
+        case 'price-asc':
+          return a.price - b.price;
+        case 'price-desc':
+          return b.price - a.price;
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        default:
+          return a.name.localeCompare(b.name);
       }
     });
 
     return result;
-  }, [activeFilter, searchQuery, sortBy, maxPrice, merchOnly, products]);
+  }, [activeFilter, activeSubsection, searchQuery, sortBy, maxPrice, merchOnly, products, nav]);
+
+  const showCategoryFilters = !merchOnly && !isMerchShopCategory(activeFilter);
 
   return (
     <section id="shop" className="py-16 bg-black">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-12">
           <h2 className="text-5xl font-bold mb-4">
-            {merchOnly ? 'All Studio Merch' : 'Shop Our Collection'}
+            {getShopPageHeading(nav, activeFilter, merchOnly)}
           </h2>
           <p className="text-xl text-zinc-400 max-w-2xl mx-auto">
-            {merchOnly
-              ? 'Official Kush World Studio apparel and accessories. Free shipping on orders $100+.'
-              : 'Authentic products. Lab-tested with COAs. Discreet shipping nationwide.'}
+            {getShopPageSubheading(nav, activeFilter, merchOnly)}
           </p>
         </div>
 
-        <div className="flex flex-wrap justify-center gap-3 mb-6">
-          {visibleFilters.map((filter) => (
+        {showCategoryFilters && (
+          <div className="flex flex-wrap justify-center gap-3 mb-6">
             <button
-              key={filter.id}
-              onClick={() => setActiveFilter(filter.id)}
+              onClick={() => setActiveFilter('all')}
               className={`px-5 py-2 rounded-full text-sm font-medium transition ${
-                activeFilter === filter.id ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+                activeFilter === 'all' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
               }`}
             >
-              {filter.label}
+              All
             </button>
-          ))}
-        </div>
+            {shopCategories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setActiveFilter(category.id)}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition ${
+                  activeFilter === category.id
+                    ? 'bg-[#00ff9d] text-black'
+                    : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+                }`}
+              >
+                {category.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {subsections.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2 mb-6">
+            <button
+              onClick={() => setActiveSubsection(null)}
+              className={`px-4 py-2 rounded-xl text-sm transition ${
+                activeSubsection === null
+                  ? 'bg-zinc-800 text-[#00ff9d]'
+                  : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+              }`}
+            >
+              All {activeCategory?.label}
+            </button>
+            {subsections.map((subsection) => (
+              <button
+                key={subsection.id}
+                onClick={() => setActiveSubsection(subsection.id)}
+                className={`px-4 py-2 rounded-xl text-sm transition ${
+                  activeSubsection === subsection.id
+                    ? 'bg-zinc-800 text-[#00ff9d]'
+                    : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                }`}
+              >
+                {subsection.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-4 mb-10 justify-center items-center">
           <select
@@ -150,8 +198,10 @@ export default function ShopSection({
             onChange={(e) => setSortBy(e.target.value)}
             className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2 text-sm"
           >
-            {sortOptions.map((o) => (
-              <option key={o.id} value={o.id}>{o.label}</option>
+            {sortOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
             ))}
           </select>
 

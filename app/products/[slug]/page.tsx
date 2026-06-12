@@ -7,12 +7,13 @@ import {
   absoluteUrl,
   breadcrumbJsonLd,
   buildPageMetadata,
-  CATEGORY_SEO,
   getSeoDescription,
   productJsonLd,
 } from '@/lib/seo';
 import { getProductSlug, type Product } from '@/lib/products';
 import { getProductBySlug, getProducts } from '@/lib/productCatalog';
+import { getSiteContent } from '@/lib/siteContent';
+import { getShopCategoryLabel, getShopPathForProduct } from '@/lib/shopNavigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,12 +21,12 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-function getCategoryPath(product: Product): string {
-  return product.category === 'merch' ? '/shop/merch' : `/shop/${product.category}`;
-}
-
-function getCategoryLabel(product: Product): string {
-  return CATEGORY_SEO[product.category]?.title.split('—')[0].trim() || product.category;
+function getCategoryLabel(product: Product, nav: Awaited<ReturnType<typeof getSiteContent>>['shopNavigation']) {
+  if (product.category === 'merch') return 'Studio Merch';
+  const shopCategory = nav.categories.find((category) =>
+    category.productCategories.includes(product.category)
+  );
+  return shopCategory ? getShopCategoryLabel(nav, shopCategory.id) : product.category;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -61,6 +62,8 @@ export default async function ProductPage({ params }: Props) {
   if (!product) notFound();
 
   const productPath = `/products/${getProductSlug(product)}`;
+  const content = await getSiteContent();
+  const categoryPath = getShopPathForProduct(content.shopNavigation, product);
 
   return (
     <SiteLayout>
@@ -70,7 +73,7 @@ export default async function ProductPage({ params }: Props) {
           breadcrumbJsonLd([
             { name: 'Home', path: '/' },
             { name: 'Shop', path: '/shop' },
-            { name: getCategoryLabel(product), path: getCategoryPath(product) },
+            { name: getCategoryLabel(product, content.shopNavigation), path: categoryPath },
             { name: product.name, path: productPath },
           ]),
         ]}

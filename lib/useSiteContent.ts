@@ -12,7 +12,18 @@ async function loadSiteContent(): Promise<SiteContent> {
     fetchPromise = fetch('/api/site-content')
       .then((res) => (res.ok ? res.json() : { content: DEFAULT_SITE_CONTENT }))
       .then((data) => {
-        const merged = { ...DEFAULT_SITE_CONTENT, ...(data.content || {}) };
+        const merged = {
+          ...DEFAULT_SITE_CONTENT,
+          ...(data.content || {}),
+          shopNavigation: {
+            ...DEFAULT_SITE_CONTENT.shopNavigation,
+            ...(data.content?.shopNavigation || {}),
+            categories:
+              data.content?.shopNavigation?.categories?.length
+                ? data.content.shopNavigation.categories
+                : DEFAULT_SITE_CONTENT.shopNavigation.categories,
+          },
+        };
         cachedContent = merged;
         return merged;
       })

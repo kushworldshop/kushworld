@@ -18,9 +18,12 @@ import CoaLink from './CoaLink';
 import ProductOptionSelector from './ProductOptionSelector';
 import ProductReviews from './ProductReviews';
 import { useAgeAccess } from '@/lib/useAgeAccess';
+import { useSiteContent } from '@/lib/useSiteContent';
+import { getShopCategoryLabel, getShopPathForProduct } from '@/lib/shopNavigation';
 
 export default function ProductDetail({ product }: { product: Product }) {
   const { isMerchOnly, ready } = useAgeAccess();
+  const { content } = useSiteContent();
   const isMerch = product.category === 'merch';
   const blocked = ready && isMerchOnly && !isMerch;
   const gallery = product.images?.length ? product.images : [product.image];
@@ -91,10 +94,17 @@ export default function ProductDetail({ product }: { product: Product }) {
             <li aria-hidden="true">/</li>
             <li>
               <Link
-                href={isMerch ? '/shop/merch' : `/shop/${product.category}`}
+                href={getShopPathForProduct(content.shopNavigation, product)}
                 className="hover:text-[#00ff9d]"
               >
-                {isMerch ? 'Studio Merch' : product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+                {isMerch
+                  ? 'Studio Merch'
+                  : getShopCategoryLabel(
+                      content.shopNavigation,
+                      content.shopNavigation.categories.find((category) =>
+                        category.productCategories.includes(product.category)
+                      )?.id ?? product.category
+                    )}
               </Link>
             </li>
             <li aria-hidden="true">/</li>

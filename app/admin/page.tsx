@@ -7,6 +7,7 @@ import SiteContentTab from '@/app/admin/components/SiteContentTab';
 import CustomersTab from '@/app/admin/components/CustomersTab';
 import ProductOptionsEditor from '@/app/admin/components/ProductOptionsEditor';
 import { formatCartItemOptions, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
+import { getAllProductCategorySlugs, getSubsectionsForProductCategory } from '@/lib/shopNavigation';
 
 type AdminTab = 'orders' | 'promo' | 'products' | 'wishlist' | 'site' | 'customers';
 
@@ -26,6 +27,7 @@ interface AdminProduct {
   image: string;
   description?: string;
   category: string;
+  subcategory?: string;
   optionGroups?: ProductOptionGroup[];
   sizes?: string[];
   colors?: string[];
@@ -175,6 +177,8 @@ export default function AdminOrders() {
     price: productEdits[product.id]?.price ?? product.price,
     image: productEdits[product.id]?.image ?? product.image,
     description: productEdits[product.id]?.description ?? product.description ?? '',
+    category: productEdits[product.id]?.category ?? product.category,
+    subcategory: productEdits[product.id]?.subcategory ?? product.subcategory ?? '',
     optionGroups:
       productEdits[product.id]?.optionGroups ??
       product.optionGroups ??
@@ -285,6 +289,8 @@ export default function AdminOrders() {
           image: draft.image,
           description: draft.description,
           optionGroups: draft.optionGroups,
+          category: draft.category,
+          subcategory: draft.subcategory,
         }),
       });
       const data = await res.json();
@@ -574,9 +580,12 @@ export default function AdminOrders() {
                   className="bg-black border border-zinc-700 rounded-xl px-4 py-3"
                 >
                   <option value="all">All categories</option>
-                  <option value="vapes">Vapes</option>
+                  <option value="vaporizers">Vaporizers</option>
                   <option value="concentrates">Concentrates</option>
                   <option value="flower">Flower</option>
+                  <option value="edibles">Edibles</option>
+                  <option value="pre-rolls">Pre Rolls</option>
+                  <option value="accessories">Accessories</option>
                   <option value="mushrooms">Mushrooms</option>
                   <option value="merch">Merch</option>
                 </select>
@@ -598,7 +607,12 @@ export default function AdminOrders() {
             ) : (
               <div className="space-y-6">
                 {adminProducts
-                  .filter((product) => productCategory === 'all' || product.category === productCategory)
+                  .filter((product) => {
+                    if (productCategory === 'all') return true;
+                    if (productCategory === 'merch') return product.category === 'merch';
+                    if (productCategory === 'vaporizers') return product.category === 'vapes';
+                    return product.category === productCategory;
+                  })
                   .filter((product) => {
                     if (productVisibilityFilter === 'visible') return !product.hidden;
                     if (productVisibilityFilter === 'hidden') return product.hidden;
@@ -648,6 +662,37 @@ export default function AdminOrders() {
                                 onChange={(e) => updateProductDraft(product.id, 'price', Number(e.target.value))}
                                 className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
                               />
+                            </div>
+                            <div>
+                              <label className="text-xs text-zinc-500 block mb-1">Product category</label>
+                              <select
+                                value={draft.category}
+                                onChange={(e) => updateProductDraft(product.id, 'category', e.target.value)}
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                              >
+                                {getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => (
+                                  <option key={slug} value={slug}>
+                                    {slug}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-xs text-zinc-500 block mb-1">Sub-section</label>
+                              <select
+                                value={draft.subcategory}
+                                onChange={(e) => updateProductDraft(product.id, 'subcategory', e.target.value)}
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                              >
+                                <option value="">None</option>
+                                {getSubsectionsForProductCategory(siteContent.shopNavigation, draft.category).map(
+                                  (subsection) => (
+                                    <option key={subsection.id} value={subsection.id}>
+                                      {subsection.label}
+                                    </option>
+                                  )
+                                )}
+                              </select>
                             </div>
                             <div className="md:col-span-2">
                               <label className="text-xs text-zinc-500 block mb-1">Product Image</label>
