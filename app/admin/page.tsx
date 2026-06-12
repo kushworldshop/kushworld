@@ -304,6 +304,19 @@ export default function AdminOrders() {
     }
   };
 
+  const confirmBtcPayment = async (orderId: string) => {
+    try {
+      await fetch('/api/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: orderId, paymentStatus: 'paid' }),
+      });
+      loadOrders();
+    } catch (e) {
+      alert('Failed to confirm Bitcoin payment');
+    }
+  };
+
   const approveIdVerification = async (orderId: string) => {
     try {
       await fetch('/api/orders', {
@@ -735,8 +748,13 @@ export default function AdminOrders() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold">${order.subtotal?.toFixed(2) || '0.00'}</div>
+                    <div className="text-2xl font-bold">${order.total?.toFixed(2) || order.subtotal?.toFixed(2) || '0.00'}</div>
                     <div className="text-sm uppercase tracking-widest text-zinc-400">{order.paymentMethod}</div>
+                    {order.btcPayment?.amountBtc && (
+                      <div className="text-xs text-zinc-500 mt-1 font-mono">
+                        {order.btcPayment.amountBtc.toFixed(8)} BTC
+                      </div>
+                    )}
                     {order.paymentStatus && (
                       <div className={`text-sm mt-1 ${order.paymentStatus === 'paid' ? 'text-green-400' : 'text-yellow-400'}`}>
                         Payment: {order.paymentStatus}
@@ -748,7 +766,15 @@ export default function AdminOrders() {
                   </div>
                 </div>
 
-                <div className="flex gap-4 mb-10">
+                <div className="flex flex-wrap gap-4 mb-10">
+                  {order.paymentMethod === 'btc' && order.paymentStatus === 'awaiting_btc' && (
+                    <button
+                      onClick={() => confirmBtcPayment(order.id)}
+                      className="flex-1 min-w-[200px] py-4 bg-orange-500 hover:bg-orange-600 rounded-2xl text-sm font-medium transition"
+                    >
+                      Confirm BTC Payment
+                    </button>
+                  )}
                   <button 
                     onClick={() => updateStatus(order.id, 'processing')}
                     className="flex-1 py-4 bg-yellow-600 hover:bg-yellow-700 rounded-2xl text-sm font-medium transition"

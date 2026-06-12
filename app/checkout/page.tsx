@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import CreditCardForm, { tokenizeCard } from '@/app/components/CreditCardForm';
+import BtcPaymentScreen from '@/app/components/BtcPaymentScreen';
 import SiteLayout from '@/app/components/SiteLayout';
 import {
   calculateShipping,
@@ -80,7 +81,17 @@ export default function Checkout() {
     environment: string;
   } | null>(null);
 
-  const btcAddress = "32Un3zH14ovKpSyfLWtk6pVex69CmSYVjp";
+  const [btcEnabled, setBtcEnabled] = useState(true);
+  const [btcPayment, setBtcPayment] = useState<{
+    orderId: string;
+    address: string;
+    amountBtc: number;
+    amountUsd: number;
+    rateUsd: number;
+    expiresAt: string;
+    qrUrl: string;
+  } | null>(null);
+  const [btcPaymentComplete, setBtcPaymentComplete] = useState(false);
 
   const [shippingCarrier, setShippingCarrier] = useState<ShippingCarrier>('usps');
 
@@ -92,8 +103,6 @@ export default function Checkout() {
     setCustomerInfo({ ...customerInfo, [e.target.name]: e.target.value });
   };
 
-  const [qrUrl, setQrUrl] = useState("");
-
   const handleCardReadyChange = useCallback((ready: boolean) => {
     setCardReady(ready);
   }, []);
@@ -103,6 +112,11 @@ export default function Checkout() {
       .then((res) => res.json())
       .then((data) => setPaymentConfig(data))
       .catch(() => setPaymentConfig(null));
+
+    fetch('/api/payments/btc/config')
+      .then((res) => res.json())
+      .then((data) => setBtcEnabled(!!data.enabled))
+      .catch(() => setBtcEnabled(false));
   }, []);
 
   useEffect(() => {
@@ -130,15 +144,6 @@ export default function Checkout() {
         setLockedPoints(0);
       });
   }, []);
-
-  useEffect(() => {
-    if (paymentMethod === 'btc') {
-      const amount = (subtotal() * 0.000008).toFixed(8);
-      const label = `KushWorld Order`;
-      const qrData = `bitcoin:${btcAddress}?amount=${amount}&label=${encodeURIComponent(label)}`;
-      setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`);
-    }
-  }, [paymentMethod, subtotal]);
 
   const handleIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -395,6 +400,58 @@ export default function Checkout() {
     }
   };
 
+  const handleBtcPayment = async () => {
+    setLoading(true);
+    setPaymentError('');
+
+    try {
+      const res = await fetch('/api/payments/btc/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: customerInfo,
+          items,
+          subtotal: sub,
+          promoDiscount,
+          loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
+          spinPrizeId: useSpinPrize && activeSpinPrize ? activeSpinPrize.id : undefined,
+          promoCode: appliedPromo?.code,
+          isFirstOrder,
+          discount,
+          shipping: totals.shipping,
+          shippingCarrier,
+          total: totals.total,
+        }),
+      });
+
+      const result = await res.json();
+      if (!result.success) {
+        setPaymentError(result.error || 'Failed to create Bitcoin invoice');
+        return;
+      }
+
+      setOrderId(result.orderId);
+      setRequiresIdUpload(result.requiresIdUpload);
+      setBtcPayment({
+        orderId: result.orderId,
+        ...result.payment,
+      });
+      setOrderPlaced(true);
+      setPaymentComplete(false);
+      clearCart();
+      if (customerInfo.email) {
+        localStorage.setItem(`ordered_${customerInfo.email}`, 'true');
+      }
+      if (storedReferralCode) {
+        clearReferral();
+      }
+    } catch {
+      setPaymentError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleManualOrder = async () => {
     setLoading(true);
     setPaymentError('');
@@ -443,10 +500,24 @@ export default function Checkout() {
 
     if (paymentMethod === 'card') {
       await handleCardPayment();
+    } else if (paymentMethod === 'btc') {
+      await handleBtcPayment();
     } else {
       await handleManualOrder();
     }
   };
+
+  if (orderPlaced && btcPayment && !btcPaymentComplete) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+        <BtcPaymentScreen
+          orderId={btcPayment.orderId}
+          payment={btcPayment}
+          onPaid={() => setBtcPaymentComplete(true)}
+        />
+      </div>
+    );
+  }
 
   if (orderPlaced && requiresIdUpload && !idUploaded) {
     return (
@@ -497,8 +568,10 @@ export default function Checkout() {
         <div className="max-w-md text-center">
           <h1 className="text-4xl font-bold text-[#00ff9d] mb-6">Thank You!</h1>
           <p className="text-xl mb-4">Order <span className="font-mono text-[#00ff9d]">{orderId}</span> received.</p>
-          {paymentComplete && (
-            <p className="text-green-400 mb-4">Your card payment was approved.</p>
+          {(paymentComplete || btcPaymentComplete) && (
+            <p className="text-green-400 mb-4">
+              {paymentMethod === 'btc' ? 'Your Bitcoin payment was received.' : 'Your card payment was approved.'}
+            </p>
           )}
           {idUploaded && (
             <p className="text-sm text-zinc-400 mb-4">
@@ -506,7 +579,7 @@ export default function Checkout() {
             </p>
           )}
           <p className="mb-8 text-zinc-400">
-            {paymentComplete
+            {paymentComplete || btcPaymentComplete
               ? `Confirmation sent to ${customerInfo.email}.`
               : `We will contact you at ${customerInfo.email} once payment is verified.`}
           </p>
@@ -733,7 +806,16 @@ export default function Checkout() {
                     <p className="text-xs text-zinc-400 mt-1">Secure checkout via Authorize.net</p>
                   </button>
                 )}
-                {(['zelle', 'paypal', 'chime', 'btc'] as const).map((method) => (
+                {btcEnabled && (
+                  <button
+                    onClick={() => setPaymentMethod('btc')}
+                    className={`p-6 rounded-3xl border transition col-span-2 ${paymentMethod === 'btc' ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
+                  >
+                    <p className="font-semibold">Bitcoin (BTC)</p>
+                    <p className="text-xs text-zinc-400 mt-1">Scan QR · live rate · auto-detected</p>
+                  </button>
+                )}
+                {(['zelle', 'paypal', 'chime'] as const).map((method) => (
                   <button
                     key={method}
                     onClick={() => setPaymentMethod(method)}
@@ -782,10 +864,10 @@ export default function Checkout() {
               </div>
             )}
 
-            {paymentMethod === 'btc' && qrUrl && (
-              <div className="mt-8 p-8 bg-zinc-900 rounded-3xl text-center border border-[#00ff9d]/30">
-                <Image src={qrUrl} alt="BTC QR" width={300} height={300} className="mx-auto rounded-2xl" />
-                <div className="font-mono break-all mt-6 text-sm">{btcAddress}</div>
+            {paymentMethod === 'btc' && (
+              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30 text-sm text-zinc-400">
+                <p className="font-semibold text-white mb-2">Pay with Bitcoin only</p>
+                <p>After you place the order, you&apos;ll get a QR code and exact BTC amount based on the live exchange rate. Payment is detected automatically on the blockchain.</p>
               </div>
             )}
 
@@ -802,7 +884,9 @@ export default function Checkout() {
                 ? 'Processing...'
                 : paymentMethod === 'card'
                   ? `PAY $${totals.total.toFixed(2)} NOW`
-                  : 'PLACE ORDER — PAYMENT VERIFIED MANUALLY'}
+                  : paymentMethod === 'btc'
+                    ? `PLACE ORDER — PAY ${totals.total.toFixed(2)} IN BTC`
+                    : 'PLACE ORDER — PAYMENT VERIFIED MANUALLY'}
             </button>
           </div>
         </div>

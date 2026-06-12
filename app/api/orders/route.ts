@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest) {
   try {
     await ensureOrdersFile();
     const body = await request.json();
-    const { id, status, idVerificationStatus } = body;
+    const { id, status, idVerificationStatus, paymentStatus } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Order id required' }, { status: 400 });
@@ -60,6 +60,18 @@ export async function PATCH(request: NextRequest) {
 
     if (status) {
       orders[index].status = status;
+    }
+
+    if (paymentStatus) {
+      orders[index].paymentStatus = paymentStatus;
+      if (paymentStatus === 'paid' && orders[index].fulfillmentPending) {
+        const { fulfillPaidOrder } = await import('@/lib/orderFulfillment');
+        await fulfillPaidOrder(orders[index]);
+        orders[index].fulfillmentPending = false;
+        if (orders[index].status === 'pending') {
+          orders[index].status = 'processing';
+        }
+      }
     }
 
     if (idVerificationStatus) {
