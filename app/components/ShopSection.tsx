@@ -7,6 +7,7 @@ import { products, searchProducts } from '@/lib/products';
 
 const filters = [
   { id: 'all', label: 'All' },
+  { id: 'merch', label: 'Studio Merch' },
   { id: 'vapes', label: 'Vapes' },
   { id: 'concentrates', label: 'Concentrates' },
   { id: 'flower', label: 'Flower' },

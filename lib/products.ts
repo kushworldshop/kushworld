@@ -8,14 +8,22 @@ export interface Product {
   name: string;
   price: number;
   image: string;
+  slug?: string;
   sizes?: string[];
+  colors?: string[];
+  images?: string[];
   category: string;
   description?: string;
   coaPdf?: string;
   tierPricing?: TierPrice[];
+  compareAtPrice?: number;
+  merchSubcategory?: string;
+  featured?: boolean;
+  studioUrl?: string;
 }
 
 export function getProductSlug(product: Product): string {
+  if (product.slug) return product.slug;
   return product.image.replace(/^\/products\//, '').replace(/\.[^.]+$/, '');
 }
 
@@ -33,6 +41,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   concentrates: 'High-quality concentrate. Third-party lab tested with COA available. Store in a cool, dry place.',
   flower: 'Exotic flower strain. Hand-selected, lab-tested, and shipped discreetly with full COA documentation.',
   mushrooms: 'Premium mushroom product. Lab verified. For adults 21+ only.',
+  merch: 'Official Kush World Studio apparel and accessories. Unisex fit. Direct-to-garment print quality.',
 };
 
 export function getProductDescription(product: Product): string {
@@ -65,7 +74,7 @@ export function searchProducts(query: string): Product[] {
   );
 }
 
-export const products: Product[] = [
+const hempProducts: Product[] = [
   {
     "id": "1",
     "name": "CaliClear",
@@ -282,4 +291,11 @@ export const products: Product[] = [
     "sizes": [],
     "category": "concentrates"
   }
+];
+
+import { getMerchProducts } from '@/lib/merch';
+
+export const products: Product[] = [
+  ...hempProducts,
+  ...getMerchProducts(),
 ];

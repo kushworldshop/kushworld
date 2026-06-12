@@ -24,6 +24,8 @@ export default function Footer() {
             <h3 className="font-semibold text-lg mb-6">Shop</h3>
             <div className="space-y-3 text-sm">
               <Link href="/#shop" className="block text-zinc-400 hover:text-[#00ff9d] transition">All Products</Link>
+              <Link href="/#merch" className="block text-zinc-400 hover:text-[#00ff9d] transition">Studio Merch</Link>
+              <a href="https://kushworldstudio.co" target="_blank" rel="noopener noreferrer" className="block text-zinc-400 hover:text-[#00ff9d] transition">Kush World Studio</a>
               <Link href="/coa" className="block text-zinc-400 hover:text-[#00ff9d] transition">Lab COAs</Link>
               <Link href="/wholesale" className="block text-zinc-400 hover:text-[#00ff9d] transition">Wholesale</Link>
               <Link href="/reviews" className="block text-zinc-400 hover:text-[#00ff9d] transition">Reviews</Link>

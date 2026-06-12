@@ -1,6 +1,7 @@
 'use client';
 
 const categories = [
+  { label: 'Studio Merch', icon: 'fa-shirt', id: 'merch' },
   { label: 'Vapes & Disposables', icon: 'fa-bolt', id: 'vapes' },
   { label: 'Concentrates', icon: 'fa-fire', id: 'concentrates' },
   { label: 'Exotic Flower', icon: 'fa-leaf', id: 'flower' },
@@ -18,7 +19,7 @@ export default function Categories() {
     <section id="categories" className="py-20 bg-zinc-950">
       <div className="max-w-7xl mx-auto px-6">
         <h2 className="text-5xl font-bold text-center mb-12">SHOP BY CATEGORY</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {categories.map((cat) => (
             <div 
               key={cat.id} 

@@ -9,7 +9,9 @@ import { getCoaPdfPath, getProductSlug, type Product } from '@/lib/products';
 import CoaLink from './CoaLink';
 
 export default function ProductCard({ product }: { product: Product }) {
+  const isMerch = product.category === 'merch';
   const [selectedSize, setSelectedSize] = useState<string>(product.sizes?.[0] || '');
+  const [selectedColor, setSelectedColor] = useState<string>(product.colors?.[0] || '');
   const [added, setAdded] = useState(false);
 
   const addToCart = useCartStore((state) => state.addToCart);
@@ -22,12 +24,13 @@ export default function ProductCard({ product }: { product: Product }) {
       return;
     }
 
+    const variantLabel = [selectedSize, selectedColor].filter(Boolean).join(' / ');
     addToCart({
       id: product.id,
       name: product.name,
       price: product.price,
       image: product.image,
-      selectedSize: selectedSize || undefined,
+      selectedSize: variantLabel || undefined,
       quantity: 1,
     });
 
@@ -54,12 +57,18 @@ export default function ProductCard({ product }: { product: Product }) {
         <i className={`fa-solid fa-heart text-2xl transition-colors ${isInWishlist ? 'text-red-500' : 'text-zinc-400 group-hover:text-white'}`} />
       </button>
 
-      <Link href={`/products/${getProductSlug(product)}`} className="relative aspect-square block">
+      {isMerch && (
+        <span className="absolute top-4 left-4 z-10 bg-black/80 text-[#00ff9d] text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+          Studio
+        </span>
+      )}
+
+      <Link href={`/products/${getProductSlug(product)}`} className={`relative aspect-square block ${isMerch ? 'bg-white/5' : ''}`}>
         <Image
           src={product.image}
           alt={product.name}
           fill
-          className="object-cover group-hover:scale-105 transition-transform duration-500"
+          className={`${isMerch ? 'object-contain p-4' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
         />
       </Link>
 
@@ -67,9 +76,37 @@ export default function ProductCard({ product }: { product: Product }) {
         <Link href={`/products/${getProductSlug(product)}`}>
           <h3 className="font-semibold text-xl line-clamp-2 mb-2 hover:text-[#00ff9d] transition">{product.name}</h3>
         </Link>
-        <p className="text-[#00ff9d] text-2xl font-bold mb-4">${product.price}</p>
+        <div className="mb-4">
+          <p className="text-[#00ff9d] text-2xl font-bold">
+            {product.sizes?.length ? 'From ' : ''}${product.price}
+          </p>
+          {product.compareAtPrice && product.compareAtPrice < product.price && (
+            <p className="text-xs text-zinc-500 line-through">${product.compareAtPrice}</p>
+          )}
+        </div>
 
         {/* Size Selector */}
+        {product.colors && product.colors.length > 0 && (
+          <div className="mb-4">
+            <p className="text-xs text-zinc-400 mb-2">COLOR</p>
+            <div className="flex flex-wrap gap-2">
+              {product.colors.map((color) => (
+                <button
+                  key={color}
+                  onClick={() => setSelectedColor(color)}
+                  className={`px-3 py-1.5 text-xs rounded-xl transition-all ${
+                    selectedColor === color
+                      ? 'bg-[#00ff9d] text-black font-medium'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-white'
+                  }`}
+                >
+                  {color}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {product.sizes && product.sizes.length > 0 && (
           <div className="mb-4">
             <p className="text-xs text-zinc-400 mb-2">SIZE</p>
@@ -91,7 +128,7 @@ export default function ProductCard({ product }: { product: Product }) {
           </div>
         )}
 
-        <CoaLink coaPdf={getCoaPdfPath(product)} productName={product.name} />
+        {!isMerch && <CoaLink coaPdf={getCoaPdfPath(product)} productName={product.name} />}
 
         {/* Add to Cart Button */}
         <button

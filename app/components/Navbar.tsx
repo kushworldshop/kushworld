@@ -32,7 +32,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   return (
     <>
       <div className="bg-[#00ff9d] text-black py-3 text-center text-sm font-medium flex items-center justify-center gap-4 flex-wrap px-6">
-        🎁 Use code FIRST20 for $20 off first order • 🔥 FREE SHIPPING $200+ • LAB TESTED COAs
+        👕 Studio merch now in shop — free shipping $100+ • 🎁 Code FIRST20 • 🔥 Hemp orders ship free $200+
       </div>
 
       <nav className="bg-black border-b border-zinc-800 sticky top-0 z-50">
@@ -58,6 +58,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
 
             <div className="hidden md:flex items-center gap-6 text-sm">
               <Link href="/#shop" className="hover:text-[#00ff9d] transition">Shop</Link>
+              <Link href="/#merch" className="hover:text-[#00ff9d] transition">Merch</Link>
               <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>
               <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
               <Link href="/cart" className="hover:text-[#00ff9d] transition">Cart</Link>
@@ -102,6 +103,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                 />
               </form>
               <Link href="/#shop" className="block hover:text-[#00ff9d]">Shop</Link>
+              <Link href="/#merch" className="block hover:text-[#00ff9d]">Merch</Link>
               <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>
               <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
               <Link href="/cart" className="block hover:text-[#00ff9d]">Cart</Link>
