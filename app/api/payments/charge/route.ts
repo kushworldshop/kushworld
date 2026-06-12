@@ -11,6 +11,7 @@ import { recordReferralConversion } from '@/lib/referrals';
 import { creditReferrerForConversion } from '@/lib/referralRewards';
 import { getSessionUserId } from '@/lib/auth';
 import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
+import { markUserSpinPrizeUsed } from '@/lib/users';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -66,13 +67,25 @@ export async function POST(request: NextRequest) {
         promoDiscount: body.promoDiscount ?? body.discount ?? 0,
         loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
         shipping: body.shipping,
+        spinPrizeId: body.spinPrizeId,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid order totals';
       return NextResponse.json({ success: false, error: message }, { status: 400 });
     }
 
-    const { discount, shipping, total: orderTotal, loyaltyPointsUsed, loyaltyDiscount, promoDiscount } = resolved;
+    const {
+      discount,
+      shipping,
+      total: orderTotal,
+      loyaltyPointsUsed,
+      loyaltyDiscount,
+      promoDiscount,
+      spinDiscount,
+      spinPrizeId,
+      spinPrizeLabel,
+      freeTshirt,
+    } = resolved;
     const orderId = `KW-${Date.now().toString().slice(-8)}`;
     const payment = await chargeCard(orderTotal, opaqueData, customer, orderId);
 
@@ -96,6 +109,10 @@ export async function POST(request: NextRequest) {
       promoDiscount,
       loyaltyPointsUsed,
       loyaltyDiscount,
+      spinDiscount: spinDiscount || undefined,
+      spinPrizeId,
+      spinPrizeLabel,
+      freeTshirtNote: freeTshirt ? 'Wheel prize: Free T-Shirt — include in shipment' : undefined,
       discount,
       shipping,
       total: orderTotal,
@@ -134,6 +151,9 @@ export async function POST(request: NextRequest) {
     if (userId) {
       if (loyaltyPointsUsed > 0) {
         await finalizeLoyaltyRedemption(userId, loyaltyPointsUsed);
+      }
+      if (spinPrizeId) {
+        await markUserSpinPrizeUsed(userId, spinPrizeId);
       }
       await awardPurchaseLoyalty(userId, subtotal);
     }

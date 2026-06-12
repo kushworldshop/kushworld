@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { createOrGetReferral, getReferralByEmail } from '@/lib/referrals';
 import { REFERRER_COMMISSION_USD, REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
+import type { SpinPrize } from '@/lib/spinWheelTypes';
 
 const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
 
@@ -26,6 +27,7 @@ export interface UserProfile {
   socials?: UserSocials;
   loyaltyPoints: number;
   referralCode?: string;
+  activeSpinPrize?: SpinPrize;
   shippingAddress?: {
     address: string;
     city: string;
@@ -47,6 +49,7 @@ export interface PublicUserProfile {
   loyaltyPoints: number;
   referralCode?: string;
   referralLink?: string;
+  activeSpinPrize?: SpinPrize | null;
   shippingAddress?: UserProfile['shippingAddress'];
   referralStats?: {
     clicks: number;
@@ -197,9 +200,48 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     loyaltyPoints: user.loyaltyPoints ?? 0,
     referralCode: user.referralCode,
     referralLink: user.referralCode ? `${base}/ref/${user.referralCode}` : undefined,
+    activeSpinPrize: getActiveSpinPrizeForUser(user),
     shippingAddress: user.shippingAddress,
     referralStats,
   };
+}
+
+function getActiveSpinPrizeForUser(user: UserProfile): SpinPrize | null {
+  const prize = user.activeSpinPrize;
+  if (!prize || prize.usedAt) return null;
+  if (new Date(prize.expiresAt).getTime() <= Date.now()) return null;
+  return prize;
+}
+
+export async function setActiveSpinPrize(userId: string, prize: SpinPrize): Promise<void> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) throw new Error('User not found');
+  users[index].activeSpinPrize = prize;
+  await writeUsers(users);
+}
+
+export async function clearActiveSpinPrize(userId: string): Promise<void> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) throw new Error('User not found');
+  users[index].activeSpinPrize = undefined;
+  await writeUsers(users);
+}
+
+export async function markUserSpinPrizeUsed(userId: string, prizeId: string): Promise<void> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) return;
+
+  const prize = users[index].activeSpinPrize;
+  if (!prize || prize.id !== prizeId) return;
+
+  users[index].activeSpinPrize = {
+    ...prize,
+    usedAt: new Date().toISOString(),
+  };
+  await writeUsers(users);
 }
 
 export async function getUserDashboard(userId: string): Promise<PublicUserProfile | null> {

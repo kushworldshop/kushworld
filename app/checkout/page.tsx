@@ -20,6 +20,11 @@ import {
   calculateMaxRedeemablePoints,
   pointsToDollarDiscount,
 } from '@/lib/loyaltyUtils';
+import {
+  computeSpinPrizePreview,
+  isSpinPrizeActive,
+  type SpinPrize,
+} from '@/lib/spinWheelTypes';
 
 type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
 
@@ -51,6 +56,8 @@ export default function Checkout() {
   const [useLoyalty, setUseLoyalty] = useState(false);
   const [loyaltyPointsToUse, setLoyaltyPointsToUse] = useState(0);
   const [loyaltyMessage, setLoyaltyMessage] = useState('');
+  const [activeSpinPrize, setActiveSpinPrize] = useState<SpinPrize | null>(null);
+  const [useSpinPrize, setUseSpinPrize] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cardNumber, setCardNumber] = useState('');
@@ -95,9 +102,14 @@ export default function Checkout() {
         if (data?.user) {
           setIsLoggedIn(true);
           setAvailablePoints(data.user.loyaltyPoints ?? 0);
+          const prize = data.user.activeSpinPrize ?? null;
+          setActiveSpinPrize(isSpinPrizeActive(prize) ? prize : null);
+          setUseSpinPrize(isSpinPrizeActive(prize));
         } else {
           setIsLoggedIn(false);
           setAvailablePoints(0);
+          setActiveSpinPrize(null);
+          setUseSpinPrize(false);
         }
       })
       .catch(() => {
@@ -154,13 +166,27 @@ export default function Checkout() {
   const sub = subtotal();
   const promoDiscount = Math.max(couponDiscount, referralDiscount);
   const usingReferralDiscount = referralDiscount > 0 && referralDiscount >= couponDiscount;
-  const maxRedeemablePoints = calculateMaxRedeemablePoints(availablePoints, sub, promoDiscount);
+  const spinPreview = computeSpinPrizePreview(activeSpinPrize, sub, useSpinPrize);
+  const spinDiscount = spinPreview.spinDiscount;
+  const maxRedeemablePoints = calculateMaxRedeemablePoints(
+    availablePoints,
+    sub,
+    promoDiscount + spinDiscount
+  );
   const loyaltyDiscount = useLoyalty ? pointsToDollarDiscount(loyaltyPointsToUse) : 0;
-  const discount = promoDiscount + loyaltyDiscount;
+  const discount = Math.min(sub, promoDiscount + loyaltyDiscount + spinDiscount);
   const isFirstOrder = customerInfo.email
     ? !localStorage.getItem(`ordered_${customerInfo.email}`)
     : true;
-  const totals = calculateTotals(sub, discount);
+  const baseTotals = calculateTotals(sub, discount);
+  const shipping = spinPreview.freeShipping ? 0 : baseTotals.shipping;
+  const total = Math.max(0, sub - discount + shipping);
+  const totals = {
+    ...baseTotals,
+    shipping,
+    total,
+    freeShipping: shipping === 0 && sub > 0,
+  };
 
   useEffect(() => {
     if (!storedReferralCode || sub <= 0) {
@@ -198,7 +224,7 @@ export default function Checkout() {
 
   useEffect(() => {
     if (!useLoyalty) return;
-    const max = calculateMaxRedeemablePoints(availablePoints, sub, promoDiscount);
+    const max = calculateMaxRedeemablePoints(availablePoints, sub, promoDiscount + spinDiscount);
     if (loyaltyPointsToUse > max) {
       setLoyaltyPointsToUse(max >= MIN_REDEMPTION_POINTS ? max : 0);
     }
@@ -207,10 +233,10 @@ export default function Checkout() {
       setLoyaltyPointsToUse(0);
       setLoyaltyMessage('');
     }
-  }, [sub, promoDiscount, availablePoints, useLoyalty, loyaltyPointsToUse]);
+  }, [sub, promoDiscount, spinDiscount, availablePoints, useLoyalty, loyaltyPointsToUse]);
 
   const applyMaxLoyalty = () => {
-    const max = calculateMaxRedeemablePoints(availablePoints, sub, promoDiscount);
+    const max = calculateMaxRedeemablePoints(availablePoints, sub, promoDiscount + spinDiscount);
     if (max < MIN_REDEMPTION_POINTS) {
       setLoyaltyMessage(`Need at least ${MIN_REDEMPTION_POINTS} points and a $${(MIN_REDEMPTION_POINTS / 100).toFixed(2)} discountable balance`);
       return;
@@ -257,6 +283,9 @@ export default function Checkout() {
     }
     if (useLoyalty && loyaltyPointsToUse > maxRedeemablePoints) {
       return 'Loyalty points exceed the allowed amount for this order.';
+    }
+    if (useSpinPrize && !isSpinPrizeActive(activeSpinPrize)) {
+      return 'Your wheel prize is invalid or expired.';
     }
     return null;
   };
@@ -313,6 +342,7 @@ export default function Checkout() {
           subtotal: sub,
           promoDiscount,
           loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
+          spinPrizeId: useSpinPrize && activeSpinPrize ? activeSpinPrize.id : undefined,
           discount,
           shipping: totals.shipping,
           total: totals.total,
@@ -346,6 +376,7 @@ export default function Checkout() {
       subtotal: sub,
       promoDiscount,
       loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
+      spinPrizeId: useSpinPrize && activeSpinPrize ? activeSpinPrize.id : undefined,
       discount,
       shipping: totals.shipping,
       total: totals.total,
@@ -492,6 +523,20 @@ export default function Checkout() {
                   <span>-${loyaltyDiscount.toFixed(2)}</span>
                 </div>
               )}
+              {useSpinPrize && activeSpinPrize && (
+                <div className="flex justify-between text-[#00ff9d]">
+                  <span>Wheel: {activeSpinPrize.label}</span>
+                  <span>
+                    {spinDiscount > 0
+                      ? `-$${spinDiscount.toFixed(2)}`
+                      : spinPreview.freeShipping
+                        ? 'Free ship'
+                        : spinPreview.freeTshirt
+                          ? 'Bonus item'
+                          : 'Applied'}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between"><span>Shipping</span><span>{totals.freeShipping ? 'FREE' : `$${totals.shipping.toFixed(2)}`}</span></div>
               <div className="flex justify-between font-bold text-xl pt-2"><span>Total</span><span className="text-[#00ff9d]">${totals.total.toFixed(2)}</span></div>
               {sub < FREE_SHIPPING_THRESHOLD && <p className="text-xs text-zinc-500">Free shipping at ${FREE_SHIPPING_THRESHOLD}+</p>}
@@ -530,6 +575,31 @@ export default function Checkout() {
               </p>
             )}
             {couponMessage && <p className="text-sm text-zinc-400 mb-4">{couponMessage}</p>}
+
+            {isLoggedIn && activeSpinPrize && (
+              <div className="bg-zinc-900 border border-[#00ff9d]/30 rounded-2xl p-4 mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">Wheel Prize</h3>
+                  <Link href="/account?tab=wheel" className="text-xs text-[#00ff9d] hover:underline">
+                    Spin again
+                  </Link>
+                </div>
+                <p className="text-sm text-[#00ff9d] mb-3">{activeSpinPrize.label}</p>
+                <p className="text-xs text-zinc-500 mb-3">
+                  Expires {new Date(activeSpinPrize.expiresAt).toLocaleDateString()}
+                  {spinPreview.freeTshirt && ' · Free t-shirt will be added to your shipment'}
+                </p>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useSpinPrize}
+                    onChange={(e) => setUseSpinPrize(e.target.checked)}
+                    className="w-4 h-4 accent-[#00ff9d]"
+                  />
+                  <span className="text-sm">Apply wheel prize to this order</span>
+                </label>
+              </div>
+            )}
 
             <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6">
               <div className="flex items-center justify-between mb-3">

@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
+import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
 import { REFERRER_COMMISSION_USD, REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
+import { SPIN_COST } from '@/lib/spinWheelTypes';
 
-type Tab = 'profile' | 'loyalty' | 'referrals' | 'orders';
+type Tab = 'profile' | 'loyalty' | 'wheel' | 'referrals' | 'orders';
 
 const emptySocials: UserSocials = {
   instagram: '',
@@ -82,6 +84,13 @@ export default function Account() {
 
   useEffect(() => {
     loadProfile();
+  }, []);
+
+  useEffect(() => {
+    const tabParam = new URLSearchParams(window.location.search).get('tab');
+    if (tabParam === 'wheel' || tabParam === 'loyalty' || tabParam === 'referrals' || tabParam === 'orders' || tabParam === 'profile') {
+      setTab(tabParam);
+    }
   }, []);
 
   const handleAuth = async () => {
@@ -257,7 +266,7 @@ export default function Account() {
         </div>
 
         <div className="flex flex-wrap gap-2 mb-8 border-b border-zinc-800 pb-4">
-          {(['profile', 'loyalty', 'referrals', 'orders'] as Tab[]).map((t) => (
+          {(['profile', 'loyalty', 'wheel', 'referrals', 'orders'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -340,11 +349,39 @@ export default function Account() {
               <p>• Earn <strong>1 point per $10</strong> spent on orders (logged-in checkout)</p>
               <p>• Earn <strong>{REFERRER_REWARD_POINTS} points</strong> per successful referral</p>
               <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
+              <p>• Gamble <strong>{SPIN_COST} points</strong> on the prize wheel for discounts, free shipping, and more</p>
             </div>
 
-            <Link href="/#shop" className="inline-block mt-8 bg-white text-black px-8 py-4 rounded-2xl font-bold hover:bg-[#00ff9d] transition">
+            <button
+              onClick={() => setTab('wheel')}
+              className="inline-block mt-6 mr-4 bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold hover:bg-[#00ff9d]/90 transition"
+            >
+              Spin the Wheel
+            </button>
+            <Link href="/#shop" className="inline-block mt-6 bg-white text-black px-8 py-4 rounded-2xl font-bold hover:bg-zinc-200 transition">
               Shop & Earn Points
             </Link>
+          </div>
+        )}
+
+        {tab === 'wheel' && (
+          <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
+            <h2 className="text-2xl font-bold mb-2 text-center">Prize Wheel</h2>
+            <p className="text-zinc-400 text-sm text-center mb-8 max-w-md mx-auto">
+              Spend {SPIN_COST} loyalty points per spin. Win discounts, free shipping, bonus points, or a free t-shirt.
+              Prizes expire in 14 days — use them at checkout or forfeit to spin again.
+            </p>
+            <SpinWheel
+              points={user.loyaltyPoints}
+              activePrize={user.activeSpinPrize}
+              onSpinComplete={(remainingPoints, prize) => {
+                setUser((prev) =>
+                  prev
+                    ? { ...prev, loyaltyPoints: remainingPoints, activeSpinPrize: prize }
+                    : prev
+                );
+              }}
+            />
           </div>
         )}
 
