@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { useCartStore } from '@/lib/cartStore';
 import { useWishlistStore } from '@/lib/wishlistStore';
 import Link from 'next/link';
-import { getCoaPdfPath, getProductSlug, type Product } from '@/lib/products';
+import { getCoaPdfPath, getProductSlug, isProductInStock, type Product } from '@/lib/products';
 import {
   formatSelectedOptionsLabel,
   getDefaultSelectedOptions,
@@ -25,12 +25,15 @@ export default function ProductCard({ product }: { product: Product }) {
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
   const isInWishlist = useWishlistStore((state) => state.isInWishlist(product.id));
   const hasOptions = productHasOptions(product);
+  const inStock = isProductInStock(product);
   const unitPrice = useMemo(
     () => getSelectedOptionsUnitPrice(product, selectedOptions),
     [product, selectedOptions]
   );
 
   const handleAddToCart = () => {
+    if (!inStock) return;
+
     const validation = validateSelectedOptions(product, selectedOptions);
     if (!validation.valid) {
       alert(`Please select ${validation.missingGroup} first`);
@@ -111,13 +114,14 @@ export default function ProductCard({ product }: { product: Product }) {
 
         <button
           onClick={handleAddToCart}
-          className={`w-full mt-3 py-4 rounded-2xl font-bold text-lg transition-all ${
+          disabled={!inStock}
+          className={`w-full mt-3 py-4 rounded-2xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
             added
               ? 'bg-[#00ff9d] text-black'
               : 'bg-white text-black hover:bg-[#00ff9d]'
           }`}
         >
-          {added ? '✓ Added to Cart' : 'Quick Add'}
+          {!inStock ? 'Out of Stock' : added ? '✓ Added to Cart' : 'Quick Add'}
         </button>
       </div>
     </div>

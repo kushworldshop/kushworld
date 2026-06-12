@@ -4,7 +4,13 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCartStore } from '@/lib/cartStore';
-import { getCoaPdfPath, getProductDescription, getTierPricing, type Product } from '@/lib/products';
+import {
+  getCoaPdfPath,
+  getProductDescription,
+  getTierPricing,
+  isProductInStock,
+  type Product,
+} from '@/lib/products';
 import { getMerchSubcategoryLabel, MERCH_FREE_SHIPPING } from '@/lib/merch';
 import { getTierPrice } from '@/lib/checkout';
 import {
@@ -35,6 +41,7 @@ export default function ProductDetail({ product }: { product: Product }) {
 
   const tiers = getTierPricing(product);
   const hasOptions = productHasOptions(product);
+  const inStock = isProductInStock(product);
   const unitPrice = useMemo(
     () =>
       getSelectedOptionsUnitPrice(product, selectedOptions, quantity, (basePrice, qty) =>
@@ -44,6 +51,8 @@ export default function ProductDetail({ product }: { product: Product }) {
   );
 
   const handleAdd = () => {
+    if (!inStock) return;
+
     const validation = validateSelectedOptions(product, selectedOptions);
     if (!validation.valid) {
       alert(`Please select ${validation.missingGroup}`);
@@ -179,11 +188,29 @@ export default function ProductDetail({ product }: { product: Product }) {
               </div>
             )}
 
+            {!inStock && (
+              <div className="bg-red-950/50 border border-red-800 rounded-2xl px-5 py-4 mb-6 text-red-300 text-sm font-medium">
+                Out of stock
+              </div>
+            )}
+
             <div className="flex items-center gap-4 mb-6">
               <label className="text-sm text-zinc-400">Qty</label>
-              <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 bg-zinc-800 rounded-xl">−</button>
+              <button
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                disabled={!inStock}
+                className="w-10 h-10 bg-zinc-800 rounded-xl disabled:opacity-40"
+              >
+                −
+              </button>
               <span className="w-8 text-center font-bold">{quantity}</span>
-              <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 bg-zinc-800 rounded-xl">+</button>
+              <button
+                onClick={() => setQuantity(quantity + 1)}
+                disabled={!inStock}
+                className="w-10 h-10 bg-zinc-800 rounded-xl disabled:opacity-40"
+              >
+                +
+              </button>
             </div>
 
             {isMerch && (
@@ -202,11 +229,12 @@ export default function ProductDetail({ product }: { product: Product }) {
 
             <button
               onClick={handleAdd}
-              className={`w-full mt-4 py-5 rounded-2xl font-bold text-lg transition ${
+              disabled={!inStock}
+              className={`w-full mt-4 py-5 rounded-2xl font-bold text-lg transition disabled:opacity-50 disabled:cursor-not-allowed ${
                 added ? 'bg-[#00ff9d] text-black' : 'bg-white text-black hover:bg-[#00ff9d]'
               }`}
             >
-              {added ? '✓ Added to Cart' : 'Add to Cart'}
+              {!inStock ? 'Out of Stock' : added ? '✓ Added to Cart' : 'Add to Cart'}
             </button>
 
             <Link
@@ -226,8 +254,12 @@ export default function ProductDetail({ product }: { product: Product }) {
           <p className="font-bold text-sm truncate">{product.name}</p>
           <p className="text-[#00ff9d] font-bold">${unitPrice}</p>
         </div>
-        <button onClick={handleAdd} className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-bold text-sm">
-          Add to Cart
+        <button
+          onClick={handleAdd}
+          disabled={!inStock}
+          className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-bold text-sm disabled:opacity-50"
+        >
+          {inStock ? 'Add to Cart' : 'Out of Stock'}
         </button>
       </div>
     </>

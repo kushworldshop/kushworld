@@ -16,6 +16,7 @@ export type ProductOverride = Partial<
     | 'name'
     | 'price'
     | 'cost'
+    | 'inventory'
     | 'image'
     | 'description'
     | 'optionGroups'
@@ -26,7 +27,10 @@ export type ProductOverride = Partial<
 >;
 
 function toStorefrontProduct(product: Product): Product {
-  const { cost: _cost, ...storefrontProduct } = product;
+  const { cost: _cost, inventory, ...storefrontProduct } = product;
+  if (inventory !== undefined) {
+    storefrontProduct.inStock = inventory > 0;
+  }
   return storefrontProduct;
 }
 
@@ -110,7 +114,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
 
 export async function updateProductOverride(
   id: string,
-  updates: ProductOverride
+  updates: ProductOverride & { clearInventory?: boolean }
 ): Promise<Product | null> {
   const base = baseProducts.find((product) => product.id === id);
   if (!base) return null;
@@ -125,6 +129,11 @@ export async function updateProductOverride(
     const cost = Math.max(0, Number(updates.cost));
     if (cost > 0) next.cost = cost;
     else delete next.cost;
+  }
+  if (updates.clearInventory) {
+    delete next.inventory;
+  } else if (updates.inventory !== undefined) {
+    next.inventory = Math.max(0, Math.floor(Number(updates.inventory)));
   }
   if (updates.image !== undefined) next.image = updates.image.trim() || base.image;
   if (updates.description !== undefined) {
@@ -157,6 +166,7 @@ export async function updateProductOverride(
       if (value === undefined || value === '') return false;
       if (key === 'hidden') return value === true;
       if (key === 'cost') return typeof value === 'number' && value > 0;
+      if (key === 'inventory') return typeof value === 'number' && value >= 0;
       if (key === 'optionGroups') {
         return JSON.stringify(value) !== JSON.stringify(getProductOptionGroups(base));
       }

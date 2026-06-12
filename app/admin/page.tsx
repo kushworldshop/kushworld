@@ -26,6 +26,7 @@ interface AdminProduct {
   name: string;
   price: number;
   cost?: number;
+  inventory?: number;
   image: string;
   description?: string;
   category: string;
@@ -59,7 +60,9 @@ export default function AdminOrders() {
   const [settingsMessage, setSettingsMessage] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
   const [adminProducts, setAdminProducts] = useState<AdminProduct[]>([]);
-  const [productEdits, setProductEdits] = useState<Record<string, Partial<AdminProduct>>>({});
+  const [productEdits, setProductEdits] = useState<
+    Record<string, Partial<AdminProduct> & { trackInventory?: boolean }>
+  >({});
   const [productSearch, setProductSearch] = useState('');
   const [productCategory, setProductCategory] = useState('all');
   const [productVisibilityFilter, setProductVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all');
@@ -174,24 +177,33 @@ export default function AdminOrders() {
     }
   };
 
-  const getProductDraft = (product: AdminProduct) => ({
-    name: productEdits[product.id]?.name ?? product.name,
-    price: productEdits[product.id]?.price ?? product.price,
-    cost: productEdits[product.id]?.cost ?? product.cost ?? 0,
-    image: productEdits[product.id]?.image ?? product.image,
+  const getProductDraft = (product: AdminProduct) => {
+    const edits = productEdits[product.id];
+    const trackInventory =
+      edits?.trackInventory !== undefined
+        ? edits.trackInventory
+        : product.inventory !== undefined;
+    return {
+    name: edits?.name ?? product.name,
+    price: edits?.price ?? product.price,
+    cost: edits?.cost ?? product.cost ?? 0,
+    trackInventory,
+    inventory: edits?.inventory ?? product.inventory ?? 0,
+    image: edits?.image ?? product.image,
     description: productEdits[product.id]?.description ?? product.description ?? '',
     category: productEdits[product.id]?.category ?? product.category,
     subcategory: productEdits[product.id]?.subcategory ?? product.subcategory ?? '',
     optionGroups:
-      productEdits[product.id]?.optionGroups ??
+      edits?.optionGroups ??
       product.optionGroups ??
       getProductOptionGroups(product),
-  });
+  };
+  };
 
   const updateProductDraft = (
     id: string,
-    field: keyof AdminProduct,
-    value: string | number | ProductOptionGroup[]
+    field: keyof AdminProduct | 'trackInventory',
+    value: string | number | boolean | ProductOptionGroup[]
   ) => {
     setProductEdits((prev) => ({
       ...prev,
@@ -290,6 +302,8 @@ export default function AdminOrders() {
           name: draft.name,
           price: draft.price,
           cost: draft.cost,
+          trackInventory: draft.trackInventory,
+          inventory: draft.trackInventory ? draft.inventory : undefined,
           image: draft.image,
           description: draft.description,
           optionGroups: draft.optionGroups,
@@ -352,6 +366,31 @@ export default function AdminOrders() {
       loadOrders();
     } catch (e) {
       alert('Failed to update status');
+    }
+  };
+
+  const approveOrderAction = async (orderId: string, action: 'cancel' | 'refund') => {
+    const label = action === 'cancel' ? 'cancel this order and restore inventory' : 'refund this order and restore inventory';
+    if (!confirm(`Approve ${label}?`)) return;
+
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: orderId,
+          approveCancel: action === 'cancel',
+          approveRefund: action === 'refund',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadOrders();
+      } else {
+        alert(data.error || 'Failed to update order');
+      }
+    } catch {
+      alert('Failed to update order');
     }
   };
 
@@ -568,8 +607,9 @@ export default function AdminOrders() {
             <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
               <h2 className="text-2xl font-bold mb-2">Product Catalog</h2>
               <p className="text-zinc-400 text-sm mb-6">
-                Edit sell price, cost, images, descriptions, and options. Cost is admin-only and helps track
-                margins. Hide products to remove them from the shop without deleting them.
+                Edit sell price, cost, inventory, images, descriptions, and options. Cost is admin-only and helps
+                track margins. Inventory subtracts on purchase and restores when you approve a cancel or refund.
+                Hide products to remove them from the shop without deleting them.
               </p>
               <div className="flex flex-wrap gap-4 mb-4">
                 <input
@@ -681,6 +721,37 @@ export default function AdminOrders() {
                               />
                               <p className="text-[11px] text-zinc-500 mt-1">Your cost — admin only, never shown on shop</p>
                             </div>
+                            <div className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3">
+                              <label className="flex items-center gap-3 text-sm cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={draft.trackInventory}
+                                  onChange={(e) => updateProductDraft(product.id, 'trackInventory', e.target.checked)}
+                                  className="w-4 h-4 accent-[#00ff9d]"
+                                />
+                                <span>Track inventory for this product</span>
+                              </label>
+                              {draft.trackInventory && (
+                                <div className="mt-3 flex flex-wrap items-end gap-4">
+                                  <div>
+                                    <label className="text-xs text-zinc-500 block mb-1">Stock count</label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={1}
+                                      value={draft.inventory}
+                                      onChange={(e) => updateProductDraft(product.id, 'inventory', Number(e.target.value))}
+                                      className="w-32 bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                                    />
+                                  </div>
+                                  {draft.inventory <= 5 && (
+                                    <p className={`text-sm ${draft.inventory === 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                                      {draft.inventory === 0 ? 'Out of stock on shop' : 'Low stock'}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                             {margin && (
                               <div className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-sm">
                                 <p className="text-zinc-400">
@@ -771,6 +842,11 @@ export default function AdminOrders() {
                             {product.cost && product.cost > 0 && (
                               <span className="text-zinc-400 ml-2">
                                 Cost {formatCurrency(product.cost)} → Sell {formatCurrency(product.price)}
+                              </span>
+                            )}
+                            {product.inventory !== undefined && (
+                              <span className={`ml-2 ${product.inventory === 0 ? 'text-red-400' : product.inventory <= 5 ? 'text-amber-400' : 'text-zinc-400'}`}>
+                                Stock: {product.inventory}
                               </span>
                             )}
                             {product.hidden && <span className="text-amber-400 ml-2">Hidden from shop</span>}
@@ -949,6 +1025,28 @@ export default function AdminOrders() {
                   >
                     Mark as Shipped
                   </button>
+                  {order.inventoryDeducted && !order.inventoryRestored && order.status !== 'cancelled' && order.status !== 'refunded' && (
+                    <>
+                      <button
+                        onClick={() => approveOrderAction(order.id, 'cancel')}
+                        className="flex-1 min-w-[200px] py-4 bg-red-700 hover:bg-red-800 rounded-2xl text-sm font-medium transition"
+                      >
+                        Approve Cancel & Restore Stock
+                      </button>
+                      <button
+                        onClick={() => approveOrderAction(order.id, 'refund')}
+                        className="flex-1 min-w-[200px] py-4 bg-rose-700 hover:bg-rose-800 rounded-2xl text-sm font-medium transition"
+                      >
+                        Approve Refund & Restore Stock
+                      </button>
+                    </>
+                  )}
+                  {order.inventoryRestored && (
+                    <p className="w-full text-sm text-emerald-400">
+                      Inventory restored
+                      {order.inventoryRestoredAt && ` · ${new Date(order.inventoryRestoredAt).toLocaleString()}`}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-6">

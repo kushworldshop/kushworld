@@ -13,6 +13,11 @@ import { getSessionUserId } from '@/lib/auth';
 import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
 import { markUserSpinPrizeUsed, unlockLoyaltyPointsAfterPurchase } from '@/lib/users';
 import { resolvePromoForOrder } from '@/lib/orderPromo';
+import {
+  deductInventoryForOrder,
+  InventoryError,
+  restoreInventoryForOrder,
+} from '@/lib/inventory';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -44,7 +49,7 @@ export async function PATCH(request: NextRequest) {
   try {
     await ensureOrdersFile();
     const body = await request.json();
-    const { id, status, idVerificationStatus, paymentStatus } = body;
+    const { id, status, idVerificationStatus, paymentStatus, approveCancel, approveRefund } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Order id required' }, { status: 400 });
@@ -58,7 +63,18 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
 
-    if (status) {
+    if (approveCancel || approveRefund) {
+      const order = orders[index];
+      if (order.inventoryDeducted && !order.inventoryRestored) {
+        await restoreInventoryForOrder(order.items || []);
+        order.inventoryRestored = true;
+        order.inventoryRestoredAt = new Date().toISOString();
+      }
+      order.status = approveCancel ? 'cancelled' : 'refunded';
+      if (approveRefund && order.paymentStatus === 'paid') {
+        order.paymentStatus = 'refunded';
+      }
+    } else if (status) {
       orders[index].status = status;
     }
 
@@ -165,6 +181,16 @@ export async function POST(request: NextRequest) {
 
     const alreadyVerified = email ? await isCustomerVerified(email) : false;
     const needsIdVerification = orderRequiresIdVerification(body.items || []);
+    const orderItems = body.items || [];
+
+    try {
+      await deductInventoryForOrder(orderItems);
+    } catch (err) {
+      if (err instanceof InventoryError) {
+        return NextResponse.json({ success: false, error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
 
     const newOrder = {
       id: `KW-${Date.now().toString().slice(-8)}`,
@@ -194,6 +220,8 @@ export async function POST(request: NextRequest) {
       zip: customer.zip ?? body.zip,
       phone: customer.phone ?? body.phone,
       status: 'pending',
+      inventoryDeducted: true,
+      inventoryRestored: false,
       idVerification: !needsIdVerification
         ? { status: 'verified', note: 'Merch-only order — no ID required' }
         : alreadyVerified
@@ -202,10 +230,17 @@ export async function POST(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    const data = await fs.readFile(ORDERS_FILE, 'utf8');
-    const orders = JSON.parse(data);
-    orders.unshift(newOrder); // newest first
-    await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
+    let data: string;
+    let orders: Record<string, unknown>[];
+    try {
+      data = await fs.readFile(ORDERS_FILE, 'utf8');
+      orders = JSON.parse(data);
+      orders.unshift(newOrder);
+      await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
+    } catch (saveError) {
+      await restoreInventoryForOrder(orderItems);
+      throw saveError;
+    }
 
     if (promoMeta.referrerCode) {
       await recordReferralConversion(promoMeta.referrerCode, newOrder.id, subtotal);

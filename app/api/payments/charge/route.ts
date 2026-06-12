@@ -13,6 +13,7 @@ import { getSessionUserId } from '@/lib/auth';
 import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
 import { markUserSpinPrizeUsed, unlockLoyaltyPointsAfterPurchase } from '@/lib/users';
 import { resolvePromoForOrder } from '@/lib/orderPromo';
+import { deductInventoryForOrder, InventoryError } from '@/lib/inventory';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -105,9 +106,21 @@ export async function POST(request: NextRequest) {
       freeTshirt,
     } = resolved;
     const orderId = `KW-${Date.now().toString().slice(-8)}`;
+
+    try {
+      await deductInventoryForOrder(items);
+    } catch (err) {
+      if (err instanceof InventoryError) {
+        return NextResponse.json({ success: false, error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
+
     const payment = await chargeCard(orderTotal, opaqueData, customer, orderId);
 
     if (!payment.success) {
+      const { restoreInventoryForOrder } = await import('@/lib/inventory');
+      await restoreInventoryForOrder(items);
       return NextResponse.json(
         { success: false, error: payment.error || 'Payment failed' },
         { status: 402 }
@@ -152,6 +165,8 @@ export async function POST(request: NextRequest) {
       zip: customer.zip,
       phone: customer.phone,
       status: 'processing',
+      inventoryDeducted: true,
+      inventoryRestored: false,
       idVerification: !needsIdVerification
         ? { status: 'verified', note: 'Merch-only order — no ID required' }
         : alreadyVerified

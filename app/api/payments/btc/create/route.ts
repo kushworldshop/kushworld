@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createBtcPaymentDetails, type BtcPaymentRecord } from '@/lib/bitcoinCheckout';
 import { buildCheckoutOrder } from '@/lib/checkoutOrderBuilder';
 import { readOrders, writeOrders } from '@/lib/ordersStore';
+import {
+  deductInventoryForOrder,
+  InventoryError,
+  restoreInventoryForOrder,
+} from '@/lib/inventory';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +25,16 @@ export async function POST(request: NextRequest) {
     }
 
     const orderId = `KW-${Date.now().toString().slice(-8)}`;
+
+    try {
+      await deductInventoryForOrder(body.items);
+    } catch (err) {
+      if (err instanceof InventoryError) {
+        return NextResponse.json({ success: false, error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
+
     const order = await buildCheckoutOrder(
       {
         ...body,
@@ -47,12 +62,19 @@ export async function POST(request: NextRequest) {
       paymentStatus: 'awaiting_btc',
       btcPayment: btcRecord,
       fulfillmentPending: true,
+      inventoryDeducted: true,
+      inventoryRestored: false,
       updatedAt: new Date().toISOString(),
     };
 
-    const orders = await readOrders();
-    orders.unshift(newOrder);
-    await writeOrders(orders);
+    try {
+      const orders = await readOrders();
+      orders.unshift(newOrder);
+      await writeOrders(orders);
+    } catch (saveError) {
+      await restoreInventoryForOrder(body.items);
+      throw saveError;
+    }
 
     return NextResponse.json({
       success: true,

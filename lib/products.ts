@@ -10,6 +10,8 @@ export interface Product {
   name: string;
   price: number;
   cost?: number;
+  inventory?: number;
+  inStock?: boolean;
   image: string;
   slug?: string;
   sizes?: string[];
@@ -43,6 +45,12 @@ export function getProductById(id: string): Product | undefined {
 
 export function isMerchProduct(product: Product): boolean {
   return product.category === 'merch';
+}
+
+export function isProductInStock(product: Pick<Product, 'inStock' | 'inventory'>): boolean {
+  if (product.inStock !== undefined) return product.inStock;
+  if (product.inventory !== undefined) return product.inventory > 0;
+  return true;
 }
 
 export function orderRequiresIdVerification(items: { id: string; category?: string }[]): boolean {
