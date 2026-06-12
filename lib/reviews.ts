@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const REVIEWS_FILE = path.join(process.cwd(), 'data', 'reviews.json');
-const FEATURED_FILE = path.join(process.cwd(), 'data', 'featured-reviews.json');
+const FEATURED_FILE = path.join(process.cwd(), 'lib', 'featured-reviews.json');
 
 import { MAX_REVIEW_LENGTH, MIN_REVIEW_LENGTH } from '@/lib/reviewConstants';
 
@@ -41,15 +41,6 @@ async function ensureReviewsFile() {
   }
 }
 
-async function ensureFeaturedFile() {
-  await ensureDataDir();
-  try {
-    await fs.access(FEATURED_FILE);
-  } catch {
-    await fs.writeFile(FEATURED_FILE, JSON.stringify([], null, 2));
-  }
-}
-
 async function readCustomerReviews(): Promise<Review[]> {
   await ensureReviewsFile();
   const data = await fs.readFile(REVIEWS_FILE, 'utf8');
@@ -57,10 +48,13 @@ async function readCustomerReviews(): Promise<Review[]> {
 }
 
 async function readFeaturedReviews(): Promise<Review[]> {
-  await ensureFeaturedFile();
-  const data = await fs.readFile(FEATURED_FILE, 'utf8');
-  const featured: Review[] = JSON.parse(data);
-  return featured.map((r) => ({ ...r, source: 'x' as const, featured: true }));
+  try {
+    const data = await fs.readFile(FEATURED_FILE, 'utf8');
+    const featured: Review[] = JSON.parse(data);
+    return featured.map((r) => ({ ...r, source: 'x' as const, featured: true }));
+  } catch {
+    return [];
+  }
 }
 
 export async function getAllReviews(): Promise<Review[]> {

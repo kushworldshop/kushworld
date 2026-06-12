@@ -1,0 +1,32 @@
+[
+  {
+    "id": "x_seed_1",
+    "productId": null,
+    "author": "Verified Customer",
+    "xHandle": "@KushWorld",
+    "rating": 5,
+    "comment": "Fast shipping, discreet packaging, and quality product. Exactly what I expected from Kush World.",
+    "xUrl": "https://x.com/KushWorld",
+    "createdAt": "2025-11-15T12:00:00.000Z"
+  },
+  {
+    "id": "x_seed_2",
+    "productId": null,
+    "author": "Repeat Buyer",
+    "xHandle": "@KushWorld",
+    "rating": 5,
+    "comment": "COAs on everything and the customer service actually responds. Will be ordering again.",
+    "xUrl": "https://x.com/KushWorld",
+    "createdAt": "2025-12-02T12:00:00.000Z"
+  },
+  {
+    "id": "x_seed_3",
+    "productId": null,
+    "author": "First Timer",
+    "xHandle": "@KushWorld",
+    "rating": 5,
+    "comment": "First online order and it went smooth. Tracking came quick and the package was completely discreet.",
+    "xUrl": "https://x.com/KushWorld",
+    "createdAt": "2026-01-20T12:00:00.000Z"
+  }
+]
