@@ -164,7 +164,10 @@ export async function runGrokChat(options: {
   });
 
   if (!reply) {
-    return { error: 'Grok could not generate a response. Try again in a moment.' };
+    return {
+      error:
+        'Grok could not respond. If this is a new xAI account, add API credits at console.x.ai — your team needs billing enabled.',
+    };
   }
 
   return { reply: reply.trim() };

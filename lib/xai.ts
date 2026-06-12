@@ -43,7 +43,16 @@ export async function xaiChatCompletion(options: {
   });
 
   if (!res.ok) {
-    console.error('xAI chat error:', await res.text());
+    const errBody = await res.text();
+    console.error('xAI chat error:', errBody);
+    try {
+      const errJson = JSON.parse(errBody) as { error?: string; code?: string };
+      if (errJson.code === 'permission-denied' || errJson.error?.includes('credits')) {
+        console.error('[xAI] Team has no API credits — add billing at https://console.x.ai');
+      }
+    } catch {
+      // ignore parse errors
+    }
     return null;
   }
 
