@@ -1,6 +1,7 @@
 'use client';
 import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
+import { useReferralStore } from '@/lib/referralStore';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -18,6 +19,7 @@ type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
 export default function Checkout() {
   const { items, subtotal, clearCart } = useCartStore();
   const { addPoints } = useLoyaltyStore();
+  const { code: storedReferralCode, referrerName, clearReferral } = useReferralStore();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [requiresIdUpload, setRequiresIdUpload] = useState(false);
@@ -31,8 +33,10 @@ export default function Checkout() {
   const [uploadError, setUploadError] = useState('');
   const [paymentError, setPaymentError] = useState('');
   const [couponCode, setCouponCode] = useState('');
-  const [discount, setDiscount] = useState(0);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [referralDiscount, setReferralDiscount] = useState(0);
   const [couponMessage, setCouponMessage] = useState('');
+  const [referralMessage, setReferralMessage] = useState('');
   const [cardReady, setCardReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -117,7 +121,46 @@ export default function Checkout() {
   };
 
   const sub = subtotal();
+  const discount = Math.max(couponDiscount, referralDiscount);
+  const usingReferralDiscount = referralDiscount > 0 && referralDiscount >= couponDiscount;
+  const isFirstOrder = customerInfo.email
+    ? !localStorage.getItem(`ordered_${customerInfo.email}`)
+    : true;
   const totals = calculateTotals(sub, discount);
+
+  useEffect(() => {
+    if (!storedReferralCode || sub <= 0) {
+      setReferralDiscount(0);
+      setReferralMessage('');
+      return;
+    }
+
+    const isFirstOrder = customerInfo.email
+      ? !localStorage.getItem(`ordered_${customerInfo.email}`)
+      : true;
+
+    fetch(
+      `/api/referrals?code=${encodeURIComponent(storedReferralCode)}&subtotal=${sub}&isFirstOrder=${isFirstOrder}`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.valid && data.discountResult?.valid) {
+          setReferralDiscount(data.discountResult.discount);
+          setReferralMessage(
+            referrerName
+              ? `Referral from ${referrerName}: -$${data.discountResult.discount.toFixed(2)}`
+              : `Referral discount: -$${data.discountResult.discount.toFixed(2)}`
+          );
+        } else {
+          setReferralDiscount(0);
+          setReferralMessage(data.discountResult?.error || '');
+        }
+      })
+      .catch(() => {
+        setReferralDiscount(0);
+        setReferralMessage('');
+      });
+  }, [storedReferralCode, sub, customerInfo.email, referrerName]);
 
   const applyCoupon = async () => {
     const isFirstOrder = !localStorage.getItem(`ordered_${customerInfo.email}`);
@@ -128,10 +171,10 @@ export default function Checkout() {
     });
     const data = await res.json();
     if (data.valid) {
-      setDiscount(data.discount);
+      setCouponDiscount(data.discount);
       setCouponMessage(`Coupon applied: -$${data.discount.toFixed(2)}`);
     } else {
-      setDiscount(0);
+      setCouponDiscount(0);
       setCouponMessage(data.error || 'Invalid coupon');
     }
   };
@@ -157,6 +200,9 @@ export default function Checkout() {
     addPoints(Math.floor(sub / 10));
     if (customerInfo.email) {
       localStorage.setItem(`ordered_${customerInfo.email}`, 'true');
+    }
+    if (storedReferralCode) {
+      clearReferral();
     }
   };
 
@@ -193,6 +239,7 @@ export default function Checkout() {
           shipping: totals.shipping,
           total: totals.total,
           couponCode: couponCode || undefined,
+          referralCode: storedReferralCode && isFirstOrder ? storedReferralCode : undefined,
           opaqueData,
         }),
       });
@@ -223,6 +270,7 @@ export default function Checkout() {
       shipping: totals.shipping,
       total: totals.total,
       couponCode: couponCode || undefined,
+      referralCode: storedReferralCode && isFirstOrder ? storedReferralCode : undefined,
       paymentMethod,
       loyaltyUsed: 0,
     };
@@ -383,6 +431,14 @@ export default function Checkout() {
                 Apply
               </button>
             </div>
+            {referralMessage && usingReferralDiscount && (
+              <p className="text-sm text-[#00ff9d] mb-2">{referralMessage}</p>
+            )}
+            {storedReferralCode && referralDiscount > 0 && !usingReferralDiscount && (
+              <p className="text-sm text-zinc-500 mb-2">
+                Referral saved — a better coupon is applied.
+              </p>
+            )}
             {couponMessage && <p className="text-sm text-zinc-400 mb-4">{couponMessage}</p>}
 
             <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6 text-sm text-zinc-400">

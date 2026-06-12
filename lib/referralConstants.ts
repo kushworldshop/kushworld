@@ -1,0 +1,2 @@
+export const REFERRAL_DISCOUNT = 10;
+export const REFERRER_REWARD_POINTS = 100;

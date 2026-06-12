@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/coa`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 },
     { url: `${base}/cart`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
     { url: `${base}/wholesale`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${base}/referral`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
     ...productUrls,
   ];
 }

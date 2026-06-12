@@ -5,6 +5,7 @@ import { chargeCard } from '@/lib/authorizeNet';
 import { isCustomerVerified } from '@/lib/verification';
 import { sendOrderConfirmation } from '@/lib/email';
 import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import { recordReferralConversion } from '@/lib/referrals';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -21,7 +22,7 @@ async function ensureOrdersFile() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { customer, items, subtotal, discount = 0, shipping = 0, total, opaqueData } = body;
+    const { customer, items, subtotal, discount = 0, shipping = 0, total, opaqueData, referralCode } = body;
 
     if (!customer?.name || !customer?.email || !customer?.address) {
       return NextResponse.json(
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
       shipping,
       total: orderTotal,
       paymentMethod: 'card',
+      referralCode: referralCode || undefined,
       paymentStatus: 'paid',
       transactionId: payment.transactionId,
       authCode: payment.authCode,
@@ -98,6 +100,10 @@ export async function POST(request: NextRequest) {
     const orders = JSON.parse(data);
     orders.unshift(newOrder);
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
+
+    if (referralCode) {
+      await recordReferralConversion(referralCode, orderId);
+    }
 
     await sendOrderConfirmation(email, {
       id: orderId,

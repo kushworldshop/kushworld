@@ -5,6 +5,7 @@ import path from 'path';
 import { isCustomerVerified } from '@/lib/verification';
 import { sendOrderConfirmation } from '@/lib/email';
 import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import { recordReferralConversion } from '@/lib/referrals';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -129,6 +130,10 @@ export async function POST(request: NextRequest) {
     const orders = JSON.parse(data);
     orders.unshift(newOrder); // newest first
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
+
+    if (body.referralCode) {
+      await recordReferralConversion(body.referralCode, newOrder.id);
+    }
 
     if (email) {
       await sendOrderConfirmation(email, {

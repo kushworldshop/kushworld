@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 
 export default function LoyaltySection() {
@@ -33,12 +34,12 @@ export default function LoyaltySection() {
           </div>
         </div>
 
-        <button 
-          onClick={() => alert("Referral link would go here in full version")}
-          className="mt-16 px-12 py-6 bg-[#00ff9d] text-black text-2xl font-semibold rounded-3xl hover:scale-105 transition"
+        <Link
+          href="/referral"
+          className="inline-block mt-16 px-12 py-6 bg-[#00ff9d] text-black text-2xl font-semibold rounded-3xl hover:scale-105 transition"
         >
           GET YOUR REFERRAL LINK
-        </button>
+        </Link>
       </div>
     </section>
   );
