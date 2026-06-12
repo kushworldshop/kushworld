@@ -4,9 +4,9 @@ import { getSiteContent } from '@/lib/siteContent';
 import { isFeatureEnabled } from '@/lib/featureTypes';
 import { getUserById, readUsers, writeUsers } from '@/lib/users';
 import {
-  ALLOWED_ID_TYPES,
   MAX_ID_SIZE_BYTES,
   ensureDataDirs,
+  resolveIdMimeType,
   saveUserIdImage,
 } from '@/lib/verification';
 
@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'ID image required' }, { status: 400 });
     }
 
-    if (!ALLOWED_ID_TYPES.includes(file.type)) {
+    const mimeType = resolveIdMimeType(file);
+    if (!mimeType) {
       return NextResponse.json(
         { success: false, error: 'Upload a JPG, PNG, or WEBP image of your government-issued ID' },
         { status: 400 }
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const saved = await saveUserIdImage(userId, buffer, file.type);
+    const saved = await saveUserIdImage(userId, buffer, mimeType);
 
     const users = await readUsers();
     const index = users.findIndex((entry) => entry.id === userId);

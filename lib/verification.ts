@@ -10,6 +10,24 @@ const ID_DIR = path.join(DATA_DIR, 'id-verifications');
 export const ALLOWED_ID_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 export const MAX_ID_SIZE_BYTES = 5 * 1024 * 1024;
 
+const ID_EXT_TO_TYPE: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.heic': 'image/heic',
+  '.heif': 'image/heif',
+};
+
+/** Some mobile browsers omit file.type for camera captures; infer from type or extension. */
+export function resolveIdMimeType(file: File): string | null {
+  if (file.type && ALLOWED_ID_TYPES.includes(file.type)) {
+    return file.type;
+  }
+  const ext = path.extname(file.name).toLowerCase();
+  return ID_EXT_TO_TYPE[ext] ?? null;
+}
+
 export async function ensureDataDirs() {
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.mkdir(ID_DIR, { recursive: true });

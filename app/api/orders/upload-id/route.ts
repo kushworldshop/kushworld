@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import {
-  ALLOWED_ID_TYPES,
   MAX_ID_SIZE_BYTES,
   ensureDataDirs,
   getIdStoragePath,
+  resolveIdMimeType,
 } from '@/lib/verification';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'ID image required' }, { status: 400 });
     }
 
-    if (!ALLOWED_ID_TYPES.includes(file.type)) {
+    const mimeType = resolveIdMimeType(file);
+    if (!mimeType) {
       return NextResponse.json(
         { success: false, error: 'Upload a JPG, PNG, or WEBP image of your ID' },
         { status: 400 }
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
 
-    const ext = EXT_BY_TYPE[file.type] || '.jpg';
+    const ext = EXT_BY_TYPE[mimeType] || '.jpg';
     const storagePath = getIdStoragePath(orderId, ext);
     const buffer = Buffer.from(await file.arrayBuffer());
     await fs.writeFile(storagePath, buffer);
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
       status: 'uploaded',
       uploadedAt: new Date().toISOString(),
       fileName: path.basename(storagePath),
-      mimeType: file.type,
+      mimeType,
     };
 
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));

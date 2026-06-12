@@ -22,6 +22,23 @@ export default function IdVerificationUpload({
     setMessage('');
     setError('');
 
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    const type = file.type || 'image/jpeg';
+    if (!allowedTypes.includes(type)) {
+      setError('Upload a JPG, PNG, or WEBP image of your government-issued ID.');
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setError('Image must be under 5MB. Try a smaller photo or lower your camera resolution.');
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+
     const formData = new FormData();
     formData.append('idImage', file);
 
@@ -29,8 +46,20 @@ export default function IdVerificationUpload({
       const res = await fetch('/api/users/id-upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data: { error?: string; message?: string } = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        if (res.status === 413) {
+          setError('Image is too large for the server. Use a photo under 5MB.');
+          return;
+        }
+        setError('Upload failed. Please try again.');
+        return;
+      }
       if (!res.ok) {
         setError(data.error || 'Upload failed');
         return;
