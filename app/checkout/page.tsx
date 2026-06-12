@@ -5,6 +5,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import CreditCardForm, { tokenizeCard } from '@/app/components/CreditCardForm';
+import SiteLayout from '@/app/components/SiteLayout';
+import {
+  calculateTotals,
+  MIN_ORDER_AMOUNT,
+  RESTRICTED_STATES,
+  FREE_SHIPPING_THRESHOLD,
+} from '@/lib/checkout';
 
 type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
 
@@ -23,6 +30,9 @@ export default function Checkout() {
   const [idFile, setIdFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [paymentError, setPaymentError] = useState('');
+  const [couponCode, setCouponCode] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState('');
   const [cardReady, setCardReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,13 +116,48 @@ export default function Checkout() {
     }
   };
 
+  const sub = subtotal();
+  const totals = calculateTotals(sub, discount);
+
+  const applyCoupon = async () => {
+    const isFirstOrder = !localStorage.getItem(`ordered_${customerInfo.email}`);
+    const res = await fetch('/api/coupons/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: couponCode, subtotal: sub, isFirstOrder }),
+    });
+    const data = await res.json();
+    if (data.valid) {
+      setDiscount(data.discount);
+      setCouponMessage(`Coupon applied: -$${data.discount.toFixed(2)}`);
+    } else {
+      setDiscount(0);
+      setCouponMessage(data.error || 'Invalid coupon');
+    }
+  };
+
+  const validateCheckout = (): string | null => {
+    if (sub < MIN_ORDER_AMOUNT) return `Minimum order is $${MIN_ORDER_AMOUNT}`;
+    const state = customerInfo.state?.toUpperCase().trim();
+    if (state && RESTRICTED_STATES.includes(state)) {
+      return `We cannot ship to ${state}. See Delivery Zones.`;
+    }
+    if (!customerInfo.name || !customerInfo.email || !customerInfo.address) {
+      return 'Please complete all required fields.';
+    }
+    return null;
+  };
+
   const completeOrder = (result: { orderId: string; requiresIdUpload: boolean }, paid: boolean) => {
     setOrderId(result.orderId);
     setRequiresIdUpload(result.requiresIdUpload);
     setPaymentComplete(paid);
     setOrderPlaced(true);
     clearCart();
-    addPoints(Math.floor(subtotal() / 10));
+    addPoints(Math.floor(sub / 10));
+    if (customerInfo.email) {
+      localStorage.setItem(`ordered_${customerInfo.email}`, 'true');
+    }
   };
 
   const handleCardPayment = async () => {
@@ -143,7 +188,11 @@ export default function Checkout() {
         body: JSON.stringify({
           customer: customerInfo,
           items,
-          subtotal: subtotal(),
+          subtotal: sub,
+          discount,
+          shipping: totals.shipping,
+          total: totals.total,
+          couponCode: couponCode || undefined,
           opaqueData,
         }),
       });
@@ -169,7 +218,11 @@ export default function Checkout() {
     const orderData = {
       customer: customerInfo,
       items,
-      subtotal: subtotal(),
+      subtotal: sub,
+      discount,
+      shipping: totals.shipping,
+      total: totals.total,
+      couponCode: couponCode || undefined,
       paymentMethod,
       loyaltyUsed: 0,
     };
@@ -196,10 +249,9 @@ export default function Checkout() {
   };
 
   const handlePlaceOrder = async () => {
-    if (!paymentMethod || !customerInfo.name || !customerInfo.email) {
-      setPaymentError('Please fill customer info and select a payment method.');
-      return;
-    }
+    const err = validateCheckout();
+    if (err) { setPaymentError(err); return; }
+    if (!paymentMethod) { setPaymentError('Select a payment method.'); return; }
 
     if (paymentMethod === 'card') {
       await handleCardPayment();
@@ -281,7 +333,8 @@ export default function Checkout() {
   const cardConfigured = paymentConfig?.configured ?? false;
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
+    <SiteLayout>
+    <div className="p-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold mb-10">Checkout</h1>
 
@@ -298,7 +351,13 @@ export default function Checkout() {
                 </div>
               </div>
             ))}
-            <div className="text-2xl font-bold mt-8">Total: ${subtotal().toFixed(2)}</div>
+            <div className="mt-8 space-y-2 text-sm border-t border-zinc-800 pt-6">
+              <div className="flex justify-between"><span>Subtotal</span><span>${totals.subtotal.toFixed(2)}</span></div>
+              {discount > 0 && <div className="flex justify-between text-[#00ff9d]"><span>Discount</span><span>-${discount.toFixed(2)}</span></div>}
+              <div className="flex justify-between"><span>Shipping</span><span>{totals.freeShipping ? 'FREE' : `$${totals.shipping.toFixed(2)}`}</span></div>
+              <div className="flex justify-between font-bold text-xl pt-2"><span>Total</span><span className="text-[#00ff9d]">${totals.total.toFixed(2)}</span></div>
+              {sub < FREE_SHIPPING_THRESHOLD && <p className="text-xs text-zinc-500">Free shipping at ${FREE_SHIPPING_THRESHOLD}+</p>}
+            </div>
           </div>
 
           <div>
@@ -312,6 +371,19 @@ export default function Checkout() {
               <input type="text" name="state" placeholder="State" value={customerInfo.state} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl" required />
             </div>
             <input type="text" name="zip" placeholder="ZIP Code" value={customerInfo.zip} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
+
+            <div className="flex gap-2 mb-6">
+              <input
+                placeholder="Coupon code (try FIRST20)"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm"
+              />
+              <button onClick={applyCoupon} type="button" className="bg-zinc-800 hover:bg-zinc-700 px-5 rounded-xl text-sm font-medium">
+                Apply
+              </button>
+            </div>
+            {couponMessage && <p className="text-sm text-zinc-400 mb-4">{couponMessage}</p>}
 
             <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6 text-sm text-zinc-400">
               <span className="text-[#00ff9d] font-medium">New customers:</span> ID upload required after checkout for 21+ verification.
@@ -397,12 +469,13 @@ export default function Checkout() {
               {loading
                 ? 'Processing...'
                 : paymentMethod === 'card'
-                  ? `PAY $${subtotal().toFixed(2)} NOW`
+                  ? `PAY $${totals.total.toFixed(2)} NOW`
                   : 'PLACE ORDER — PAYMENT VERIFIED MANUALLY'}
             </button>
           </div>
         </div>
       </div>
     </div>
+    </SiteLayout>
   );
 }

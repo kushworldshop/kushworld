@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { isCustomerVerified } from '@/lib/verification';
+import { sendOrderConfirmation } from '@/lib/email';
+import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -86,11 +88,29 @@ export async function POST(request: NextRequest) {
     const customer = body.customer ?? {};
     
     const email = customer.email ?? body.email;
+    const subtotal = body.subtotal ?? 0;
+    const discount = body.discount ?? 0;
+    const shipping = body.shipping ?? 0;
+    const total = body.total ?? subtotal - discount + shipping;
+
+    if (subtotal < MIN_ORDER_AMOUNT) {
+      return NextResponse.json({ success: false, error: `Minimum order is $${MIN_ORDER_AMOUNT}` }, { status: 400 });
+    }
+
+    const state = (customer.state ?? body.state)?.toUpperCase().trim();
+    if (state && RESTRICTED_STATES.includes(state)) {
+      return NextResponse.json({ success: false, error: `Cannot ship to ${state}` }, { status: 400 });
+    }
+
     const alreadyVerified = email ? await isCustomerVerified(email) : false;
 
     const newOrder = {
       id: `KW-${Date.now().toString().slice(-8)}`,
       ...body,
+      subtotal,
+      discount,
+      shipping,
+      total,
       email,
       name: customer.name ?? body.name,
       address: customer.address ?? body.address,
@@ -109,6 +129,22 @@ export async function POST(request: NextRequest) {
     const orders = JSON.parse(data);
     orders.unshift(newOrder); // newest first
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
+
+    if (email) {
+      await sendOrderConfirmation(email, {
+        id: newOrder.id,
+        total,
+        subtotal,
+        shipping,
+        discount,
+        paymentMethod: body.paymentMethod || 'manual',
+        items: (body.items || []).map((i: { name: string; quantity: number; price: number }) => ({
+          name: i.name,
+          quantity: i.quantity,
+          price: i.price,
+        })),
+      });
+    }
 
     return NextResponse.json({
       success: true,

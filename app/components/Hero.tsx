@@ -14,7 +14,7 @@ export default function Hero() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-          <a href="/shop" className="px-16 py-7 bg-[#00ff9d] text-black text-2xl font-semibold rounded-3xl hover:scale-105 transition">
+          <a href="/#shop" className="px-16 py-7 bg-[#00ff9d] text-black text-2xl font-semibold rounded-3xl hover:scale-105 transition">
             SHOP NOW — GET FREE 8TH ON FIRST ORDER
           </a>
           <a href="#loyalty" className="px-16 py-7 border border-[#00ff9d] text-[#00ff9d] text-2xl font-semibold rounded-3xl hover:bg-[#00ff9d]/10 transition">

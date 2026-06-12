@@ -1,3 +1,8 @@
+export interface TierPrice {
+  minQty: number;
+  price: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -5,15 +10,59 @@ export interface Product {
   image: string;
   sizes?: string[];
   category: string;
-  /** Path to COA PDF in /public/products/coa/ — defaults from product image slug */
+  description?: string;
   coaPdf?: string;
+  tierPricing?: TierPrice[];
 }
 
-/** Expected COA path: /products/coa/{slug}.pdf — drop PDFs in public/products/coa/ */
+export function getProductSlug(product: Product): string {
+  return product.image.replace(/^\/products\//, '').replace(/\.[^.]+$/, '');
+}
+
+export function getProductBySlug(slug: string): Product | undefined {
+  return products.find((p) => getProductSlug(p) === slug);
+}
+
 export function getCoaPdfPath(product: Product): string {
   if (product.coaPdf) return product.coaPdf;
-  const slug = product.image.replace(/^\/products\//, '').replace(/\.[^.]+$/, '');
-  return `/products/coa/${slug}.pdf`;
+  return `/products/coa/${getProductSlug(product)}.pdf`;
+}
+
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  vapes: 'Premium disposable vape. Lab-tested for purity and potency. Discreet packaging.',
+  concentrates: 'High-quality concentrate. Third-party lab tested with COA available. Store in a cool, dry place.',
+  flower: 'Exotic flower strain. Hand-selected, lab-tested, and shipped discreetly with full COA documentation.',
+  mushrooms: 'Premium mushroom product. Lab verified. For adults 21+ only.',
+};
+
+export function getProductDescription(product: Product): string {
+  if (product.description) return product.description;
+  return `${product.name} — ${CATEGORY_DESCRIPTIONS[product.category] || 'Authentic Kush World product. Lab tested with COA available.'}`;
+}
+
+export function getTierPricing(product: Product): TierPrice[] {
+  if (product.tierPricing?.length) return product.tierPricing;
+  if (product.price >= 500) {
+    return [
+      { minQty: 3, price: Math.round(product.price * 0.95) },
+      { minQty: 5, price: Math.round(product.price * 0.9) },
+    ];
+  }
+  if (product.price >= 50) {
+    return [{ minQty: 5, price: Math.round(product.price * 0.95) }];
+  }
+  return [];
+}
+
+export function searchProducts(query: string): Product[] {
+  const q = query.toLowerCase().trim();
+  if (!q) return products;
+  return products.filter(
+    (p) =>
+      p.name.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q) ||
+      getProductDescription(p).toLowerCase().includes(q)
+  );
 }
 
 export const products: Product[] = [

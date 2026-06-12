@@ -3,6 +3,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { chargeCard } from '@/lib/authorizeNet';
 import { isCustomerVerified } from '@/lib/verification';
+import { sendOrderConfirmation } from '@/lib/email';
+import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -19,7 +21,7 @@ async function ensureOrdersFile() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { customer, items, subtotal, opaqueData } = body;
+    const { customer, items, subtotal, discount = 0, shipping = 0, total, opaqueData } = body;
 
     if (!customer?.name || !customer?.email || !customer?.address) {
       return NextResponse.json(
@@ -42,8 +44,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (subtotal < MIN_ORDER_AMOUNT) {
+      return NextResponse.json({ success: false, error: `Minimum order is $${MIN_ORDER_AMOUNT}` }, { status: 400 });
+    }
+
+    const state = customer.state?.toUpperCase().trim();
+    if (state && RESTRICTED_STATES.includes(state)) {
+      return NextResponse.json({ success: false, error: `Cannot ship to ${state}` }, { status: 400 });
+    }
+
+    const orderTotal = total ?? subtotal - discount + shipping;
     const orderId = `KW-${Date.now().toString().slice(-8)}`;
-    const payment = await chargeCard(subtotal, opaqueData, customer, orderId);
+    const payment = await chargeCard(orderTotal, opaqueData, customer, orderId);
 
     if (!payment.success) {
       return NextResponse.json(
@@ -61,6 +73,9 @@ export async function POST(request: NextRequest) {
       customer,
       items,
       subtotal,
+      discount,
+      shipping,
+      total: orderTotal,
       paymentMethod: 'card',
       paymentStatus: 'paid',
       transactionId: payment.transactionId,
@@ -83,6 +98,20 @@ export async function POST(request: NextRequest) {
     const orders = JSON.parse(data);
     orders.unshift(newOrder);
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
+
+    await sendOrderConfirmation(email, {
+      id: orderId,
+      total: orderTotal,
+      subtotal,
+      shipping,
+      discount,
+      paymentMethod: 'card',
+      items: items.map((i: { name: string; quantity: number; price: number }) => ({
+        name: i.name,
+        quantity: i.quantity,
+        price: i.price,
+      })),
+    });
 
     return NextResponse.json({
       success: true,

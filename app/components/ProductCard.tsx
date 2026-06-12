@@ -4,7 +4,8 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { useCartStore } from '@/lib/cartStore';
 import { useWishlistStore } from '@/lib/wishlistStore';
-import { getCoaPdfPath, type Product } from '@/lib/products';
+import Link from 'next/link';
+import { getCoaPdfPath, getProductSlug, type Product } from '@/lib/products';
 import CoaLink from './CoaLink';
 
 export default function ProductCard({ product }: { product: Product }) {
@@ -53,17 +54,19 @@ export default function ProductCard({ product }: { product: Product }) {
         <i className={`fa-solid fa-heart text-2xl transition-colors ${isInWishlist ? 'text-red-500' : 'text-zinc-400 group-hover:text-white'}`} />
       </button>
 
-      <div className="relative aspect-square">
+      <Link href={`/products/${getProductSlug(product)}`} className="relative aspect-square block">
         <Image
           src={product.image}
           alt={product.name}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-500"
         />
-      </div>
+      </Link>
 
       <div className="p-6">
-        <h3 className="font-semibold text-xl line-clamp-2 mb-2">{product.name}</h3>
+        <Link href={`/products/${getProductSlug(product)}`}>
+          <h3 className="font-semibold text-xl line-clamp-2 mb-2 hover:text-[#00ff9d] transition">{product.name}</h3>
+        </Link>
         <p className="text-[#00ff9d] text-2xl font-bold mb-4">${product.price}</p>
 
         {/* Size Selector */}

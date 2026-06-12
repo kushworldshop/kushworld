@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface CartItem {
   id: string;
@@ -19,39 +20,49 @@ interface CartStore {
   totalItems: () => number;
 }
 
-export const useCartStore = create<CartStore>((set, get) => ({
-  items: [],
+export const useCartStore = create<CartStore>()(
+  persist(
+    (set, get) => ({
+      items: [],
 
-  addToCart: (product) => set((state) => {
-    const existingIndex = state.items.findIndex(
-      (item) => item.id === product.id && item.selectedSize === product.selectedSize
-    );
+      addToCart: (product) =>
+        set((state) => {
+          const existingIndex = state.items.findIndex(
+            (item) => item.id === product.id && item.selectedSize === product.selectedSize
+          );
 
-    if (existingIndex !== -1) {
-      const updatedItems = [...state.items];
-      updatedItems[existingIndex].quantity += product.quantity || 1;
-      return { items: updatedItems };
-    } else {
-      return {
-        items: [...state.items, { ...product, quantity: product.quantity || 1 }]
-      };
-    }
-  }),
+          if (existingIndex !== -1) {
+            const updatedItems = [...state.items];
+            updatedItems[existingIndex].quantity += product.quantity || 1;
+            return { items: updatedItems };
+          }
 
-  removeItem: (index) => set((state) => ({
-    items: state.items.filter((_, i) => i !== index)
-  })),
+          return {
+            items: [...state.items, { ...product, quantity: product.quantity || 1 }],
+          };
+        }),
 
-  updateQuantity: (index, quantity) => set((state) => {
-    if (quantity < 1) return state;
-    const updatedItems = [...state.items];
-    updatedItems[index].quantity = quantity;
-    return { items: updatedItems };
-  }),
+      removeItem: (index) =>
+        set((state) => ({
+          items: state.items.filter((_, i) => i !== index),
+        })),
 
-  clearCart: () => set({ items: [] }),
+      updateQuantity: (index, quantity) =>
+        set((state) => {
+          if (quantity < 1) return state;
+          const updatedItems = [...state.items];
+          updatedItems[index].quantity = quantity;
+          return { items: updatedItems };
+        }),
 
-  subtotal: () => get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+      clearCart: () => set({ items: [] }),
 
-  totalItems: () => get().items.reduce((sum, item) => sum + item.quantity, 0),
-}));
+      subtotal: () =>
+        get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+
+      totalItems: () =>
+        get().items.reduce((sum, item) => sum + item.quantity, 0),
+    }),
+    { name: 'kushworld-cart' }
+  )
+);
