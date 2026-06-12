@@ -6,6 +6,7 @@ import Hero from './components/Hero';
 import Categories from './components/Categories';
 import ShopSection from './components/ShopSection';
 import LoyaltySection from './components/LoyaltySection';
+import ReviewsSection from './components/ReviewsSection';
 import CartDrawer from './components/CartDrawer';
 import AgeModal from './components/AgeModal';
 import Footer from './components/Footer';
@@ -30,6 +31,7 @@ export default function Home() {
         <Suspense fallback={<div className="py-20 text-center text-zinc-400">Loading shop...</div>}>
           <ShopSection />
         </Suspense>
+        <ReviewsSection />
         <LoyaltySection />
       </main>
 

@@ -26,6 +26,7 @@ export default function Footer() {
               <Link href="/#shop" className="block text-zinc-400 hover:text-[#00ff9d] transition">All Products</Link>
               <Link href="/coa" className="block text-zinc-400 hover:text-[#00ff9d] transition">Lab COAs</Link>
               <Link href="/wholesale" className="block text-zinc-400 hover:text-[#00ff9d] transition">Wholesale</Link>
+              <Link href="/reviews" className="block text-zinc-400 hover:text-[#00ff9d] transition">Reviews</Link>
             </div>
           </div>
 

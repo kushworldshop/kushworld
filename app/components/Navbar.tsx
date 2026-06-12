@@ -59,6 +59,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
             <div className="hidden md:flex items-center gap-6 text-sm">
               <Link href="/#shop" className="hover:text-[#00ff9d] transition">Shop</Link>
               <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>
+              <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
               <Link href="/cart" className="hover:text-[#00ff9d] transition">Cart</Link>
             </div>
 
@@ -102,6 +103,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               </form>
               <Link href="/#shop" className="block hover:text-[#00ff9d]">Shop</Link>
               <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>
+              <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
               <Link href="/cart" className="block hover:text-[#00ff9d]">Cart</Link>
               <Link href="/account" className="block hover:text-[#00ff9d]">Account</Link>
             </div>
