@@ -5,11 +5,16 @@ import {
   getSessionCookieName,
   sessionCookieOptions,
 } from '@/lib/auth';
+import {
+  sendEmailVerificationCode,
+  sendPhoneVerificationCode,
+} from '@/lib/accountVerification';
+import { resolveSignupVerificationChannel } from '@/lib/signupBonus';
 import { createUser, getUserDashboard } from '@/lib/users';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name } = await request.json();
+    const { email, password, name, phone } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json({ success: false, error: 'Email and password required' }, { status: 400 });
@@ -20,12 +25,28 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await createUser({ email, password: hashedPassword, name });
+    const user = await createUser({
+      email,
+      password: hashedPassword,
+      name,
+      phone: typeof phone === 'string' ? phone : undefined,
+    });
+
+    const channel = resolveSignupVerificationChannel(user);
+    if (channel === 'phone') {
+      await sendPhoneVerificationCode(user.id);
+    } else {
+      await sendEmailVerificationCode(user.id);
+    }
+
     const profile = await getUserDashboard(user.id);
 
     const response = NextResponse.json({
       success: true,
-      message: 'Account created',
+      message:
+        channel === 'phone'
+          ? 'Account created — verify your phone to unlock $10 in loyalty points.'
+          : 'Account created — verify your email to unlock $10 in loyalty points.',
       user: profile,
     });
 

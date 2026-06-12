@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { handlePhoneChange } from '@/lib/accountVerification';
 import { getSessionUserId } from '@/lib/auth';
 import { updateReferralCode } from '@/lib/referrals';
 import { getUserById, getUserDashboard, updateUser } from '@/lib/users';
@@ -44,7 +45,12 @@ export async function PATCH(request: NextRequest) {
       updates.referralCode = result.code;
     }
 
-    const updated = await updateUser(userId, updates);
+    if (typeof body.phone === 'string') {
+      await handlePhoneChange(userId, body.phone);
+      delete updates.phone;
+    }
+
+    const updated = Object.keys(updates).length > 0 ? await updateUser(userId, updates) : await getUserById(userId);
     if (!updated) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }

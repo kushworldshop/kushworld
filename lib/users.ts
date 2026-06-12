@@ -1,5 +1,10 @@
 import fs from 'fs/promises';
 import path from 'path';
+import {
+  getSignupVerificationChannel,
+  isSignupChannelVerified,
+  resolveSignupVerificationChannel,
+} from '@/lib/signupBonus';
 import { createOrGetReferral, getReferralByEmail } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
 import type { SpinPrize } from '@/lib/spinWheelTypes';
@@ -21,6 +26,14 @@ export interface UserProfile {
   password: string;
   createdAt: string;
   idVerified?: boolean;
+  emailVerifiedAt?: string;
+  phoneVerifiedAt?: string;
+  signupBonusClaimed?: boolean;
+  signupVerificationChannel?: 'email' | 'phone';
+  pendingEmailCode?: string;
+  pendingEmailCodeExp?: number;
+  pendingPhoneCode?: string;
+  pendingPhoneCodeExp?: number;
   phone?: string;
   bio?: string;
   avatarUrl?: string;
@@ -42,6 +55,11 @@ export interface PublicUserProfile {
   name: string;
   createdAt: string;
   idVerified?: boolean;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  signupBonusClaimed?: boolean;
+  signupBonusEligible?: boolean;
+  signupVerificationChannel?: 'email' | 'phone';
   phone?: string;
   bio?: string;
   avatarUrl?: string;
@@ -82,7 +100,7 @@ export async function readUsers(): Promise<UserProfile[]> {
   }));
 }
 
-async function writeUsers(users: UserProfile[]) {
+export async function writeUsers(users: UserProfile[]) {
   await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
@@ -101,6 +119,7 @@ export async function createUser(input: {
   email: string;
   password: string;
   name?: string;
+  phone?: string;
 }): Promise<UserProfile> {
   const users = await readUsers();
   const normalizedEmail = input.email.trim().toLowerCase();
@@ -111,6 +130,8 @@ export async function createUser(input: {
 
   const name = input.name?.trim() || normalizedEmail.split('@')[0];
   const referral = await createOrGetReferral(name, normalizedEmail);
+  const phone = input.phone?.trim() || undefined;
+  const signupVerificationChannel = getSignupVerificationChannel(phone);
 
   const newUser: UserProfile = {
     id: `user_${Date.now()}`,
@@ -121,6 +142,8 @@ export async function createUser(input: {
     loyaltyPoints: 0,
     referralCode: referral.code,
     socials: {},
+    phone,
+    signupVerificationChannel,
   };
 
   users.push(newUser);
@@ -187,12 +210,20 @@ export async function redeemLoyaltyPoints(
 
 export function toPublicProfile(user: UserProfile, referralStats?: PublicUserProfile['referralStats']): PublicUserProfile {
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://kushworld.shop';
+  const emailVerified = !!user.emailVerifiedAt;
+  const phoneVerified = !!user.phoneVerifiedAt;
+  const signupVerificationChannel = resolveSignupVerificationChannel(user);
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     createdAt: user.createdAt,
     idVerified: user.idVerified,
+    emailVerified,
+    phoneVerified,
+    signupBonusClaimed: !!user.signupBonusClaimed,
+    signupBonusEligible: !user.signupBonusClaimed && !isSignupChannelVerified(user),
+    signupVerificationChannel,
     phone: user.phone,
     bio: user.bio,
     avatarUrl: user.avatarUrl,

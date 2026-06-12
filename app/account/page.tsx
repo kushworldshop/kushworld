@@ -5,6 +5,7 @@ import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
+import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { SPIN_COST } from '@/lib/spinWheelTypes';
 
 interface PromoTerms {
@@ -38,6 +39,14 @@ export default function Account() {
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [signupName, setSignupName] = useState('');
+  const [signupPhone, setSignupPhone] = useState('');
+
+  const [emailCode, setEmailCode] = useState('');
+  const [phoneCode, setPhoneCode] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendingPhone, setSendingPhone] = useState(false);
+  const [confirmingEmail, setConfirmingEmail] = useState(false);
+  const [confirmingPhone, setConfirmingPhone] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
     name: '',
@@ -116,7 +125,7 @@ export default function Account() {
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     const body = isLogin
       ? { email, password }
-      : { email, password, name: signupName || undefined };
+      : { email, password, name: signupName || undefined, phone: signupPhone || undefined };
 
     try {
       const res = await fetch(endpoint, {
@@ -130,7 +139,13 @@ export default function Account() {
         setUser(data.user);
         hydrateForm(data.user);
         await loadOrders();
-        setMessage(isLogin ? 'Welcome back!' : 'Account created — your referral link is ready.');
+        setMessage(
+          isLogin
+            ? 'Welcome back!'
+            : signupPhone.trim()
+              ? `Account created! Verify your phone to unlock $${SIGNUP_BONUS_DOLLARS} in loyalty points.`
+              : `Account created! Verify your email to unlock $${SIGNUP_BONUS_DOLLARS} in loyalty points.`
+        );
         setTab('profile');
       } else {
         setError(data.error || 'Something went wrong');
@@ -198,6 +213,62 @@ export default function Account() {
     setTimeout(() => setCopiedPromo(false), 2000);
   };
 
+  const sendVerificationCode = async (channel: 'email' | 'phone') => {
+    setMessage('');
+    setError('');
+    const setSending = channel === 'email' ? setSendingEmail : setSendingPhone;
+    setSending(true);
+    try {
+      const res = await fetch('/api/auth/verify/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage(
+          data.stub
+            ? `Code sent (${channel}) — check server logs in dev mode.`
+            : `Verification code sent to your ${channel}.`
+        );
+      } else {
+        setError(data.error || 'Could not send code');
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const confirmVerificationCode = async (channel: 'email' | 'phone') => {
+    setMessage('');
+    setError('');
+    const code = channel === 'email' ? emailCode : phoneCode;
+    const setConfirming = channel === 'email' ? setConfirmingEmail : setConfirmingPhone;
+    setConfirming(true);
+    try {
+      const res = await fetch('/api/auth/verify/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, code }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.user) setUser(data.user);
+        setMessage(data.message);
+        if (channel === 'email') setEmailCode('');
+        else setPhoneCode('');
+      } else {
+        setError(data.error || 'Invalid code');
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   const saveCustomPromoCode = async () => {
     if (!customPromoCode.trim()) return;
     setSavingPromo(true);
@@ -232,18 +303,33 @@ export default function Account() {
             <h1 className="text-3xl font-bold text-center mb-2 text-[#00ff9d]">
               {isLogin ? 'Login' : 'Create Account'}
             </h1>
-            <p className="text-center text-sm text-zinc-400 mb-8">
+            <p className="text-center text-sm text-zinc-400 mb-4">
               Sign up to track loyalty points, referral commissions, and orders.
             </p>
+            {!isLogin && (
+              <p className="text-center text-sm text-[#00ff9d]/90 mb-8">
+                Verify your email or phone after signup to get ${SIGNUP_BONUS_DOLLARS} in points ({SIGNUP_BONUS_POINTS.toLocaleString()} pts).
+              </p>
+            )}
+            {isLogin && <div className="mb-8" />}
 
             {!isLogin && (
-              <input
-                type="text"
-                placeholder="Display Name"
-                value={signupName}
-                onChange={(e) => setSignupName(e.target.value)}
-                className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
-              />
+              <>
+                <input
+                  type="text"
+                  placeholder="Display Name"
+                  value={signupName}
+                  onChange={(e) => setSignupName(e.target.value)}
+                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone (optional — verify via SMS instead of email)"
+                  value={signupPhone}
+                  onChange={(e) => setSignupPhone(e.target.value)}
+                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
+                />
+              </>
             )}
 
             <input
@@ -332,6 +418,48 @@ export default function Account() {
         {message && <p className="text-[#00ff9d] text-sm mb-4">{message}</p>}
         {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
+        {user.signupBonusEligible && (
+          <div className="bg-gradient-to-r from-[#00ff9d]/10 to-transparent border border-[#00ff9d]/30 rounded-3xl p-6 mb-8">
+            <h2 className="text-xl font-bold mb-2">Unlock ${SIGNUP_BONUS_DOLLARS} in Loyalty Points</h2>
+            <p className="text-sm text-zinc-400 mb-6">
+              Verify your {user.signupVerificationChannel === 'phone' ? 'phone number' : 'email address'} to receive{' '}
+              {SIGNUP_BONUS_POINTS.toLocaleString()} points (${SIGNUP_BONUS_DOLLARS} off at checkout).
+            </p>
+            {user.signupVerificationChannel === 'phone' ? (
+              <VerificationBlock
+                label="Phone"
+                value={user.phone || 'Add a phone number in your profile'}
+                verified={!!user.phoneVerified}
+                code={phoneCode}
+                onCodeChange={setPhoneCode}
+                onSend={() => sendVerificationCode('phone')}
+                onConfirm={() => confirmVerificationCode('phone')}
+                sending={sendingPhone}
+                confirming={confirmingPhone}
+                disabled={!user.phone?.trim()}
+              />
+            ) : (
+              <VerificationBlock
+                label="Email"
+                value={user.email}
+                verified={!!user.emailVerified}
+                code={emailCode}
+                onCodeChange={setEmailCode}
+                onSend={() => sendVerificationCode('email')}
+                onConfirm={() => confirmVerificationCode('email')}
+                sending={sendingEmail}
+                confirming={confirmingEmail}
+              />
+            )}
+          </div>
+        )}
+
+        {user.signupBonusClaimed && !user.signupBonusEligible && (
+          <div className="bg-zinc-900 border border-[#00ff9d]/20 rounded-2xl px-5 py-3 mb-8 text-sm text-zinc-300">
+            Signup bonus claimed — ${SIGNUP_BONUS_DOLLARS} in loyalty points added to your account.
+          </div>
+        )}
+
         {tab === 'profile' && (
           <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800 space-y-6">
             <h2 className="text-2xl font-bold">Profile & Socials</h2>
@@ -400,6 +528,7 @@ export default function Account() {
               <p>• Earn <strong>{promoTerms?.referrerRewardPoints ?? 100} points</strong> per promo code use</p>
               <p>• Share your <strong>personal promo code</strong> — earn <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on each order</p>
               <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
+              <p>• New members earn <strong>${SIGNUP_BONUS_DOLLARS} ({SIGNUP_BONUS_POINTS.toLocaleString()} pts)</strong> after verifying email or phone</p>
               <p>• Gamble <strong>{SPIN_COST} points</strong> on the prize wheel for discounts, free shipping, and more</p>
             </div>
 
@@ -564,6 +693,78 @@ function MiniStat({ label, value, accent }: { label: string; value: string | num
     <div className="bg-black rounded-2xl p-5 border border-zinc-800">
       <p className="text-xs text-zinc-500 mb-1">{label}</p>
       <p className={`text-xl font-bold ${accent ? 'text-[#00ff9d]' : ''}`}>{value}</p>
+    </div>
+  );
+}
+
+function VerificationBlock({
+  label,
+  value,
+  verified,
+  code,
+  onCodeChange,
+  onSend,
+  onConfirm,
+  sending,
+  confirming,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  verified: boolean;
+  code: string;
+  onCodeChange: (v: string) => void;
+  onSend: () => void;
+  onConfirm: () => void;
+  sending: boolean;
+  confirming: boolean;
+  disabled?: boolean;
+}) {
+  if (verified) {
+    return (
+      <div className="bg-black/50 rounded-2xl p-5 border border-[#00ff9d]/30">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium">{label}</span>
+          <span className="text-xs text-[#00ff9d] font-medium uppercase tracking-wide">Verified</span>
+        </div>
+        <p className="text-sm text-zinc-400 truncate">{value}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-black/50 rounded-2xl p-5 border border-zinc-700">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium">{label}</span>
+        <span className="text-xs text-yellow-400 font-medium uppercase tracking-wide">Pending</span>
+      </div>
+      <p className="text-sm text-zinc-400 truncate mb-4">{value}</p>
+      <div className="flex gap-2 mb-3">
+        <button
+          onClick={onSend}
+          disabled={sending || disabled}
+          className="text-xs bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl disabled:opacity-40"
+        >
+          {sending ? 'Sending...' : 'Send Code'}
+        </button>
+      </div>
+      <div className="flex gap-2">
+        <input
+          value={code}
+          onChange={(e) => onCodeChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          placeholder="6-digit code"
+          className="flex-1 bg-black border border-zinc-700 rounded-xl px-3 py-2 text-sm tracking-widest"
+          maxLength={6}
+          disabled={disabled}
+        />
+        <button
+          onClick={onConfirm}
+          disabled={confirming || code.length !== 6 || disabled}
+          className="text-xs bg-[#00ff9d] text-black px-4 py-2 rounded-xl font-medium disabled:opacity-40"
+        >
+          {confirming ? '...' : 'Verify'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -54,3 +54,36 @@ We'll notify you when your order ships.
 
   return { sent: res.ok };
 }
+
+export async function sendVerificationEmail(to: string, code: string) {
+  const body = `Welcome to Kush World!
+
+Your email verification code is: ${code}
+
+This code expires in 15 minutes.
+
+Once you verify your email, you'll receive $10 in loyalty points (1,000 pts) to use at checkout.
+
+— Kush World Team`;
+
+  if (!RESEND_API_KEY) {
+    console.log(`[Email stub] To: ${to}\n${body}`);
+    return { sent: false, stub: true };
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to,
+      subject: 'Verify your Kush World account',
+      text: body,
+    }),
+  });
+
+  return { sent: res.ok, stub: false };
+}
