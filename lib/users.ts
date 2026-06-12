@@ -155,6 +155,33 @@ export async function addLoyaltyPoints(userId: string, points: number): Promise<
   return users[index].loyaltyPoints;
 }
 
+export async function redeemLoyaltyPoints(
+  userId: string,
+  points: number
+): Promise<{ success: boolean; remaining: number; error?: string }> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) {
+    return { success: false, remaining: 0, error: 'User not found' };
+  }
+
+  const available = users[index].loyaltyPoints ?? 0;
+  const amount = Math.floor(points);
+
+  if (amount <= 0) {
+    return { success: false, remaining: available, error: 'Invalid points amount' };
+  }
+
+  if (amount > available) {
+    return { success: false, remaining: available, error: 'Insufficient loyalty points' };
+  }
+
+  users[index].loyaltyPoints = available - amount;
+  await writeUsers(users);
+
+  return { success: true, remaining: users[index].loyaltyPoints };
+}
+
 export function toPublicProfile(user: UserProfile, referralStats?: PublicUserProfile['referralStats']): PublicUserProfile {
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://kushworld.shop';
   return {

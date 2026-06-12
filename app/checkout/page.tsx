@@ -15,6 +15,11 @@ import {
 } from '@/lib/checkout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { useAgeAccess } from '@/lib/useAgeAccess';
+import {
+  MIN_REDEMPTION_POINTS,
+  calculateMaxRedeemablePoints,
+  pointsToDollarDiscount,
+} from '@/lib/loyaltyUtils';
 
 type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
 
@@ -41,6 +46,11 @@ export default function Checkout() {
   const [couponMessage, setCouponMessage] = useState('');
   const [referralMessage, setReferralMessage] = useState('');
   const [cardReady, setCardReady] = useState(false);
+  const [availablePoints, setAvailablePoints] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [useLoyalty, setUseLoyalty] = useState(false);
+  const [loyaltyPointsToUse, setLoyaltyPointsToUse] = useState(0);
+  const [loyaltyMessage, setLoyaltyMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cardNumber, setCardNumber] = useState('');
@@ -76,6 +86,24 @@ export default function Checkout() {
       .then((res) => res.json())
       .then((data) => setPaymentConfig(data))
       .catch(() => setPaymentConfig(null));
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/users/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          setIsLoggedIn(true);
+          setAvailablePoints(data.user.loyaltyPoints ?? 0);
+        } else {
+          setIsLoggedIn(false);
+          setAvailablePoints(0);
+        }
+      })
+      .catch(() => {
+        setIsLoggedIn(false);
+        setAvailablePoints(0);
+      });
   }, []);
 
   useEffect(() => {
@@ -124,8 +152,11 @@ export default function Checkout() {
   };
 
   const sub = subtotal();
-  const discount = Math.max(couponDiscount, referralDiscount);
+  const promoDiscount = Math.max(couponDiscount, referralDiscount);
   const usingReferralDiscount = referralDiscount > 0 && referralDiscount >= couponDiscount;
+  const maxRedeemablePoints = calculateMaxRedeemablePoints(availablePoints, sub, promoDiscount);
+  const loyaltyDiscount = useLoyalty ? pointsToDollarDiscount(loyaltyPointsToUse) : 0;
+  const discount = promoDiscount + loyaltyDiscount;
   const isFirstOrder = customerInfo.email
     ? !localStorage.getItem(`ordered_${customerInfo.email}`)
     : true;
@@ -165,6 +196,30 @@ export default function Checkout() {
       });
   }, [storedReferralCode, sub, customerInfo.email, referrerName]);
 
+  useEffect(() => {
+    if (!useLoyalty) return;
+    const max = calculateMaxRedeemablePoints(availablePoints, sub, promoDiscount);
+    if (loyaltyPointsToUse > max) {
+      setLoyaltyPointsToUse(max >= MIN_REDEMPTION_POINTS ? max : 0);
+    }
+    if (max < MIN_REDEMPTION_POINTS) {
+      setUseLoyalty(false);
+      setLoyaltyPointsToUse(0);
+      setLoyaltyMessage('');
+    }
+  }, [sub, promoDiscount, availablePoints, useLoyalty, loyaltyPointsToUse]);
+
+  const applyMaxLoyalty = () => {
+    const max = calculateMaxRedeemablePoints(availablePoints, sub, promoDiscount);
+    if (max < MIN_REDEMPTION_POINTS) {
+      setLoyaltyMessage(`Need at least ${MIN_REDEMPTION_POINTS} points and a $${(MIN_REDEMPTION_POINTS / 100).toFixed(2)} discountable balance`);
+      return;
+    }
+    setUseLoyalty(true);
+    setLoyaltyPointsToUse(max);
+    setLoyaltyMessage(`Applying ${max} points (-$${pointsToDollarDiscount(max).toFixed(2)})`);
+  };
+
   const applyCoupon = async () => {
     const isFirstOrder = !localStorage.getItem(`ordered_${customerInfo.email}`);
     const res = await fetch('/api/coupons/validate', {
@@ -193,6 +248,15 @@ export default function Checkout() {
     }
     if (!customerInfo.name || !customerInfo.email || !customerInfo.address) {
       return 'Please complete all required fields.';
+    }
+    if (useLoyalty && loyaltyPointsToUse > 0 && !isLoggedIn) {
+      return 'Log in to redeem loyalty points.';
+    }
+    if (useLoyalty && loyaltyPointsToUse > 0 && loyaltyPointsToUse < MIN_REDEMPTION_POINTS) {
+      return `Minimum ${MIN_REDEMPTION_POINTS} points to redeem.`;
+    }
+    if (useLoyalty && loyaltyPointsToUse > maxRedeemablePoints) {
+      return 'Loyalty points exceed the allowed amount for this order.';
     }
     return null;
   };
@@ -247,6 +311,8 @@ export default function Checkout() {
           customer: customerInfo,
           items,
           subtotal: sub,
+          promoDiscount,
+          loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
           discount,
           shipping: totals.shipping,
           total: totals.total,
@@ -278,13 +344,14 @@ export default function Checkout() {
       customer: customerInfo,
       items,
       subtotal: sub,
+      promoDiscount,
+      loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
       discount,
       shipping: totals.shipping,
       total: totals.total,
       couponCode: couponCode || undefined,
       referralCode: storedReferralCode && isFirstOrder ? storedReferralCode : undefined,
       paymentMethod,
-      loyaltyUsed: 0,
     };
 
     try {
@@ -413,7 +480,18 @@ export default function Checkout() {
             ))}
             <div className="mt-8 space-y-2 text-sm border-t border-zinc-800 pt-6">
               <div className="flex justify-between"><span>Subtotal</span><span>${totals.subtotal.toFixed(2)}</span></div>
-              {discount > 0 && <div className="flex justify-between text-[#00ff9d]"><span>Discount</span><span>-${discount.toFixed(2)}</span></div>}
+              {promoDiscount > 0 && (
+                <div className="flex justify-between text-[#00ff9d]">
+                  <span>{usingReferralDiscount ? 'Referral' : 'Coupon'} discount</span>
+                  <span>-${promoDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              {loyaltyDiscount > 0 && (
+                <div className="flex justify-between text-[#00ff9d]">
+                  <span>Loyalty ({loyaltyPointsToUse} pts)</span>
+                  <span>-${loyaltyDiscount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between"><span>Shipping</span><span>{totals.freeShipping ? 'FREE' : `$${totals.shipping.toFixed(2)}`}</span></div>
               <div className="flex justify-between font-bold text-xl pt-2"><span>Total</span><span className="text-[#00ff9d]">${totals.total.toFixed(2)}</span></div>
               {sub < FREE_SHIPPING_THRESHOLD && <p className="text-xs text-zinc-500">Free shipping at ${FREE_SHIPPING_THRESHOLD}+</p>}
@@ -452,6 +530,59 @@ export default function Checkout() {
               </p>
             )}
             {couponMessage && <p className="text-sm text-zinc-400 mb-4">{couponMessage}</p>}
+
+            <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">Loyalty Points</h3>
+                {isLoggedIn ? (
+                  <span className="text-sm text-[#00ff9d]">{availablePoints.toLocaleString()} pts available</span>
+                ) : (
+                  <Link href="/account" className="text-sm text-[#00ff9d] hover:underline">Log in to redeem</Link>
+                )}
+              </div>
+
+              {isLoggedIn ? (
+                <>
+                  <p className="text-xs text-zinc-500 mb-3">
+                    100 points = $1 off · Max {maxRedeemablePoints.toLocaleString()} pts on this order
+                  </p>
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="number"
+                      min={0}
+                      max={maxRedeemablePoints}
+                      step={100}
+                      value={loyaltyPointsToUse || ''}
+                      onChange={(e) => {
+                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                        setLoyaltyPointsToUse(val);
+                        setUseLoyalty(val >= MIN_REDEMPTION_POINTS);
+                        setLoyaltyMessage('');
+                      }}
+                      placeholder={`Min ${MIN_REDEMPTION_POINTS} pts`}
+                      className="flex-1 bg-black border border-zinc-700 rounded-xl px-4 py-3 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={applyMaxLoyalty}
+                      className="bg-zinc-800 hover:bg-zinc-700 px-4 rounded-xl text-sm font-medium whitespace-nowrap"
+                    >
+                      Use Max
+                    </button>
+                  </div>
+                  {loyaltyMessage && <p className="text-sm text-[#00ff9d]">{loyaltyMessage}</p>}
+                  {useLoyalty && loyaltyDiscount > 0 && (
+                    <p className="text-sm text-zinc-400 mt-2">
+                      Loyalty savings: <span className="text-[#00ff9d]">-${loyaltyDiscount.toFixed(2)}</span>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-zinc-400">
+                  Create an account to earn and redeem points at checkout.
+                </p>
+              )}
+            </div>
 
             {orderRequiresIdVerification(items) && (
               <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6 text-sm text-zinc-400">

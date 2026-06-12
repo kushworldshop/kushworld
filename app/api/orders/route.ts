@@ -5,11 +5,12 @@ import path from 'path';
 import { isCustomerVerified } from '@/lib/verification';
 import { sendOrderConfirmation } from '@/lib/email';
 import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import { resolveOrderTotals } from '@/lib/orderCheckout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { recordReferralConversion } from '@/lib/referrals';
 import { creditReferrerForConversion } from '@/lib/referralRewards';
 import { getSessionUserId } from '@/lib/auth';
-import { awardPurchaseLoyalty } from '@/lib/loyalty';
+import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -94,9 +95,21 @@ export async function POST(request: NextRequest) {
     
     const email = customer.email ?? body.email;
     const subtotal = body.subtotal ?? 0;
-    const discount = body.discount ?? 0;
-    const shipping = body.shipping ?? 0;
-    const total = body.total ?? subtotal - discount + shipping;
+
+    let resolved;
+    try {
+      resolved = await resolveOrderTotals({
+        subtotal,
+        promoDiscount: body.promoDiscount ?? body.discount ?? 0,
+        loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
+        shipping: body.shipping,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid order totals';
+      return NextResponse.json({ success: false, error: message }, { status: 400 });
+    }
+
+    const { discount, shipping, total, loyaltyPointsUsed, loyaltyDiscount, promoDiscount } = resolved;
 
     if (subtotal < MIN_ORDER_AMOUNT) {
       return NextResponse.json({ success: false, error: `Minimum order is $${MIN_ORDER_AMOUNT}` }, { status: 400 });
@@ -114,6 +127,9 @@ export async function POST(request: NextRequest) {
       id: `KW-${Date.now().toString().slice(-8)}`,
       ...body,
       subtotal,
+      promoDiscount,
+      loyaltyPointsUsed,
+      loyaltyDiscount,
       discount,
       shipping,
       total,
@@ -145,6 +161,9 @@ export async function POST(request: NextRequest) {
 
     const userId = await getSessionUserId();
     if (userId) {
+      if (loyaltyPointsUsed > 0) {
+        await finalizeLoyaltyRedemption(userId, loyaltyPointsUsed);
+      }
       await awardPurchaseLoyalty(userId, subtotal);
     }
 

@@ -5,11 +5,12 @@ import { chargeCard } from '@/lib/authorizeNet';
 import { isCustomerVerified } from '@/lib/verification';
 import { sendOrderConfirmation } from '@/lib/email';
 import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import { resolveOrderTotals } from '@/lib/orderCheckout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { recordReferralConversion } from '@/lib/referrals';
 import { creditReferrerForConversion } from '@/lib/referralRewards';
 import { getSessionUserId } from '@/lib/auth';
-import { awardPurchaseLoyalty } from '@/lib/loyalty';
+import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -26,7 +27,7 @@ async function ensureOrdersFile() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { customer, items, subtotal, discount = 0, shipping = 0, total, opaqueData, referralCode } = body;
+    const { customer, items, subtotal, opaqueData, referralCode } = body;
 
     if (!customer?.name || !customer?.email || !customer?.address) {
       return NextResponse.json(
@@ -58,7 +59,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: `Cannot ship to ${state}` }, { status: 400 });
     }
 
-    const orderTotal = total ?? subtotal - discount + shipping;
+    let resolved;
+    try {
+      resolved = await resolveOrderTotals({
+        subtotal,
+        promoDiscount: body.promoDiscount ?? body.discount ?? 0,
+        loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
+        shipping: body.shipping,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid order totals';
+      return NextResponse.json({ success: false, error: message }, { status: 400 });
+    }
+
+    const { discount, shipping, total: orderTotal, loyaltyPointsUsed, loyaltyDiscount, promoDiscount } = resolved;
     const orderId = `KW-${Date.now().toString().slice(-8)}`;
     const payment = await chargeCard(orderTotal, opaqueData, customer, orderId);
 
@@ -79,6 +93,9 @@ export async function POST(request: NextRequest) {
       customer,
       items,
       subtotal,
+      promoDiscount,
+      loyaltyPointsUsed,
+      loyaltyDiscount,
       discount,
       shipping,
       total: orderTotal,
@@ -115,6 +132,9 @@ export async function POST(request: NextRequest) {
 
     const userId = await getSessionUserId();
     if (userId) {
+      if (loyaltyPointsUsed > 0) {
+        await finalizeLoyaltyRedemption(userId, loyaltyPointsUsed);
+      }
       await awardPurchaseLoyalty(userId, subtotal);
     }
 

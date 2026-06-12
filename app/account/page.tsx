@@ -339,7 +339,7 @@ export default function Account() {
             <div className="space-y-4 text-sm text-zinc-300">
               <p>• Earn <strong>1 point per $10</strong> spent on orders (logged-in checkout)</p>
               <p>• Earn <strong>{REFERRER_REWARD_POINTS} points</strong> per successful referral</p>
-              <p>• Redeem 100 points = <strong>$1 off</strong> at checkout (coming soon)</p>
+              <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
             </div>
 
             <Link href="/#shop" className="inline-block mt-8 bg-white text-black px-8 py-4 rounded-2xl font-bold hover:bg-[#00ff9d] transition">
