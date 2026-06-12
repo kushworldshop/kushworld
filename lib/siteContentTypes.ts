@@ -199,7 +199,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     ctaLabel: 'GET YOUR REFERRAL LINK',
   },
   reviewsSection: {
-    eyebrow: 'Verified on X · Hundreds More',
+    eyebrow: 'Verified Trusted Source',
     title: 'What People Are Saying',
     ctaLabel: 'See All Reviews',
     socialCtaLabel: 'Follow @kushworld',

@@ -41,7 +41,7 @@ export default function ReviewsPage() {
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Real Reviews from Real Customers</h1>
             <p className="text-zinc-400 mb-8 max-w-2xl leading-relaxed">
               Real touchdown posts from customers on X — plus reviews left right here after orders.
-              We feature verified posts below; hundreds more live on{' '}
+              We feature verified posts below from a trusted source on{' '}
               <a
                 href="https://x.com/KushWorld"
                 target="_blank"
@@ -98,7 +98,7 @@ export default function ReviewsPage() {
             <ReviewForm products={productOptions} onSuccess={loadReviews} />
 
             <div className="bg-zinc-900 border border-[#00ff9d]/20 rounded-2xl p-6 text-sm text-zinc-400">
-              <p className="font-semibold text-white mb-2">Hundreds more on X</p>
+              <p className="font-semibold text-white mb-2">Verified trusted source</p>
               <p className="mb-4 leading-relaxed">
                 Search <span className="text-[#00ff9d]">@KushWorld</span> on X for touchdown posts,
                 order pics, and customer shoutouts. Tag us on your next TD to get featured here.
