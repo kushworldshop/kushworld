@@ -79,6 +79,7 @@ for (const imagePath of collectImages(importDir)) {
     name,
     price,
     image: `/products/${destName}`,
+    coaPdf: `/products/coa/${slug}.pdf`,
     sizes: [],
     category: categorize(name),
   });
@@ -93,6 +94,14 @@ const productsTs = `export interface Product {
   image: string;
   sizes?: string[];
   category: string;
+  coaPdf?: string;
+}
+
+/** Expected COA path: /products/coa/{slug}.pdf — drop PDFs in public/products/coa/ */
+export function getCoaPdfPath(product: Product): string {
+  if (product.coaPdf) return product.coaPdf;
+  const slug = product.image.replace(/^\\/products\\//, '').replace(/\\.[^.]+$/, '');
+  return \`/products/coa/\${slug}.pdf\`;
 }
 
 export const products: Product[] = ${JSON.stringify(products, null, 2)};

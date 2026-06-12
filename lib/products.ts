@@ -5,6 +5,15 @@ export interface Product {
   image: string;
   sizes?: string[];
   category: string;
+  /** Path to COA PDF in /public/products/coa/ — defaults from product image slug */
+  coaPdf?: string;
+}
+
+/** Expected COA path: /products/coa/{slug}.pdf — drop PDFs in public/products/coa/ */
+export function getCoaPdfPath(product: Product): string {
+  if (product.coaPdf) return product.coaPdf;
+  const slug = product.image.replace(/^\/products\//, '').replace(/\.[^.]+$/, '');
+  return `/products/coa/${slug}.pdf`;
 }
 
 export const products: Product[] = [

@@ -4,15 +4,8 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { useCartStore } from '@/lib/cartStore';
 import { useWishlistStore } from '@/lib/wishlistStore';
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  sizes?: string[];
-  category: string;
-}
+import { getCoaPdfPath, type Product } from '@/lib/products';
+import CoaLink from './CoaLink';
 
 export default function ProductCard({ product }: { product: Product }) {
   const [selectedSize, setSelectedSize] = useState<string>(product.sizes?.[0] || '');
@@ -95,10 +88,12 @@ export default function ProductCard({ product }: { product: Product }) {
           </div>
         )}
 
+        <CoaLink coaPdf={getCoaPdfPath(product)} productName={product.name} />
+
         {/* Add to Cart Button */}
         <button
           onClick={handleAddToCart}
-          className={`w-full py-4 rounded-2xl font-bold text-lg transition-all ${
+          className={`w-full mt-3 py-4 rounded-2xl font-bold text-lg transition-all ${
             added
               ? 'bg-[#00ff9d] text-black'
               : 'bg-white text-black hover:bg-[#00ff9d]'
