@@ -1,3 +1,5 @@
+import { isXaiConfigured, xaiVisionJson } from '@/lib/xai';
+
 export type IdPhotoValidationMethod = 'heuristic' | 'vision' | 'skipped';
 
 export type IdPhotoValidationResult = {
@@ -18,7 +20,11 @@ Set isGovernmentId to false if the image is: a selfie, random photo, pet, scener
 Set isGovernmentId to true only when a government-issued photo ID is the main subject and legible enough for staff review.`;
 
 export function isIdPhotoVisionConfigured(): boolean {
-  return !!(process.env.OPENAI_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim());
+  return !!(
+    process.env.XAI_API_KEY?.trim() ||
+    process.env.OPENAI_API_KEY?.trim() ||
+    process.env.GEMINI_API_KEY?.trim()
+  );
 }
 
 function getImageDimensions(
@@ -141,6 +147,32 @@ function parseVisionJson(raw: string): { isGovernmentId: boolean; reason: string
   }
 }
 
+async function validateWithGrok(buffer: Buffer, mimeType: string): Promise<IdPhotoValidationResult | null> {
+  if (!isXaiConfigured()) return null;
+
+  const parsed = await xaiVisionJson<{ isGovernmentId?: boolean; reason?: string }>({
+    prompt: VISION_PROMPT,
+    imageBase64: buffer.toString('base64'),
+    mimeType,
+  });
+
+  if (!parsed || typeof parsed.isGovernmentId !== 'boolean') {
+    console.error('Grok ID validation returned invalid JSON');
+    return null;
+  }
+
+  const reason =
+    typeof parsed.reason === 'string' && parsed.reason.trim()
+      ? parsed.reason.trim()
+      : parsed.isGovernmentId
+        ? 'Government ID detected'
+        : 'Image does not appear to be a government-issued ID';
+
+  return parsed.isGovernmentId
+    ? { accepted: true, reason, method: 'vision' }
+    : { accepted: false, reason, method: 'vision' };
+}
+
 async function validateWithOpenAI(buffer: Buffer, mimeType: string): Promise<IdPhotoValidationResult | null> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
@@ -261,13 +293,15 @@ export async function validateIdPhoto(
   if (heuristicFailure) return heuristicFailure;
 
   const vision =
-    (await validateWithOpenAI(buffer, mimeType)) ?? (await validateWithGemini(buffer, mimeType));
+    (await validateWithGrok(buffer, mimeType)) ??
+    (await validateWithOpenAI(buffer, mimeType)) ??
+    (await validateWithGemini(buffer, mimeType));
 
   if (vision) return vision;
 
   if (!isIdPhotoVisionConfigured()) {
     console.warn(
-      '[ID validation] No OPENAI_API_KEY or GEMINI_API_KEY — skipping vision auto-review; manual review required.'
+      '[ID validation] No XAI_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY — skipping vision auto-review; manual review required.'
     );
   }
 
