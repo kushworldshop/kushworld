@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { isCustomerVerified } from '@/lib/verification';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -32,10 +33,11 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
   try {
     await ensureOrdersFile();
-    const { id, status } = await request.json();
+    const body = await request.json();
+    const { id, status, idVerificationStatus } = body;
 
-    if (!id || !status) {
-      return NextResponse.json({ success: false, error: 'Order id and status required' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Order id required' }, { status: 400 });
     }
 
     const data = await fs.readFile(ORDERS_FILE, 'utf8');
@@ -46,7 +48,26 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
 
-    orders[index].status = status;
+    if (status) {
+      orders[index].status = status;
+    }
+
+    if (idVerificationStatus) {
+      orders[index].idVerification = {
+        ...orders[index].idVerification,
+        status: idVerificationStatus,
+        verifiedAt: idVerificationStatus === 'verified' ? new Date().toISOString() : orders[index].idVerification?.verifiedAt,
+      };
+
+      if (idVerificationStatus === 'verified') {
+        const email = orders[index].customer?.email || orders[index].email;
+        if (email) {
+          const { markEmailVerified } = await import('@/lib/verification');
+          await markEmailVerified(email);
+        }
+      }
+    }
+
     orders[index].updatedAt = new Date().toISOString();
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
 
@@ -64,10 +85,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const customer = body.customer ?? {};
     
+    const email = customer.email ?? body.email;
+    const alreadyVerified = email ? await isCustomerVerified(email) : false;
+
     const newOrder = {
       id: `KW-${Date.now().toString().slice(-8)}`,
       ...body,
-      email: customer.email ?? body.email,
+      email,
       name: customer.name ?? body.name,
       address: customer.address ?? body.address,
       city: customer.city ?? body.city,
@@ -75,6 +99,9 @@ export async function POST(request: NextRequest) {
       zip: customer.zip ?? body.zip,
       phone: customer.phone ?? body.phone,
       status: 'pending',
+      idVerification: alreadyVerified
+        ? { status: 'verified', note: 'Returning verified customer' }
+        : { status: 'required' },
       createdAt: new Date().toISOString(),
     };
 
@@ -83,7 +110,11 @@ export async function POST(request: NextRequest) {
     orders.unshift(newOrder); // newest first
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
 
-    return NextResponse.json({ success: true, orderId: newOrder.id });
+    return NextResponse.json({
+      success: true,
+      orderId: newOrder.id,
+      requiresIdUpload: !alreadyVerified,
+    });
   } catch (error) {
     console.error('Order save error:', error);
     return NextResponse.json({ success: false, error: 'Failed to save order' }, { status: 500 });

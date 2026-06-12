@@ -63,6 +63,36 @@ export default function AdminOrders() {
     }
   };
 
+  const approveIdVerification = async (orderId: string) => {
+    try {
+      await fetch('/api/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: orderId, idVerificationStatus: 'verified' }),
+      });
+      loadOrders();
+    } catch (e) {
+      alert('Failed to approve ID');
+    }
+  };
+
+  const viewIdImage = async (orderId: string) => {
+    try {
+      const res = await fetch(`/api/admin/id-image?orderId=${orderId}`, {
+        headers: { 'x-admin-password': ADMIN_PASSWORD },
+      });
+      if (!res.ok) {
+        alert('No ID image found for this order');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (e) {
+      alert('Failed to load ID image');
+    }
+  };
+
   // Login Screen
   if (!authenticated) {
     return (
@@ -153,6 +183,41 @@ export default function AdminOrders() {
                     <p className="text-sm mt-2">
                       Status: <span className="text-[#00ff9d] uppercase">{order.status || 'pending'}</span>
                     </p>
+                    <p className="text-sm mt-1">
+                      ID Verification:{' '}
+                      <span className={`uppercase font-medium ${
+                        order.idVerification?.status === 'verified' ? 'text-green-400' :
+                        order.idVerification?.status === 'uploaded' ? 'text-yellow-400' :
+                        'text-red-400'
+                      }`}>
+                        {order.idVerification?.status || 'required'}
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    {order.idVerification?.status === 'uploaded' && (
+                      <>
+                        <button
+                          onClick={() => viewIdImage(order.id)}
+                          className="px-5 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm transition"
+                        >
+                          View ID Photo
+                        </button>
+                        <button
+                          onClick={() => approveIdVerification(order.id)}
+                          className="px-5 py-3 bg-[#00ff9d] text-black hover:bg-[#00ff9d]/90 rounded-xl text-sm font-medium transition"
+                        >
+                          Approve ID (21+)
+                        </button>
+                      </>
+                    )}
+                    {order.idVerification?.status === 'required' && (
+                      <p className="text-sm text-red-400">Waiting for customer to upload ID</p>
+                    )}
+                    {order.idVerification?.status === 'verified' && (
+                      <p className="text-sm text-green-400">Customer ID verified</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
