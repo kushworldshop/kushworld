@@ -13,9 +13,22 @@ const OVERRIDES_FILE = path.join(process.cwd(), 'data', 'product-overrides.json'
 export type ProductOverride = Partial<
   Pick<
     Product,
-    'name' | 'price' | 'image' | 'description' | 'optionGroups' | 'hidden' | 'category' | 'subcategory'
+    | 'name'
+    | 'price'
+    | 'cost'
+    | 'image'
+    | 'description'
+    | 'optionGroups'
+    | 'hidden'
+    | 'category'
+    | 'subcategory'
   >
 >;
+
+function toStorefrontProduct(product: Product): Product {
+  const { cost: _cost, ...storefrontProduct } = product;
+  return storefrontProduct;
+}
 
 export function isProductHidden(product: Pick<Product, 'hidden'>): boolean {
   return product.hidden === true;
@@ -69,7 +82,7 @@ export async function getAllProducts(): Promise<Product[]> {
 }
 
 export async function getProducts(): Promise<Product[]> {
-  return filterVisibleProducts(await getAllProducts());
+  return filterVisibleProducts(await getAllProducts()).map(toStorefrontProduct);
 }
 
 export async function getProductById(id: string): Promise<Product | undefined> {
@@ -80,7 +93,7 @@ export async function getProductById(id: string): Promise<Product | undefined> {
 export async function getProductBySlug(slug: string): Promise<Product | undefined> {
   const product = (await getAllProducts()).find((item) => getProductSlug(item) === slug);
   if (!product || isProductHidden(product)) return undefined;
-  return product;
+  return toStorefrontProduct(product);
 }
 
 export async function searchProducts(query: string): Promise<Product[]> {
@@ -108,6 +121,11 @@ export async function updateProductOverride(
 
   if (updates.name !== undefined) next.name = updates.name.trim() || base.name;
   if (updates.price !== undefined) next.price = Math.max(0, Number(updates.price));
+  if (updates.cost !== undefined) {
+    const cost = Math.max(0, Number(updates.cost));
+    if (cost > 0) next.cost = cost;
+    else delete next.cost;
+  }
   if (updates.image !== undefined) next.image = updates.image.trim() || base.image;
   if (updates.description !== undefined) {
     const desc = updates.description.trim();
@@ -138,6 +156,7 @@ export async function updateProductOverride(
     Object.entries(next).filter(([key, value]) => {
       if (value === undefined || value === '') return false;
       if (key === 'hidden') return value === true;
+      if (key === 'cost') return typeof value === 'number' && value > 0;
       if (key === 'optionGroups') {
         return JSON.stringify(value) !== JSON.stringify(getProductOptionGroups(base));
       }

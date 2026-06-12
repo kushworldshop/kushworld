@@ -8,6 +8,7 @@ import CustomersTab from '@/app/admin/components/CustomersTab';
 import ProductOptionsEditor from '@/app/admin/components/ProductOptionsEditor';
 import { formatCartItemOptions, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
 import { getAllProductCategorySlugs, getSubsectionsForProductCategory } from '@/lib/shopNavigation';
+import { formatCurrency, formatPercent, getProductMargin } from '@/lib/productEconomics';
 
 type AdminTab = 'orders' | 'promo' | 'products' | 'wishlist' | 'site' | 'customers';
 
@@ -24,6 +25,7 @@ interface AdminProduct {
   id: string;
   name: string;
   price: number;
+  cost?: number;
   image: string;
   description?: string;
   category: string;
@@ -175,6 +177,7 @@ export default function AdminOrders() {
   const getProductDraft = (product: AdminProduct) => ({
     name: productEdits[product.id]?.name ?? product.name,
     price: productEdits[product.id]?.price ?? product.price,
+    cost: productEdits[product.id]?.cost ?? product.cost ?? 0,
     image: productEdits[product.id]?.image ?? product.image,
     description: productEdits[product.id]?.description ?? product.description ?? '',
     category: productEdits[product.id]?.category ?? product.category,
@@ -286,6 +289,7 @@ export default function AdminOrders() {
           id: product.id,
           name: draft.name,
           price: draft.price,
+          cost: draft.cost,
           image: draft.image,
           description: draft.description,
           optionGroups: draft.optionGroups,
@@ -564,8 +568,8 @@ export default function AdminOrders() {
             <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
               <h2 className="text-2xl font-bold mb-2">Product Catalog</h2>
               <p className="text-zinc-400 text-sm mb-6">
-                Edit names, prices, images, descriptions, and options. Hide products to remove them from the shop
-                without deleting them.
+                Edit sell price, cost, images, descriptions, and options. Cost is admin-only and helps track
+                margins. Hide products to remove them from the shop without deleting them.
               </p>
               <div className="flex flex-wrap gap-4 mb-4">
                 <input
@@ -630,6 +634,7 @@ export default function AdminOrders() {
                   .map((product) => {
                     const draft = getProductDraft(product);
                     const dirty = !!productEdits[product.id];
+                    const margin = getProductMargin(draft.price, draft.cost > 0 ? draft.cost : undefined);
                     return (
                       <div
                         key={product.id}
@@ -653,7 +658,7 @@ export default function AdminOrders() {
                               />
                             </div>
                             <div>
-                              <label className="text-xs text-zinc-500 block mb-1">Price ($)</label>
+                              <label className="text-xs text-zinc-500 block mb-1">Sell price ($)</label>
                               <input
                                 type="number"
                                 min={0}
@@ -662,7 +667,32 @@ export default function AdminOrders() {
                                 onChange={(e) => updateProductDraft(product.id, 'price', Number(e.target.value))}
                                 className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
                               />
+                              <p className="text-[11px] text-zinc-500 mt-1">Customer-facing shop price</p>
                             </div>
+                            <div>
+                              <label className="text-xs text-zinc-500 block mb-1">Cost ($)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                step={0.01}
+                                value={draft.cost}
+                                onChange={(e) => updateProductDraft(product.id, 'cost', Number(e.target.value))}
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                              />
+                              <p className="text-[11px] text-zinc-500 mt-1">Your cost — admin only, never shown on shop</p>
+                            </div>
+                            {margin && (
+                              <div className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-sm">
+                                <p className="text-zinc-400">
+                                  Margin:{' '}
+                                  <span className={margin.profit >= 0 ? 'text-[#00ff9d]' : 'text-red-400'}>
+                                    {formatCurrency(margin.profit)} profit
+                                  </span>{' '}
+                                  · {formatPercent(margin.marginPercent)} margin · {formatPercent(margin.markupPercent)}{' '}
+                                  markup
+                                </p>
+                              </div>
+                            )}
                             <div>
                               <label className="text-xs text-zinc-500 block mb-1">Product category</label>
                               <select
@@ -738,6 +768,11 @@ export default function AdminOrders() {
                         <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">
                           <div className="text-xs text-zinc-500">
                             ID: {product.id} · {product.category}
+                            {product.cost && product.cost > 0 && (
+                              <span className="text-zinc-400 ml-2">
+                                Cost {formatCurrency(product.cost)} → Sell {formatCurrency(product.price)}
+                              </span>
+                            )}
                             {product.hidden && <span className="text-amber-400 ml-2">Hidden from shop</span>}
                             {product.hasOverride && <span className="text-[#00ff9d] ml-2">Customized</span>}
                           </div>
