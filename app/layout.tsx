@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 export const metadata: Metadata = {
   metadataBase: new URL('https://kushworld.shop'),
   title: 'KUSH WORLD | Premium Head Shop',
-  description: 'Elevate your experience with premium merch, glass & hemp goods. Lab-tested with COAs. 21+ only.',
+  description: 'Premium merch, glass & hemp goods from Kush World. Lab-tested with COAs. Discreet shipping. 21+ only.',
   openGraph: {
     title: 'KUSH WORLD',
     description: 'Premium lab-tested products. Discreet shipping. 21+ only.',

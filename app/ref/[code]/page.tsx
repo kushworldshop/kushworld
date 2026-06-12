@@ -88,7 +88,7 @@ export default function ReferralLanding() {
           {referrerName} invited you to Kush World
         </h1>
         <p className="text-xl text-zinc-400 mb-8 leading-relaxed">
-          Welcome to the family. Your first order gets{' '}
+          You&apos;re all set. Your first order gets{' '}
           <span className="text-[#00ff9d] font-semibold">${REFERRAL_DISCOUNT} off</span>{' '}
           when you check out — we&apos;ve saved your referral automatically.
         </p>

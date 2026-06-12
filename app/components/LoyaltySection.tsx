@@ -8,9 +8,9 @@ export default function LoyaltySection() {
   return (
     <section id="loyalty" className="py-24 bg-zinc-950">
       <div className="max-w-7xl mx-auto px-6 text-center">
-        <h2 className="text-5xl font-bold mb-6">Kush World Family Rewards</h2>
+        <h2 className="text-5xl font-bold mb-6">Kush World Rewards</h2>
         <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-12">
-          Earn points on every purchase. Refer friends. Unlock free merch, glass, and exclusive drops.
+          Stack points on every order, share your referral link, and unlock discounts and perks along the way.
         </p>
 
         <div className="text-6xl font-bold text-[#00ff9d] mb-2">{points}</div>

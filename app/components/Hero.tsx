@@ -5,10 +5,10 @@ export default function Hero() {
     <section className="hero-bg h-screen flex items-center relative">
       <div className="max-w-7xl mx-auto px-6 text-center">
         <div className="inline-flex items-center gap-3 bg-black/70 px-8 py-3 rounded-full mb-8 text-sm font-medium">
-          👨‍👩‍👧‍👦 JOIN THE KUSH WORLD FAMILY
+          🌿 LAB-TESTED • COAs ON EVERY PRODUCT
         </div>
         
-        <h1 className="text-6xl md:text-7xl font-bold leading-none mb-6">ELEVATE YOUR<br />EXPERIENCE</h1>
+        <h1 className="text-6xl md:text-7xl font-bold leading-none mb-6">PREMIUM HEMP,<br />DELIVERED RIGHT</h1>
         <p className="text-2xl text-zinc-300 max-w-2xl mx-auto mb-10">
           Premium merch, glass &amp; hemp goods. Lab-tested. Discreet insured shipping. 21+ only.
         </p>
@@ -18,7 +18,7 @@ export default function Hero() {
             SHOP NOW — GET FREE 8TH ON FIRST ORDER
           </a>
           <a href="#loyalty" className="px-16 py-7 border border-[#00ff9d] text-[#00ff9d] text-2xl font-semibold rounded-3xl hover:bg-[#00ff9d]/10 transition">
-            JOIN REWARDS
+            REWARDS PROGRAM
           </a>
         </div>
 
