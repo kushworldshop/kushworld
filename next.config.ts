@@ -4,6 +4,7 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+    proxyClientMaxBodySize: '10mb',
   },
   images: {
     remotePatterns: [

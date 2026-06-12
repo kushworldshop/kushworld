@@ -44,6 +44,7 @@ export default function AdminOrders() {
   const [productsMessage, setProductsMessage] = useState('');
   const [savingProductId, setSavingProductId] = useState<string | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
 
   useEffect(() => {
     if (localStorage.getItem('adminAuthenticated') === 'true') {
@@ -131,6 +132,39 @@ export default function AdminOrders() {
       ...prev,
       [id]: { ...prev[id], [field]: value },
     }));
+  };
+
+  const uploadProductImage = async (product: AdminProduct, file: File) => {
+    setUploadingImageId(product.id);
+    setProductsMessage('');
+    try {
+      const formData = new FormData();
+      formData.append('productId', product.id);
+      formData.append('image', file);
+
+      const res = await fetch('/api/admin/products/upload', {
+        method: 'POST',
+        headers: { 'x-admin-password': ADMIN_PASSWORD },
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setProductsMessage(`Image uploaded for ${product.name}`);
+        setProductEdits((prev) => {
+          const next = { ...prev };
+          delete next[product.id];
+          return next;
+        });
+        await loadProducts();
+      } else {
+        setProductsMessage(data.error || 'Failed to upload image');
+      }
+    } catch {
+      setProductsMessage('Failed to upload image');
+    } finally {
+      setUploadingImageId(null);
+    }
   };
 
   const saveProduct = async (product: AdminProduct) => {
@@ -389,8 +423,8 @@ export default function AdminOrders() {
             <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
               <h2 className="text-2xl font-bold mb-2">Product Catalog</h2>
               <p className="text-zinc-400 text-sm mb-6">
-                Edit names, prices, image URLs, and descriptions. Changes go live immediately on the shop.
-                Image paths usually look like <code className="text-[#00ff9d]">/products/your-image.jpg</code>
+                Edit names, prices, images, and descriptions. Upload a new image or paste an image URL.
+                Changes go live immediately on the shop.
               </p>
               <div className="flex flex-wrap gap-4 mb-4">
                 <input
@@ -462,12 +496,30 @@ export default function AdminOrders() {
                               />
                             </div>
                             <div className="md:col-span-2">
-                              <label className="text-xs text-zinc-500 block mb-1">Image URL</label>
+                              <label className="text-xs text-zinc-500 block mb-1">Product Image</label>
                               <input
                                 value={draft.image}
                                 onChange={(e) => updateProductDraft(product.id, 'image', e.target.value)}
-                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                                placeholder="/products/uploads/your-image.jpg"
+                                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 mb-3"
                               />
+                              <div className="flex flex-wrap items-center gap-3">
+                                <label className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl text-sm font-medium cursor-pointer">
+                                  {uploadingImageId === product.id ? 'Uploading...' : 'Choose Image'}
+                                  <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/gif"
+                                    className="hidden"
+                                    disabled={uploadingImageId === product.id}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) uploadProductImage(product, file);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                                <span className="text-xs text-zinc-500">JPG, PNG, WEBP, or GIF · max 5MB</span>
+                              </div>
                             </div>
                             <div className="md:col-span-2">
                               <label className="text-xs text-zinc-500 block mb-1">Description</label>
