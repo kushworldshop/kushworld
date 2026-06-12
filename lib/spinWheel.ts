@@ -9,6 +9,7 @@ import {
 import {
   addLoyaltyPoints,
   clearActiveSpinPrize,
+  getRedeemableLoyaltyPoints,
   getUserById,
   redeemLoyaltyPoints,
   setActiveSpinPrize,
@@ -69,6 +70,15 @@ export async function spinWheel(userId: string): Promise<{
     throw new Error('Use or forfeit your current wheel prize before spinning again');
   }
 
+  if (getRedeemableLoyaltyPoints(user) < SPIN_COST) {
+    const locked = user.lockedLoyaltyPoints ?? 0;
+    throw new Error(
+      locked > 0
+        ? `Need ${SPIN_COST} redeemable points to spin. Signup bonus points unlock after your first purchase.`
+        : `Need ${SPIN_COST} points to spin`
+    );
+  }
+
   const redeemed = await redeemLoyaltyPoints(userId, SPIN_COST);
   if (!redeemed.success) {
     throw new Error(redeemed.error || `Need ${SPIN_COST} points to spin`);
@@ -98,7 +108,7 @@ export async function spinWheel(userId: string): Promise<{
     prize,
     instantBonusPoints,
     pointsSpent: SPIN_COST,
-    remainingPoints: updated?.loyaltyPoints ?? redeemed.remaining,
+    remainingPoints: updated ? getRedeemableLoyaltyPoints(updated) : redeemed.remaining,
     message,
   };
 }

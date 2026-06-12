@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message:
         result.bonusClaimed
-          ? `Verified! You earned ${result.pointsAwarded?.toLocaleString()} loyalty points ($10).`
+          ? `Verified! You earned ${result.pointsAwarded?.toLocaleString()} loyalty points ($10). Complete your first purchase to unlock them at checkout.`
           : `${channel === 'email' ? 'Email' : 'Phone'} verified successfully.`,
       bonusClaimed: result.bonusClaimed,
       pointsAwarded: result.pointsAwarded,

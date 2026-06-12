@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUserId } from '@/lib/auth';
 import { pointsToDollarDiscount, validateLoyaltyRedemption } from '@/lib/loyaltyUtils';
-import { getUserById } from '@/lib/users';
+import { getRedeemableLoyaltyPoints, getUserById } from '@/lib/users';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,9 +20,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ valid: false, error: 'User not found' }, { status: 404 });
     }
 
+    const redeemablePoints = getRedeemableLoyaltyPoints(user);
     const validation = validateLoyaltyRedemption(
       pointsToUse,
-      user.loyaltyPoints ?? 0,
+      redeemablePoints,
       subtotal,
       promoDiscount
     );
@@ -31,7 +32,9 @@ export async function POST(request: NextRequest) {
       valid: validation.valid,
       error: validation.error,
       maxPoints: validation.maxPoints,
-      availablePoints: user.loyaltyPoints ?? 0,
+      availablePoints: redeemablePoints,
+      totalPoints: user.loyaltyPoints ?? 0,
+      lockedPoints: user.lockedLoyaltyPoints ?? 0,
       discount: validation.valid ? pointsToDollarDiscount(pointsToUse) : 0,
     });
   } catch {

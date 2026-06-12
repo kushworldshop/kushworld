@@ -61,6 +61,7 @@ export async function tryClaimSignupBonus(userId: string): Promise<{
   await updateUserRecord(userId, (u) => ({
     ...u,
     signupBonusClaimed: true,
+    lockedLoyaltyPoints: (u.lockedLoyaltyPoints ?? 0) + SIGNUP_BONUS_POINTS,
   }));
 
   return { claimed: true, pointsAwarded: SIGNUP_BONUS_POINTS };

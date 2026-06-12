@@ -62,7 +62,7 @@ Your email verification code is: ${code}
 
 This code expires in 15 minutes.
 
-Once you verify your email, you'll receive $10 in loyalty points (1,000 pts) to use at checkout.
+Once you verify your email, you'll receive $10 in loyalty points (1,000 pts). Complete your first purchase to unlock them at checkout.
 
 — Kush World Team`;
 

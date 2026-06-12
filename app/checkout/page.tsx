@@ -56,6 +56,7 @@ export default function Checkout() {
   const [couponMessage, setCouponMessage] = useState('');
   const [cardReady, setCardReady] = useState(false);
   const [availablePoints, setAvailablePoints] = useState(0);
+  const [lockedPoints, setLockedPoints] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [useLoyalty, setUseLoyalty] = useState(false);
   const [loyaltyPointsToUse, setLoyaltyPointsToUse] = useState(0);
@@ -105,13 +106,15 @@ export default function Checkout() {
       .then((data) => {
         if (data?.user) {
           setIsLoggedIn(true);
-          setAvailablePoints(data.user.loyaltyPoints ?? 0);
+          setAvailablePoints(data.user.redeemableLoyaltyPoints ?? data.user.loyaltyPoints ?? 0);
+          setLockedPoints(data.user.lockedLoyaltyPoints ?? 0);
           const prize = data.user.activeSpinPrize ?? null;
           setActiveSpinPrize(isSpinPrizeActive(prize) ? prize : null);
           setUseSpinPrize(isSpinPrizeActive(prize));
         } else {
           setIsLoggedIn(false);
           setAvailablePoints(0);
+          setLockedPoints(0);
           setActiveSpinPrize(null);
           setUseSpinPrize(false);
         }
@@ -119,6 +122,7 @@ export default function Checkout() {
       .catch(() => {
         setIsLoggedIn(false);
         setAvailablePoints(0);
+        setLockedPoints(0);
       });
   }, []);
 
@@ -620,6 +624,11 @@ export default function Checkout() {
 
               {isLoggedIn ? (
                 <>
+                  {lockedPoints > 0 && (
+                    <p className="text-xs text-yellow-400 mb-2">
+                      {lockedPoints.toLocaleString()} signup bonus pts locked until your first purchase completes
+                    </p>
+                  )}
                   <p className="text-xs text-zinc-500 mb-3">
                     100 points = $1 off · Max {maxRedeemablePoints.toLocaleString()} pts on this order
                   </p>

@@ -308,7 +308,7 @@ export default function Account() {
             </p>
             {!isLogin && (
               <p className="text-center text-sm text-[#00ff9d]/90 mb-8">
-                Verify your email or phone after signup to get ${SIGNUP_BONUS_DOLLARS} in points ({SIGNUP_BONUS_POINTS.toLocaleString()} pts).
+                Verify your email or phone after signup to get ${SIGNUP_BONUS_DOLLARS} in points ({SIGNUP_BONUS_POINTS.toLocaleString()} pts). Unlocks after your first purchase.
               </p>
             )}
             {isLogin && <div className="mb-8" />}
@@ -391,6 +391,12 @@ export default function Account() {
           </button>
         </div>
 
+        {(user.lockedLoyaltyPoints ?? 0) > 0 && (
+          <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-2xl px-5 py-3 mb-6 text-sm text-yellow-200">
+            {user.lockedLoyaltyPoints.toLocaleString()} signup bonus points are locked until you complete your first purchase.
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
           <StatCard label="Loyalty Points" value={user.loyaltyPoints.toLocaleString()} accent />
           <StatCard
@@ -423,7 +429,7 @@ export default function Account() {
             <h2 className="text-xl font-bold mb-2">Unlock ${SIGNUP_BONUS_DOLLARS} in Loyalty Points</h2>
             <p className="text-sm text-zinc-400 mb-6">
               Verify your {user.signupVerificationChannel === 'phone' ? 'phone number' : 'email address'} to receive{' '}
-              {SIGNUP_BONUS_POINTS.toLocaleString()} points (${SIGNUP_BONUS_DOLLARS} off at checkout).
+              {SIGNUP_BONUS_POINTS.toLocaleString()} points (${SIGNUP_BONUS_DOLLARS} off). Complete your first purchase to use them at checkout.
             </p>
             {user.signupVerificationChannel === 'phone' ? (
               <VerificationBlock
@@ -454,9 +460,9 @@ export default function Account() {
           </div>
         )}
 
-        {user.signupBonusClaimed && !user.signupBonusEligible && (
+        {user.signupBonusClaimed && !user.signupBonusEligible && (user.lockedLoyaltyPoints ?? 0) > 0 && (
           <div className="bg-zinc-900 border border-[#00ff9d]/20 rounded-2xl px-5 py-3 mb-8 text-sm text-zinc-300">
-            Signup bonus claimed — ${SIGNUP_BONUS_DOLLARS} in loyalty points added to your account.
+            Signup bonus claimed — ${SIGNUP_BONUS_DOLLARS} in points added. Place your first order to unlock them for checkout.
           </div>
         )}
 
@@ -521,14 +527,22 @@ export default function Account() {
           <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
             <h2 className="text-2xl font-bold mb-6">Loyalty Rewards</h2>
             <p className="text-5xl font-bold text-[#00ff9d] mb-2">{user.loyaltyPoints.toLocaleString()}</p>
-            <p className="text-zinc-400 mb-8">points available</p>
+            <p className="text-zinc-400 mb-2">
+              total points · {user.redeemableLoyaltyPoints.toLocaleString()} redeemable
+            </p>
+            {(user.lockedLoyaltyPoints ?? 0) > 0 && (
+              <p className="text-yellow-400 text-sm mb-8">
+                {user.lockedLoyaltyPoints.toLocaleString()} pts locked until your first purchase
+              </p>
+            )}
+            {(user.lockedLoyaltyPoints ?? 0) === 0 && <div className="mb-8" />}
 
             <div className="space-y-4 text-sm text-zinc-300">
               <p>• Earn <strong>1 point per $10</strong> spent on orders (logged-in checkout)</p>
               <p>• Earn <strong>{promoTerms?.referrerRewardPoints ?? 100} points</strong> per promo code use</p>
               <p>• Share your <strong>personal promo code</strong> — earn <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on each order</p>
               <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
-              <p>• New members earn <strong>${SIGNUP_BONUS_DOLLARS} ({SIGNUP_BONUS_POINTS.toLocaleString()} pts)</strong> after verifying email or phone</p>
+              <p>• New members earn <strong>${SIGNUP_BONUS_DOLLARS} ({SIGNUP_BONUS_POINTS.toLocaleString()} pts)</strong> after verifying email or phone — unlocked after first purchase</p>
               <p>• Gamble <strong>{SPIN_COST} points</strong> on the prize wheel for discounts, free shipping, and more</p>
             </div>
 
@@ -552,12 +566,17 @@ export default function Account() {
               Prizes expire in 14 days — use them at checkout or forfeit to spin again.
             </p>
             <SpinWheel
-              points={user.loyaltyPoints}
+              points={user.redeemableLoyaltyPoints}
               activePrize={user.activeSpinPrize}
               onSpinComplete={(remainingPoints, prize) => {
                 setUser((prev) =>
                   prev
-                    ? { ...prev, loyaltyPoints: remainingPoints, activeSpinPrize: prize }
+                    ? {
+                        ...prev,
+                        loyaltyPoints: remainingPoints + (prev.lockedLoyaltyPoints ?? 0),
+                        redeemableLoyaltyPoints: remainingPoints,
+                        activeSpinPrize: prize,
+                      }
                     : prev
                 );
               }}

@@ -39,6 +39,7 @@ export interface UserProfile {
   avatarUrl?: string;
   socials?: UserSocials;
   loyaltyPoints: number;
+  lockedLoyaltyPoints?: number;
   referralCode?: string;
   activeSpinPrize?: SpinPrize;
   shippingAddress?: {
@@ -65,6 +66,8 @@ export interface PublicUserProfile {
   avatarUrl?: string;
   socials?: UserSocials;
   loyaltyPoints: number;
+  redeemableLoyaltyPoints: number;
+  lockedLoyaltyPoints: number;
   referralCode?: string;
   referralLink?: string;
   activeSpinPrize?: SpinPrize | null;
@@ -96,8 +99,15 @@ export async function readUsers(): Promise<UserProfile[]> {
   return users.map((user) => ({
     ...user,
     loyaltyPoints: user.loyaltyPoints ?? 0,
+    lockedLoyaltyPoints: user.lockedLoyaltyPoints ?? 0,
     socials: user.socials ?? {},
   }));
+}
+
+export function getRedeemableLoyaltyPoints(user: Pick<UserProfile, 'loyaltyPoints' | 'lockedLoyaltyPoints'>): number {
+  const total = user.loyaltyPoints ?? 0;
+  const locked = user.lockedLoyaltyPoints ?? 0;
+  return Math.max(0, total - locked);
 }
 
 export async function writeUsers(users: UserProfile[]) {
@@ -191,7 +201,9 @@ export async function redeemLoyaltyPoints(
     return { success: false, remaining: 0, error: 'User not found' };
   }
 
-  const available = users[index].loyaltyPoints ?? 0;
+  const total = users[index].loyaltyPoints ?? 0;
+  const locked = users[index].lockedLoyaltyPoints ?? 0;
+  const available = Math.max(0, total - locked);
   const amount = Math.floor(points);
 
   if (amount <= 0) {
@@ -199,13 +211,29 @@ export async function redeemLoyaltyPoints(
   }
 
   if (amount > available) {
-    return { success: false, remaining: available, error: 'Insufficient loyalty points' };
+    return {
+      success: false,
+      remaining: available,
+      error:
+        locked > 0
+          ? 'Signup bonus points unlock after your first purchase'
+          : 'Insufficient loyalty points',
+    };
   }
 
-  users[index].loyaltyPoints = available - amount;
+  users[index].loyaltyPoints = total - amount;
   await writeUsers(users);
 
-  return { success: true, remaining: users[index].loyaltyPoints };
+  return { success: true, remaining: getRedeemableLoyaltyPoints(users[index]) };
+}
+
+export async function unlockLoyaltyPointsAfterPurchase(userId: string): Promise<void> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1 || !(users[index].lockedLoyaltyPoints ?? 0)) return;
+
+  users[index].lockedLoyaltyPoints = 0;
+  await writeUsers(users);
 }
 
 export function toPublicProfile(user: UserProfile, referralStats?: PublicUserProfile['referralStats']): PublicUserProfile {
@@ -229,6 +257,8 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     avatarUrl: user.avatarUrl,
     socials: user.socials,
     loyaltyPoints: user.loyaltyPoints ?? 0,
+    redeemableLoyaltyPoints: getRedeemableLoyaltyPoints(user),
+    lockedLoyaltyPoints: user.lockedLoyaltyPoints ?? 0,
     referralCode: user.referralCode,
     referralLink: user.referralCode ? `${base}/ref/${user.referralCode}` : undefined,
     activeSpinPrize: getActiveSpinPrizeForUser(user),

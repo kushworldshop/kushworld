@@ -5,7 +5,7 @@ import {
   pointsToDollarDiscount,
   validateLoyaltyRedemption,
 } from '@/lib/loyaltyUtils';
-import { addLoyaltyPoints, getUserById, redeemLoyaltyPoints } from '@/lib/users';
+import { addLoyaltyPoints, getRedeemableLoyaltyPoints, getUserById, redeemLoyaltyPoints } from '@/lib/users';
 
 export {
   MIN_REDEMPTION_POINTS,
@@ -40,7 +40,7 @@ export async function computeLoyaltyDiscount(
 
   const validation = validateLoyaltyRedemption(
     pointsToUse,
-    user.loyaltyPoints ?? 0,
+    getRedeemableLoyaltyPoints(user),
     subtotal,
     promoDiscount
   );

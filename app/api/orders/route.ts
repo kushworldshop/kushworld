@@ -11,7 +11,7 @@ import { recordReferralConversion } from '@/lib/referrals';
 import { creditReferrerForConversion } from '@/lib/referralRewards';
 import { getSessionUserId } from '@/lib/auth';
 import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
-import { markUserSpinPrizeUsed } from '@/lib/users';
+import { markUserSpinPrizeUsed, unlockLoyaltyPointsAfterPurchase } from '@/lib/users';
 import { resolvePromoForOrder } from '@/lib/orderPromo';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
@@ -204,6 +204,7 @@ export async function POST(request: NextRequest) {
         await markUserSpinPrizeUsed(userId, spinPrizeId);
       }
       await awardPurchaseLoyalty(userId, subtotal);
+      await unlockLoyaltyPointsAfterPurchase(userId);
     }
 
     if (email) {
