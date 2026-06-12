@@ -16,7 +16,7 @@ export default function Footer() {
               <span className="text-2xl font-bold tracking-tight">KUSH WORLD</span>
             </div>
             <p className="text-zinc-400 text-sm leading-relaxed max-w-xs">
-              Premium lab-tested products. Discreet & insured shipping. 21+ only.
+              Lab-tested hemp vapes, concentrates, flower, and official Kush World Studio merch. COAs on every product. Discreet shipping. 21+ only.
             </p>
           </div>
 
@@ -24,7 +24,10 @@ export default function Footer() {
             <h3 className="font-semibold text-lg mb-6">Shop</h3>
             <div className="space-y-3 text-sm">
               <Link href="/shop" className="block text-zinc-400 hover:text-[#00ff9d] transition">All Products</Link>
-              <Link href="/#merch" className="block text-zinc-400 hover:text-[#00ff9d] transition">Studio Merch</Link>
+              <Link href="/shop/merch" className="block text-zinc-400 hover:text-[#00ff9d] transition">Studio Merch</Link>
+              <Link href="/shop/vapes" className="block text-zinc-400 hover:text-[#00ff9d] transition">Vapes & Disposables</Link>
+              <Link href="/shop/concentrates" className="block text-zinc-400 hover:text-[#00ff9d] transition">Concentrates</Link>
+              <Link href="/shop/flower" className="block text-zinc-400 hover:text-[#00ff9d] transition">Exotic Flower</Link>
               <a href="https://kushworldstudio.co" target="_blank" rel="noopener noreferrer" className="block text-zinc-400 hover:text-[#00ff9d] transition">Kush World Studio</a>
               <Link href="/coa" className="block text-zinc-400 hover:text-[#00ff9d] transition">Lab COAs</Link>
               <Link href="/wholesale" className="block text-zinc-400 hover:text-[#00ff9d] transition">Wholesale</Link>

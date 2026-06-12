@@ -1,4 +1,13 @@
 import LegalPage from '@/app/components/LegalPage';
+import { buildPageMetadata } from '@/lib/seo';
+
+export const metadata = buildPageMetadata({
+  title: 'Shipping Policy — Discreet Nationwide Delivery',
+  description:
+    'Kush World shipping policy. Discreet insured delivery, free shipping thresholds, processing times, and tracking info for hemp and merch orders.',
+  path: '/shipping-policy',
+  keywords: ['hemp shipping', 'discreet cannabis delivery', 'Kush World shipping policy'],
+});
 
 export default function ShippingPolicy() {
   return (

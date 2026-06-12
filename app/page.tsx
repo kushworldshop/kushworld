@@ -1,33 +1,46 @@
-'use client';
+import HomeClient from './HomeClient';
+import JsonLd from './components/JsonLd';
+import {
+  buildPageMetadata,
+  faqJsonLd,
+  HOME_FAQS,
+  onlineStoreJsonLd,
+  organizationJsonLd,
+  SITE_TAGLINE,
+  websiteJsonLd,
+} from '@/lib/seo';
 
-import { useState } from 'react';
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import MerchSection from './components/MerchSection';
-import LoyaltySection from './components/LoyaltySection';
-import ReviewsSection from './components/ReviewsSection';
-import CartDrawer from './components/CartDrawer';
-import Footer from './components/Footer';
-import { useAgeAccess } from '@/lib/useAgeAccess';
+export const metadata = {
+  ...buildPageMetadata({
+    title: 'Premium Hemp, Lab-Tested Products & Studio Merch',
+    description:
+      'Shop Kush World — lab-tested hemp vapes, concentrates, flower, and official Kush World Studio merch. COAs on every product. Discreet nationwide shipping. 21+ only.',
+    path: '/',
+    keywords: [
+      'buy hemp online',
+      'Kush World shop',
+      'hemp head shop',
+      'lab tested cannabis products',
+      'free shipping hemp',
+    ],
+  }),
+  title: {
+    absolute: 'Kush World | Premium Hemp, Lab-Tested Products & Studio Merch',
+  },
+};
 
 export default function Home() {
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const { isMerchOnly } = useAgeAccess();
-
   return (
     <>
-      <Navbar onCartClick={() => setIsCartOpen(true)} />
-
-      <main>
-        <Hero merchOnly={isMerchOnly} />
-        <MerchSection />
-        <ReviewsSection />
-        {!isMerchOnly && <LoyaltySection />}
-      </main>
-
-      <Footer />
-
-      <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <JsonLd
+        data={[
+          organizationJsonLd(),
+          websiteJsonLd(),
+          onlineStoreJsonLd(),
+          faqJsonLd(HOME_FAQS),
+        ]}
+      />
+      <HomeClient />
     </>
   );
 }

@@ -1,4 +1,11 @@
 import LegalPage from '@/app/components/LegalPage';
+import { buildPageMetadata } from '@/lib/seo';
+
+export const metadata = buildPageMetadata({
+  title: 'Terms of Use',
+  description: 'Kush World terms of use. Age requirements, product policies, orders, and liability. You must be 21+ to purchase.',
+  path: '/terms',
+});
 
 export default function Terms() {
   return (

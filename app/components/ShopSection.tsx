@@ -21,9 +21,15 @@ const sortOptions = [
   { id: 'price-desc', label: 'Price: High to Low' },
 ];
 
-export default function ShopSection({ merchOnly = false }: { merchOnly?: boolean }) {
+export default function ShopSection({
+  merchOnly = false,
+  initialCategory,
+}: {
+  merchOnly?: boolean;
+  initialCategory?: string;
+}) {
   const searchParams = useSearchParams();
-  const categoryParam = searchParams.get('category');
+  const categoryParam = searchParams.get('category') || initialCategory;
   const initialFilter = merchOnly
     ? 'merch'
     : categoryParam && filters.some((f) => f.id === categoryParam)
@@ -63,7 +69,7 @@ export default function ShopSection({ merchOnly = false }: { merchOnly?: boolean
     if (categoryParam && filters.some((f) => f.id === categoryParam)) {
       setActiveFilter(categoryParam);
     }
-  }, [merchOnly, categoryParam]);
+  }, [merchOnly, categoryParam, initialCategory]);
 
   const visibleFilters = merchOnly ? filters.filter((f) => f.id === 'merch') : filters;
 

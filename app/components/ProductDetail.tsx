@@ -63,12 +63,24 @@ export default function ProductDetail({ product }: { product: Product }) {
   return (
     <>
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <Link
-          href={isMerch ? '/#merch' : '/shop'}
-          className="text-sm text-zinc-400 hover:text-[#00ff9d] mb-8 inline-block"
-        >
-          ← Back to {isMerch ? 'Studio Merch' : 'Shop'}
-        </Link>
+        <nav aria-label="Breadcrumb" className="text-sm text-zinc-400 mb-8">
+          <ol className="flex flex-wrap items-center gap-2">
+            <li><Link href="/" className="hover:text-[#00ff9d]">Home</Link></li>
+            <li aria-hidden="true">/</li>
+            <li><Link href="/shop" className="hover:text-[#00ff9d]">Shop</Link></li>
+            <li aria-hidden="true">/</li>
+            <li>
+              <Link
+                href={isMerch ? '/shop/merch' : `/shop/${product.category}`}
+                className="hover:text-[#00ff9d]"
+              >
+                {isMerch ? 'Studio Merch' : product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+              </Link>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li className="text-zinc-300">{product.name}</li>
+          </ol>
+        </nav>
 
         <div className="grid md:grid-cols-2 gap-12">
           <div>

@@ -1,4 +1,11 @@
 import LegalPage from '@/app/components/LegalPage';
+import { buildPageMetadata } from '@/lib/seo';
+
+export const metadata = buildPageMetadata({
+  title: 'Returns & Refunds Policy',
+  description: 'Kush World returns and refunds policy. All sales final on opened hemp products. Contact support for order issues.',
+  path: '/returns',
+});
 
 export default function Returns() {
   return (

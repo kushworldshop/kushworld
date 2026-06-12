@@ -1,20 +1,25 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import AgeGateProvider from './components/AgeGateProvider';
+import JsonLd from './components/JsonLd';
+import { buildPageMetadata, organizationJsonLd, SITE_TAGLINE } from '@/lib/seo';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://kushworld.shop'),
-  title: 'KUSH WORLD | Premium Head Shop',
-  description: 'Premium merch, glass & hemp goods from Kush World. Lab-tested with COAs. Discreet shipping. 21+ only.',
-  openGraph: {
-    title: 'KUSH WORLD',
-    description: 'Premium lab-tested products. Discreet shipping. 21+ only.',
-    siteName: 'Kush World',
-    type: 'website',
+  ...buildPageMetadata({
+    title: 'Kush World | Premium Hemp & Studio Merch',
+    description: SITE_TAGLINE,
+    path: '/',
+  }),
+  title: {
+    default: 'Kush World | Premium Hemp & Studio Merch',
+    template: '%s | Kush World',
   },
+  applicationName: 'Kush World',
+  category: 'shopping',
+  formatDetection: { email: false, address: false, telephone: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="font-sans antialiased">
+        <JsonLd data={organizationJsonLd()} />
         <AgeGateProvider>{children}</AgeGateProvider>
       </body>
     </html>

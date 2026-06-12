@@ -1,4 +1,11 @@
 import LegalPage from '@/app/components/LegalPage';
+import { buildPageMetadata } from '@/lib/seo';
+
+export const metadata = buildPageMetadata({
+  title: 'Privacy Policy',
+  description: 'How Kush World collects, uses, and protects your personal information when you shop at kushworld.shop.',
+  path: '/privacy-policy',
+});
 
 export default function PrivacyPolicy() {
   return (

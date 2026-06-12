@@ -1,5 +1,14 @@
 import LegalPage from '@/app/components/LegalPage';
 import { RESTRICTED_STATES } from '@/lib/checkout';
+import { buildPageMetadata } from '@/lib/seo';
+
+export const metadata = buildPageMetadata({
+  title: 'Delivery Zones — Where Kush World Ships',
+  description:
+    'See where Kush World ships hemp and merch across the United States. Review restricted states and delivery zone information before ordering.',
+  path: '/delivery-zones',
+  keywords: ['hemp shipping states', 'cannabis delivery zones', 'Kush World shipping areas'],
+});
 
 export default function DeliveryZones() {
   return (
