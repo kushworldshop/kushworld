@@ -33,7 +33,7 @@ export default function CoaPage() {
           <p className="text-zinc-400 mb-8">
             COAs are available for hemp products, which require age verification. You can still shop Kush World Studio merch.
           </p>
-          <Link href="/#merch" className="inline-block bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold">
+          <Link href="/shop/merch" className="inline-block bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold">
             Shop Studio Merch
           </Link>
         </div>

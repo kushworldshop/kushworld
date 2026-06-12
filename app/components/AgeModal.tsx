@@ -23,11 +23,7 @@ export default function AgeModal({ isOpen, onConfirm, onMerchOnly }: AgeModalPro
     setMerchOnlyMode();
     onMerchOnly();
 
-    if (window.location.pathname === '/') {
-      document.getElementById('merch')?.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      window.location.href = '/#merch';
-    }
+    window.location.href = '/shop/merch';
   };
 
   return (

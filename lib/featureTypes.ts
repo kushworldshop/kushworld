@@ -97,7 +97,7 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
     title: 'Join the Kush World Community',
     body: 'Get restock alerts, deals, and drops on Telegram, Discord, and social.',
   },
-  merchSection: { enabled: true },
+  merchSection: { enabled: false },
   reviewsSection: { enabled: true },
   loyaltySection: { enabled: true },
   faqSection: { enabled: true },

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
-import MerchSection from './components/MerchSection';
 import LoyaltySection from './components/LoyaltySection';
 import ReviewsSection from './components/ReviewsSection';
 import SeoFaq from './components/SeoFaq';
@@ -57,8 +56,6 @@ export default function HomeClient() {
             ctaLabel="Shop Deals"
           />
         )}
-
-        {features.merchSection.enabled && <MerchSection />}
 
         {features.howItWorks.enabled && (
           <HowItWorksSection title={features.howItWorks.title} steps={features.howItWorks.steps} />

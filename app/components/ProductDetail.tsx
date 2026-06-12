@@ -85,7 +85,7 @@ export default function ProductDetail({ product }: { product: Product }) {
           This product is only available to customers 21 and older. You can still shop official Kush World Studio merch.
         </p>
         <Link
-          href="/#merch"
+          href="/shop/merch"
           className="inline-block bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold hover:bg-[#00ff9d]/90 transition"
         >
           Shop Studio Merch
