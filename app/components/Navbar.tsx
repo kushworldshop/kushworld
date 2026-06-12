@@ -78,7 +78,6 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               <Link href="/#merch" className="hover:text-[#00ff9d] transition">Merch</Link>
               {!isMerchOnly && <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>}
               <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
-              <Link href="/cart" className="hover:text-[#00ff9d] transition">Cart</Link>
             </div>
 
             <div className="flex items-center gap-4">
@@ -93,7 +92,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                 </div>
               )}
 
-              <button onClick={onCartClick} className="relative hover:text-[#00ff9d] transition text-xl">
+              <button onClick={onCartClick} aria-label="Open cart" className="relative hover:text-[#00ff9d] transition text-xl">
                 <i className="fa-solid fa-shopping-cart" />
                 {totalItems > 0 && (
                   <span className="absolute -top-2 -right-2 bg-[#00ff9d] text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
@@ -123,7 +122,6 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               <Link href="/#merch" className="block hover:text-[#00ff9d]">Merch</Link>
               {!isMerchOnly && <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>}
               <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
-              <Link href="/cart" className="block hover:text-[#00ff9d]">Cart</Link>
             </div>
           )}
         </div>
