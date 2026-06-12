@@ -4,6 +4,7 @@ import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useAgeAccess } from '@/lib/useAgeAccess';
 
 export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const totalItems = useCartStore((state) => state.totalItems());
@@ -13,6 +14,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   const pathname = usePathname();
+  const { isMerchOnly } = useAgeAccess();
 
   useEffect(() => {
     setIsLoggedIn(!!localStorage.getItem('currentUser'));
@@ -32,7 +34,9 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   return (
     <>
       <div className="bg-[#00ff9d] text-black py-3 text-center text-sm font-medium flex items-center justify-center gap-4 flex-wrap px-6">
-        👕 Studio merch now in shop — free shipping $100+ • 🎁 Code FIRST20 • 🔥 Hemp orders ship free $200+
+        {isMerchOnly
+          ? '👕 Studio merch — free shipping $100+ • Custom made to order'
+          : '👕 Studio merch now in shop — free shipping $100+ • 🎁 Code FIRST20 • 🔥 Hemp orders ship free $200+'}
       </div>
 
       <nav className="bg-black border-b border-zinc-800 sticky top-0 z-50">
@@ -57,9 +61,9 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
             </form>
 
             <div className="hidden md:flex items-center gap-6 text-sm">
-              <Link href="/#shop" className="hover:text-[#00ff9d] transition">Shop</Link>
+              <Link href={isMerchOnly ? '/#merch' : '/#shop'} className="hover:text-[#00ff9d] transition">Shop</Link>
               <Link href="/#merch" className="hover:text-[#00ff9d] transition">Merch</Link>
-              <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>
+              {!isMerchOnly && <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>}
               <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
               <Link href="/cart" className="hover:text-[#00ff9d] transition">Cart</Link>
             </div>
@@ -102,9 +106,9 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                   className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 text-sm"
                 />
               </form>
-              <Link href="/#shop" className="block hover:text-[#00ff9d]">Shop</Link>
+              <Link href={isMerchOnly ? '/#merch' : '/#shop'} className="block hover:text-[#00ff9d]">Shop</Link>
               <Link href="/#merch" className="block hover:text-[#00ff9d]">Merch</Link>
-              <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>
+              {!isMerchOnly && <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>}
               <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
               <Link href="/cart" className="block hover:text-[#00ff9d]">Cart</Link>
               <Link href="/account" className="block hover:text-[#00ff9d]">Account</Link>

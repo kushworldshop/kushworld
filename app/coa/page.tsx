@@ -5,8 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import SiteLayout from '@/app/components/SiteLayout';
 import { products, getCoaPdfPath, getProductSlug } from '@/lib/products';
+import { useAgeAccess } from '@/lib/useAgeAccess';
 
 export default function CoaPage() {
+  const { isMerchOnly, ready } = useAgeAccess();
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -20,6 +22,22 @@ export default function CoaPage() {
       }
     });
   }, []);
+
+  if (ready && isMerchOnly) {
+    return (
+      <SiteLayout>
+        <div className="max-w-2xl mx-auto px-6 py-24 text-center">
+          <h1 className="text-3xl font-bold mb-4">21+ Required</h1>
+          <p className="text-zinc-400 mb-8">
+            COAs are available for hemp products, which require age verification. You can still shop Kush World Studio merch.
+          </p>
+          <Link href="/#merch" className="inline-block bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold">
+            Shop Studio Merch
+          </Link>
+        </div>
+      </SiteLayout>
+    );
+  }
 
   return (
     <SiteLayout>

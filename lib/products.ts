@@ -31,6 +31,22 @@ export function getProductBySlug(slug: string): Product | undefined {
   return products.find((p) => getProductSlug(p) === slug);
 }
 
+export function getProductById(id: string): Product | undefined {
+  return products.find((p) => p.id === id);
+}
+
+export function isMerchProduct(product: Product): boolean {
+  return product.category === 'merch';
+}
+
+export function orderRequiresIdVerification(items: { id: string; category?: string }[]): boolean {
+  return items.some((item) => {
+    if (item.category) return item.category !== 'merch';
+    const product = getProductById(item.id);
+    return !product || product.category !== 'merch';
+  });
+}
+
 export function getCoaPdfPath(product: Product): string {
   if (product.coaPdf) return product.coaPdf;
   return `/products/coa/${getProductSlug(product)}.pdf`;

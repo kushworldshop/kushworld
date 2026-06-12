@@ -21,9 +21,9 @@ const sortOptions = [
   { id: 'price-desc', label: 'Price: High to Low' },
 ];
 
-export default function ShopSection() {
+export default function ShopSection({ merchOnly = false }: { merchOnly?: boolean }) {
   const searchParams = useSearchParams();
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState(merchOnly ? 'merch' : 'all');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('name-asc');
   const [maxPrice, setMaxPrice] = useState(2000);
@@ -49,10 +49,18 @@ export default function ShopSection() {
     };
   }, []);
 
+  useEffect(() => {
+    if (merchOnly) setActiveFilter('merch');
+  }, [merchOnly]);
+
+  const visibleFilters = merchOnly ? filters.filter((f) => f.id === 'merch') : filters;
+
   const filteredProducts = useMemo(() => {
     let result = searchQuery ? searchProducts(searchQuery) : [...products];
 
-    if (activeFilter !== 'all') {
+    if (merchOnly) {
+      result = result.filter((p) => p.category === 'merch');
+    } else if (activeFilter !== 'all') {
       result = result.filter((p) => p.category === activeFilter);
     }
 
@@ -68,20 +76,24 @@ export default function ShopSection() {
     });
 
     return result;
-  }, [activeFilter, searchQuery, sortBy, maxPrice]);
+  }, [activeFilter, searchQuery, sortBy, maxPrice, merchOnly]);
 
   return (
     <section id="shop" className="py-16 bg-black">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-12">
-          <h2 className="text-5xl font-bold mb-4">Shop Our Collection</h2>
+          <h2 className="text-5xl font-bold mb-4">
+            {merchOnly ? 'All Studio Merch' : 'Shop Our Collection'}
+          </h2>
           <p className="text-xl text-zinc-400 max-w-2xl mx-auto">
-            Authentic products. Lab-tested with COAs. Discreet shipping nationwide.
+            {merchOnly
+              ? 'Official Kush World Studio apparel and accessories. Free shipping on orders $100+.'
+              : 'Authentic products. Lab-tested with COAs. Discreet shipping nationwide.'}
           </p>
         </div>
 
         <div className="flex flex-wrap justify-center gap-3 mb-6">
-          {filters.map((filter) => (
+          {visibleFilters.map((filter) => (
             <button
               key={filter.id}
               onClick={() => setActiveFilter(filter.id)}

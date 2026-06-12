@@ -5,6 +5,7 @@ import { chargeCard } from '@/lib/authorizeNet';
 import { isCustomerVerified } from '@/lib/verification';
 import { sendOrderConfirmation } from '@/lib/email';
 import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import { orderRequiresIdVerification } from '@/lib/products';
 import { recordReferralConversion } from '@/lib/referrals';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
     await ensureOrdersFile();
     const email = customer.email;
     const alreadyVerified = await isCustomerVerified(email);
+    const needsIdVerification = orderRequiresIdVerification(items || []);
 
     const newOrder = {
       id: orderId,
@@ -90,9 +92,11 @@ export async function POST(request: NextRequest) {
       zip: customer.zip,
       phone: customer.phone,
       status: 'processing',
-      idVerification: alreadyVerified
-        ? { status: 'verified', note: 'Returning verified customer' }
-        : { status: 'required' },
+      idVerification: !needsIdVerification
+        ? { status: 'verified', note: 'Merch-only order — no ID required' }
+        : alreadyVerified
+          ? { status: 'verified', note: 'Returning verified customer' }
+          : { status: 'required' },
       createdAt: new Date().toISOString(),
     };
 
@@ -123,7 +127,7 @@ export async function POST(request: NextRequest) {
       success: true,
       orderId,
       transactionId: payment.transactionId,
-      requiresIdUpload: !alreadyVerified,
+      requiresIdUpload: needsIdVerification && !alreadyVerified,
     });
   } catch (error) {
     console.error('Payment charge error:', error);

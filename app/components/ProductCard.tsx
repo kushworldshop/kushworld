@@ -30,6 +30,7 @@ export default function ProductCard({ product }: { product: Product }) {
       name: product.name,
       price: product.price,
       image: product.image,
+      category: product.category,
       selectedSize: variantLabel || undefined,
       quantity: 1,
     });

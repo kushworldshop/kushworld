@@ -5,9 +5,14 @@ import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import { useCartStore } from '@/lib/cartStore';
 import { calculateTotals, FREE_SHIPPING_THRESHOLD, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import { orderRequiresIdVerification } from '@/lib/products';
+import { useAgeAccess } from '@/lib/useAgeAccess';
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal } = useCartStore();
+  const { isMerchOnly } = useAgeAccess();
+  const hasRestrictedItems = orderRequiresIdVerification(items);
+  const checkoutBlocked = isMerchOnly && hasRestrictedItems;
   const sub = subtotal();
   const totals = calculateTotals(sub);
 
@@ -59,10 +64,18 @@ export default function CartPage() {
               )}
             </div>
 
+            {checkoutBlocked && (
+              <p className="text-sm text-red-400 mt-6 text-center">
+                Remove age-restricted items from your cart to checkout in merch-only mode.
+              </p>
+            )}
+
             <Link
               href="/checkout"
               className={`block w-full mt-6 py-5 rounded-2xl font-bold text-center text-lg ${
-                sub >= MIN_ORDER_AMOUNT ? 'bg-[#00ff9d] text-black' : 'bg-zinc-700 text-zinc-400 pointer-events-none'
+                sub >= MIN_ORDER_AMOUNT && !checkoutBlocked
+                  ? 'bg-[#00ff9d] text-black'
+                  : 'bg-zinc-700 text-zinc-400 pointer-events-none'
               }`}
             >
               Proceed to Checkout

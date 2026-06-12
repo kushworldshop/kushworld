@@ -9,9 +9,12 @@ import { getMerchSubcategoryLabel, MERCH_FREE_SHIPPING } from '@/lib/merch';
 import { getTierPrice } from '@/lib/checkout';
 import CoaLink from './CoaLink';
 import ProductReviews from './ProductReviews';
+import { useAgeAccess } from '@/lib/useAgeAccess';
 
 export default function ProductDetail({ product }: { product: Product }) {
+  const { isMerchOnly, ready } = useAgeAccess();
   const isMerch = product.category === 'merch';
+  const blocked = ready && isMerchOnly && !isMerch;
   const gallery = product.images?.length ? product.images : [product.image];
   const [activeImage, setActiveImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || '');
@@ -32,12 +35,30 @@ export default function ProductDetail({ product }: { product: Product }) {
       name: product.name,
       price: unitPrice,
       image: product.image,
+      category: product.category,
       selectedSize: variantLabel || undefined,
       quantity,
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
+
+  if (blocked) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-24 text-center">
+        <h1 className="text-3xl font-bold mb-4">21+ Required</h1>
+        <p className="text-zinc-400 mb-8 leading-relaxed">
+          This product is only available to customers 21 and older. You can still shop official Kush World Studio merch.
+        </p>
+        <Link
+          href="/#merch"
+          className="inline-block bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold hover:bg-[#00ff9d]/90 transition"
+        >
+          Shop Studio Merch
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <>

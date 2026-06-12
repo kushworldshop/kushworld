@@ -13,11 +13,14 @@ import {
   RESTRICTED_STATES,
   FREE_SHIPPING_THRESHOLD,
 } from '@/lib/checkout';
+import { orderRequiresIdVerification } from '@/lib/products';
+import { useAgeAccess } from '@/lib/useAgeAccess';
 
 type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
 
 export default function Checkout() {
   const { items, subtotal, clearCart } = useCartStore();
+  const { isMerchOnly } = useAgeAccess();
   const { addPoints } = useLoyaltyStore();
   const { code: storedReferralCode, referrerName, clearReferral } = useReferralStore();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
@@ -180,6 +183,9 @@ export default function Checkout() {
   };
 
   const validateCheckout = (): string | null => {
+    if (isMerchOnly && orderRequiresIdVerification(items)) {
+      return 'Your cart contains age-restricted products. Remove them to checkout as merch-only, or verify you are 21+.';
+    }
     if (sub < MIN_ORDER_AMOUNT) return `Minimum order is $${MIN_ORDER_AMOUNT}`;
     const state = customerInfo.state?.toUpperCase().trim();
     if (state && RESTRICTED_STATES.includes(state)) {
@@ -441,9 +447,11 @@ export default function Checkout() {
             )}
             {couponMessage && <p className="text-sm text-zinc-400 mb-4">{couponMessage}</p>}
 
-            <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6 text-sm text-zinc-400">
-              <span className="text-[#00ff9d] font-medium">New customers:</span> ID upload required after checkout for 21+ verification.
-            </div>
+            {orderRequiresIdVerification(items) && (
+              <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6 text-sm text-zinc-400">
+                <span className="text-[#00ff9d] font-medium">New customers:</span> ID upload required after checkout for 21+ verification.
+              </div>
+            )}
 
             <div className="mt-8">
               <h3 className="text-xl mb-4">Payment Method</h3>

@@ -1,20 +1,30 @@
 'use client';
 
+import { setAgeVerified, setMerchOnlyMode } from '@/lib/ageAccess';
+
 interface AgeModalProps {
   isOpen: boolean;
   onConfirm: () => void;
+  onMerchOnly: () => void;
 }
 
-export default function AgeModal({ isOpen, onConfirm }: AgeModalProps) {
+export default function AgeModal({ isOpen, onConfirm, onMerchOnly }: AgeModalProps) {
   if (!isOpen) return null;
 
   const handleConfirm = () => {
-    localStorage.setItem('ageVerified', 'true');
+    setAgeVerified();
     onConfirm();
   };
 
-  const handleDeny = () => {
-    window.location.href = 'https://www.google.com';
+  const handleMerchOnly = () => {
+    setMerchOnlyMode();
+    onMerchOnly();
+
+    if (window.location.pathname === '/') {
+      document.getElementById('merch')?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.location.href = '/#merch';
+    }
   };
 
   return (
@@ -22,7 +32,7 @@ export default function AgeModal({ isOpen, onConfirm }: AgeModalProps) {
       <div className="bg-zinc-900 p-10 rounded-3xl max-w-md text-center border border-[#00ff9d]/40">
         <h2 className="text-3xl font-bold mb-4">21+ Age Verification</h2>
         <p className="text-zinc-400 mb-8 leading-relaxed">
-          You must be 21 years or older to enter Kush World. By entering you confirm you are of legal age in your state.
+          Hemp products require you to be 21+. If you&apos;re under 21, you can still shop official Kush World Studio merch.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -33,10 +43,10 @@ export default function AgeModal({ isOpen, onConfirm }: AgeModalProps) {
             Yes, I am 21+
           </button>
           <button
-            onClick={handleDeny}
+            onClick={handleMerchOnly}
             className="bg-zinc-800 hover:bg-zinc-700 px-8 py-4 rounded-2xl font-medium transition"
           >
-            No, exit site
+            No — shop merch only
           </button>
         </div>
       </div>

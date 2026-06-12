@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Categories from './components/Categories';
@@ -9,32 +9,26 @@ import ShopSection from './components/ShopSection';
 import LoyaltySection from './components/LoyaltySection';
 import ReviewsSection from './components/ReviewsSection';
 import CartDrawer from './components/CartDrawer';
-import AgeModal from './components/AgeModal';
 import Footer from './components/Footer';
+import { useAgeAccess } from '@/lib/useAgeAccess';
 
 export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [showAgeModal, setShowAgeModal] = useState(false);
-
-  useEffect(() => {
-    setShowAgeModal(localStorage.getItem('ageVerified') !== 'true');
-  }, []);
+  const { isMerchOnly } = useAgeAccess();
 
   return (
     <>
-      <AgeModal isOpen={showAgeModal} onConfirm={() => setShowAgeModal(false)} />
-
       <Navbar onCartClick={() => setIsCartOpen(true)} />
 
       <main>
-        <Hero />
-        <Categories />
+        <Hero merchOnly={isMerchOnly} />
+        <Categories merchOnly={isMerchOnly} />
         <MerchSection />
         <Suspense fallback={<div className="py-20 text-center text-zinc-400">Loading shop...</div>}>
-          <ShopSection />
+          <ShopSection merchOnly={isMerchOnly} />
         </Suspense>
         <ReviewsSection />
-        <LoyaltySection />
+        {!isMerchOnly && <LoyaltySection />}
       </main>
 
       <Footer />
