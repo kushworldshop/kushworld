@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { adminFetch } from '@/lib/adminClient';
+import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import SiteContentTab from '@/app/admin/components/SiteContentTab';
+import FeaturesTab from '@/app/admin/components/FeaturesTab';
 import CustomersTab from '@/app/admin/components/CustomersTab';
 import ProductOptionsEditor from '@/app/admin/components/ProductOptionsEditor';
 import { formatCartItemOptions, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
 import { getAllProductCategorySlugs, getSubsectionsForProductCategory } from '@/lib/shopNavigation';
 import { formatCurrency, formatPercent, getProductMargin } from '@/lib/productEconomics';
 
-type AdminTab = 'orders' | 'products' | 'wishlist' | 'site' | 'customers';
+type AdminTab = 'orders' | 'products' | 'wishlist' | 'site' | 'features' | 'customers';
 
 interface WishlistStat {
   id: string;
@@ -35,6 +37,10 @@ interface AdminProduct {
   sizes?: string[];
   colors?: string[];
   hidden?: boolean;
+  compareAtPrice?: number;
+  featured?: boolean;
+  bestSeller?: boolean;
+  isNew?: boolean;
   hasOverride?: boolean;
   baseName?: string;
   basePrice?: number;
@@ -131,7 +137,11 @@ export default function AdminOrders() {
       const res = await adminFetch('/api/admin/site-content');
       if (res.ok) {
         const data = await res.json();
-        setSiteContent({ ...DEFAULT_SITE_CONTENT, ...(data.content || {}) });
+        setSiteContent({
+          ...DEFAULT_SITE_CONTENT,
+          ...(data.content || {}),
+          features: mergeSiteFeatures(data.content?.features),
+        });
       }
     } catch (e) {
       console.error('Failed to load site content');
@@ -173,6 +183,10 @@ export default function AdminOrders() {
       edits?.optionGroups ??
       product.optionGroups ??
       getProductOptionGroups(product),
+    compareAtPrice: edits?.compareAtPrice ?? product.compareAtPrice ?? 0,
+    featured: edits?.featured ?? product.featured ?? false,
+    bestSeller: edits?.bestSeller ?? product.bestSeller ?? false,
+    isNew: edits?.isNew ?? product.isNew ?? false,
   };
   };
 
@@ -285,6 +299,10 @@ export default function AdminOrders() {
           optionGroups: draft.optionGroups,
           category: draft.category,
           subcategory: draft.subcategory,
+          compareAtPrice: draft.compareAtPrice > 0 ? draft.compareAtPrice : 0,
+          featured: draft.featured,
+          bestSeller: draft.bestSeller,
+          isNew: draft.isNew,
         }),
       });
       const data = await res.json();
@@ -454,6 +472,12 @@ export default function AdminOrders() {
             Site Content
           </button>
           <button
+            onClick={() => { setTab('features'); loadSiteContent(); }}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'features' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Features
+          </button>
+          <button
             onClick={() => setTab('customers')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'customers' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
@@ -463,6 +487,10 @@ export default function AdminOrders() {
 
         {tab === 'site' && (
           <SiteContentTab content={siteContent} onContentChange={setSiteContent} />
+        )}
+
+        {tab === 'features' && (
+          <FeaturesTab content={siteContent} onContentChange={setSiteContent} />
         )}
 
         {tab === 'customers' && <CustomersTab />}
@@ -699,6 +727,49 @@ export default function AdminOrders() {
                               value={draft.optionGroups}
                               onChange={(groups) => updateProductDraft(product.id, 'optionGroups', groups)}
                             />
+                            <div className="md:col-span-2 grid md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="text-xs text-zinc-500 block mb-1">Compare-at price ($)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={0.01}
+                                  value={draft.compareAtPrice}
+                                  onChange={(e) => updateProductDraft(product.id, 'compareAtPrice', Number(e.target.value))}
+                                  className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+                                />
+                                <p className="text-[11px] text-zinc-500 mt-1">Set higher than sell price to show as on sale</p>
+                              </div>
+                              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 space-y-3">
+                                <label className="flex items-center gap-3 text-sm cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={draft.featured}
+                                    onChange={(e) => updateProductDraft(product.id, 'featured', e.target.checked)}
+                                    className="w-4 h-4 accent-[#00ff9d]"
+                                  />
+                                  <span>Featured product</span>
+                                </label>
+                                <label className="flex items-center gap-3 text-sm cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={draft.bestSeller}
+                                    onChange={(e) => updateProductDraft(product.id, 'bestSeller', e.target.checked)}
+                                    className="w-4 h-4 accent-[#00ff9d]"
+                                  />
+                                  <span>Best seller</span>
+                                </label>
+                                <label className="flex items-center gap-3 text-sm cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={draft.isNew}
+                                    onChange={(e) => updateProductDraft(product.id, 'isNew', e.target.checked)}
+                                    className="w-4 h-4 accent-[#00ff9d]"
+                                  />
+                                  <span>New arrival</span>
+                                </label>
+                              </div>
+                            </div>
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-5 border-t border-zinc-800">

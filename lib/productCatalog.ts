@@ -23,6 +23,10 @@ export type ProductOverride = Partial<
     | 'hidden'
     | 'category'
     | 'subcategory'
+    | 'compareAtPrice'
+    | 'featured'
+    | 'bestSeller'
+    | 'isNew'
   >
 >;
 
@@ -160,11 +164,30 @@ export async function updateProductOverride(
     if (subcategory) next.subcategory = subcategory;
     else delete next.subcategory;
   }
+  if (updates.compareAtPrice !== undefined) {
+    const compareAt = Math.max(0, Number(updates.compareAtPrice));
+    if (compareAt > 0) next.compareAtPrice = compareAt;
+    else delete next.compareAtPrice;
+  }
+  if (updates.featured !== undefined) {
+    if (updates.featured) next.featured = true;
+    else delete next.featured;
+  }
+  if (updates.bestSeller !== undefined) {
+    if (updates.bestSeller) next.bestSeller = true;
+    else delete next.bestSeller;
+  }
+  if (updates.isNew !== undefined) {
+    if (updates.isNew) next.isNew = true;
+    else delete next.isNew;
+  }
 
   const cleaned = Object.fromEntries(
     Object.entries(next).filter(([key, value]) => {
       if (value === undefined || value === '') return false;
       if (key === 'hidden') return value === true;
+      if (key === 'featured' || key === 'bestSeller' || key === 'isNew') return value === true;
+      if (key === 'compareAtPrice') return typeof value === 'number' && value > 0;
       if (key === 'cost') return typeof value === 'number' && value > 0;
       if (key === 'inventory') return typeof value === 'number' && value >= 0;
       if (key === 'optionGroups') {

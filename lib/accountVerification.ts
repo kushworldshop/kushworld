@@ -1,10 +1,33 @@
 import { addLoyaltyPoints, getUserById, readUsers, writeUsers, type UserProfile } from '@/lib/users';
-import { sendVerificationEmail } from '@/lib/email';
-import { sendVerificationSms } from '@/lib/sms';
+import { isEmailVerificationConfigured, sendVerificationEmail } from '@/lib/email';
+import { isSmsVerificationConfigured, sendVerificationSms } from '@/lib/sms';
 import { isSignupChannelVerified, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 
 const CODE_TTL_MS = 15 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
+
+export type VerificationSendResult = {
+  success: boolean;
+  error?: string;
+  stub?: boolean;
+  /** Shown only in non-production when delivery is stubbed (no provider configured). */
+  devCode?: string;
+};
+
+function resolveStubSendResult(code: string, channel: 'email' | 'phone'): VerificationSendResult {
+  if (process.env.NODE_ENV === 'production') {
+    const provider =
+      channel === 'email'
+        ? 'RESEND_API_KEY and EMAIL_FROM'
+        : 'TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER';
+    return {
+      success: false,
+      error: `Verification ${channel} is not configured (${provider}). Contact support.`,
+    };
+  }
+
+  return { success: true, stub: true, devCode: code };
+}
 
 function generateCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -67,11 +90,7 @@ export async function tryClaimSignupBonus(userId: string): Promise<{
   return { claimed: true, pointsAwarded: SIGNUP_BONUS_POINTS };
 }
 
-export async function sendEmailVerificationCode(userId: string): Promise<{
-  success: boolean;
-  error?: string;
-  stub?: boolean;
-}> {
+export async function sendEmailVerificationCode(userId: string): Promise<VerificationSendResult> {
   const user = await getUserById(userId);
   if (!user) return { success: false, error: 'User not found' };
   if (user.emailVerifiedAt) return { success: false, error: 'Email already verified' };
@@ -92,15 +111,22 @@ export async function sendEmailVerificationCode(userId: string): Promise<{
     pendingEmailCodeExp: exp,
   }));
 
+  if (!isEmailVerificationConfigured()) {
+    return resolveStubSendResult(code, 'email');
+  }
+
   const result = await sendVerificationEmail(user.email, code);
-  return { success: true, stub: result.stub };
+  if (result.stub) {
+    return resolveStubSendResult(code, 'email');
+  }
+  if (!result.sent) {
+    return { success: false, error: result.error || 'Failed to send verification email' };
+  }
+
+  return { success: true, stub: false };
 }
 
-export async function sendPhoneVerificationCode(userId: string): Promise<{
-  success: boolean;
-  error?: string;
-  stub?: boolean;
-}> {
+export async function sendPhoneVerificationCode(userId: string): Promise<VerificationSendResult> {
   const user = await getUserById(userId);
   if (!user) return { success: false, error: 'User not found' };
   if (!user.phone?.trim()) return { success: false, error: 'Add a phone number to your profile first' };
@@ -123,9 +149,19 @@ export async function sendPhoneVerificationCode(userId: string): Promise<{
     pendingPhoneCodeExp: exp,
   }));
 
+  if (!isSmsVerificationConfigured()) {
+    return resolveStubSendResult(code, 'phone');
+  }
+
   const result = await sendVerificationSms(user.phone!, code);
-  if (result.error) return { success: false, error: result.error };
-  return { success: true, stub: result.stub };
+  if (result.stub) {
+    return resolveStubSendResult(code, 'phone');
+  }
+  if (!result.sent) {
+    return { success: false, error: result.error || 'Failed to send verification SMS' };
+  }
+
+  return { success: true, stub: false };
 }
 
 export async function confirmEmailCode(

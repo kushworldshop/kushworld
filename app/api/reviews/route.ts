@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionUserId } from '@/lib/auth';
+import { isFeatureEnabled } from '@/lib/featureTypes';
+import {
+  customerHasAnyPurchase,
+  customerHasPurchasedProduct,
+} from '@/lib/purchaseVerification';
 import {
   addReview,
   getAllReviews,
@@ -7,7 +13,9 @@ import {
   getReviewsForProduct,
   validateReviewInput,
 } from '@/lib/reviews';
+import { getSiteContent } from '@/lib/siteContent';
 import { products, getProductSlug } from '@/lib/products';
+import { addLoyaltyPoints, getUserById } from '@/lib/users';
 
 function enrichReviews(reviews: Awaited<ReturnType<typeof getAllReviews>>) {
   return reviews.map((review) => {
@@ -55,6 +63,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const content = await getSiteContent();
+    const features = content.features;
+
+    if (!isFeatureEnabled(features, 'customerReviews')) {
+      return NextResponse.json({ error: 'Customer reviews are currently disabled' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { productId, author, rating, comment } = body;
 
@@ -67,6 +82,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid product' }, { status: 400 });
     }
 
+    const userId = await getSessionUserId();
+    const user = userId ? await getUserById(userId) : null;
+
+    if (features.customerReviews.requirePurchase) {
+      if (!user?.email) {
+        return NextResponse.json(
+          { error: 'Sign in and complete a purchase before leaving a review' },
+          { status: 403 }
+        );
+      }
+
+      const hasPurchase = productId
+        ? await customerHasPurchasedProduct(user.email, productId)
+        : await customerHasAnyPurchase(user.email);
+
+      if (!hasPurchase) {
+        return NextResponse.json(
+          {
+            error: productId
+              ? 'You need to purchase this product before reviewing it'
+              : 'You need a completed order before leaving a review',
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const review = await addReview({
       productId: productId || null,
       author,
@@ -75,10 +117,17 @@ export async function POST(request: NextRequest) {
       source: 'customer',
     });
 
+    let pointsAwarded = 0;
+    if (userId && features.customerReviews.rewardPoints > 0) {
+      pointsAwarded = features.customerReviews.rewardPoints;
+      await addLoyaltyPoints(userId, pointsAwarded);
+    }
+
     const product = productId ? products.find((p) => p.id === productId) : null;
 
     return NextResponse.json({
       success: true,
+      pointsAwarded,
       review: {
         ...review,
         productName: product?.name ?? null,

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import {
-  SPIN_COST,
   WHEEL_SEGMENTS,
   getWheelRotation,
   type SpinPrize,
@@ -10,11 +9,12 @@ import {
 
 interface SpinWheelProps {
   points: number;
+  spinCost: number;
   activePrize: SpinPrize | null | undefined;
   onSpinComplete: (remainingPoints: number, prize: SpinPrize | null) => void;
 }
 
-export default function SpinWheel({ points, activePrize, onSpinComplete }: SpinWheelProps) {
+export default function SpinWheel({ points, spinCost, activePrize, onSpinComplete }: SpinWheelProps) {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -28,8 +28,8 @@ export default function SpinWheel({ points, activePrize, onSpinComplete }: SpinW
 
   const handleSpin = async () => {
     if (spinning || activePrize) return;
-    if (points < SPIN_COST) {
-      setError(`You need ${SPIN_COST} points to spin`);
+    if (points < spinCost) {
+      setError(`You need ${spinCost} points to spin`);
       return;
     }
 
@@ -133,10 +133,10 @@ export default function SpinWheel({ points, activePrize, onSpinComplete }: SpinW
       ) : (
         <button
           onClick={handleSpin}
-          disabled={spinning || points < SPIN_COST}
+          disabled={spinning || points < spinCost}
           className="bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black px-10 py-4 rounded-2xl font-bold text-lg disabled:opacity-40 disabled:cursor-not-allowed mb-4"
         >
-          {spinning ? 'Spinning...' : `Spin for ${SPIN_COST} pts`}
+          {spinning ? 'Spinning...' : `Spin for ${spinCost} pts`}
         </button>
       )}
 

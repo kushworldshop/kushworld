@@ -35,6 +35,10 @@ export async function PATCH(request: NextRequest) {
       hidden,
       category,
       subcategory,
+      compareAtPrice,
+      featured,
+      bestSeller,
+      isNew,
     } = body;
 
     if (!id || typeof id !== 'string') {
@@ -53,6 +57,10 @@ export async function PATCH(request: NextRequest) {
       hidden: typeof hidden === 'boolean' ? hidden : undefined,
       category: typeof category === 'string' ? category : undefined,
       subcategory: typeof subcategory === 'string' ? subcategory : undefined,
+      compareAtPrice: compareAtPrice !== undefined ? Number(compareAtPrice) : undefined,
+      featured: typeof featured === 'boolean' ? featured : undefined,
+      bestSeller: typeof bestSeller === 'boolean' ? bestSeller : undefined,
+      isNew: typeof isNew === 'boolean' ? isNew : undefined,
     });
 
     if (!product) {

@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
+import { mergeSiteFeatures } from '@/lib/featureTypes';
 
 const SITE_CONTENT_FILE = path.join(process.cwd(), 'data', 'site-content.json');
 
@@ -40,7 +41,11 @@ export async function getSiteContent(): Promise<SiteContent> {
   await ensureSiteContentFile();
   const data = await fs.readFile(SITE_CONTENT_FILE, 'utf8');
   const parsed = JSON.parse(data) as Partial<SiteContent>;
-  return deepMergeSiteContent(DEFAULT_SITE_CONTENT, parsed);
+  const merged = deepMergeSiteContent(DEFAULT_SITE_CONTENT, parsed);
+  return {
+    ...merged,
+    features: mergeSiteFeatures(parsed.features),
+  };
 }
 
 export async function updateSiteContent(updates: Partial<SiteContent>): Promise<SiteContent> {

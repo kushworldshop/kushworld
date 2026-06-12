@@ -20,6 +20,7 @@ import {
 } from '@/lib/checkout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { useAgeAccess } from '@/lib/useAgeAccess';
+import { useSiteContent } from '@/lib/useSiteContent';
 import {
   MIN_REDEMPTION_POINTS,
   calculateMaxRedeemablePoints,
@@ -36,6 +37,8 @@ type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
 export default function Checkout() {
   const { items, subtotal, clearCart } = useCartStore();
   const { isMerchOnly } = useAgeAccess();
+  const { content } = useSiteContent();
+  const { features } = content;
   const { addPoints } = useLoyaltyStore();
   const { code: storedReferralCode, referrerName, clearReferral } = useReferralStore();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
@@ -592,7 +595,13 @@ export default function Checkout() {
     );
   }
 
-  const cardConfigured = paymentConfig?.configured ?? false;
+  const cardConfigured = (paymentConfig?.configured ?? false) && features.paymentCard.enabled;
+  const showBitcoin = btcEnabled && features.paymentBitcoin.enabled;
+  const manualPayments = (['zelle', 'paypal', 'chime'] as const).filter((method) => {
+    if (method === 'zelle') return features.paymentZelle.enabled;
+    if (method === 'paypal') return features.paymentPaypal.enabled;
+    return features.paymentChime.enabled;
+  });
 
   return (
     <SiteLayout>
@@ -791,7 +800,7 @@ export default function Checkout() {
               )}
             </div>
 
-            {orderRequiresIdVerification(items) && (
+            {features.idVerification.enabled && orderRequiresIdVerification(items) && (
               <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6 text-sm text-zinc-400">
                 <span className="text-[#00ff9d] font-medium">New customers:</span> ID upload required after checkout for 21+ verification.
               </div>
@@ -809,7 +818,7 @@ export default function Checkout() {
                     <p className="text-xs text-zinc-400 mt-1">Secure checkout via Authorize.net</p>
                   </button>
                 )}
-                {btcEnabled && (
+                {showBitcoin && (
                   <button
                     onClick={() => setPaymentMethod('btc')}
                     className={`p-6 rounded-3xl border transition col-span-2 ${paymentMethod === 'btc' ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
@@ -818,7 +827,7 @@ export default function Checkout() {
                     <p className="text-xs text-zinc-400 mt-1">Scan QR · live rate · auto-detected</p>
                   </button>
                 )}
-                {(['zelle', 'paypal', 'chime'] as const).map((method) => (
+                {manualPayments.map((method) => (
                   <button
                     key={method}
                     onClick={() => setPaymentMethod(method)}

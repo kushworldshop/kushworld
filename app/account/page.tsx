@@ -6,7 +6,7 @@ import SiteLayout from '@/app/components/SiteLayout';
 import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
 import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
-import { SPIN_COST } from '@/lib/spinWheelTypes';
+import { useSiteContent } from '@/lib/useSiteContent';
 
 interface PromoTerms {
   customerDiscount: number;
@@ -27,6 +27,9 @@ const emptySocials: UserSocials = {
 };
 
 export default function Account() {
+  const { content } = useSiteContent();
+  const { features } = content;
+  const spinCost = features.spinWheel.spinCost;
   const [user, setUser] = useState<PublicUserProfile | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,13 +148,15 @@ export default function Account() {
         setUser(data.user);
         hydrateForm(data.user);
         await loadOrders();
-        setMessage(
-          isLogin
-            ? 'Welcome back!'
-            : signupPhone.trim()
-              ? `Account created! Verify your phone to unlock $${SIGNUP_BONUS_DOLLARS} in loyalty points.`
-              : `Account created! Verify your email to unlock $${SIGNUP_BONUS_DOLLARS} in loyalty points.`
-        );
+        if (isLogin) {
+          setMessage('Welcome back!');
+        } else {
+          setMessage(data.message || 'Account created! Check your email or phone for a verification code.');
+          if (data.verification?.devCode) {
+            setEmailCode(data.verification.channel === 'email' ? data.verification.devCode : '');
+            setPhoneCode(data.verification.channel === 'phone' ? data.verification.devCode : '');
+          }
+        }
         setTab('profile');
       } else {
         setError(data.error || 'Something went wrong');
@@ -240,10 +245,14 @@ export default function Account() {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.devCode) {
+          if (channel === 'email') setEmailCode(data.devCode);
+          else setPhoneCode(data.devCode);
+        }
         setMessage(
-          data.stub
-            ? `Code sent (${channel}) — check server logs in dev mode.`
-            : `Verification code sent to your ${channel}.`
+          data.devCode
+            ? `Dev mode code: ${data.devCode}`
+            : data.message || `Verification code sent to your ${channel}.`
         );
       } else {
         setError(data.error || 'Could not send code');
@@ -406,7 +415,15 @@ export default function Account() {
         </div>
 
         <div className="flex flex-wrap gap-2 mb-8 border-b border-zinc-800 pb-4">
-          {(['profile', 'loyalty', 'wheel', 'referrals', 'orders'] as Tab[]).map((t) => (
+          {(
+            [
+              'profile',
+              ...(features.loyaltyProgram.enabled ? (['loyalty'] as Tab[]) : []),
+              ...(features.spinWheel.enabled ? (['wheel'] as Tab[]) : []),
+              ...(features.referrals.enabled ? (['referrals'] as Tab[]) : []),
+              'orders',
+            ] as Tab[]
+          ).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -565,7 +582,7 @@ export default function Account() {
               <p>• Share your <strong>personal promo code</strong> — earn <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on each order</p>
               <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
               <p>• New members earn <strong>${SIGNUP_BONUS_DOLLARS} ({SIGNUP_BONUS_POINTS.toLocaleString()} pts)</strong> after verifying email or phone — unlocked after first purchase</p>
-              <p>• Gamble <strong>{SPIN_COST} points</strong> on the prize wheel for discounts, free shipping, and more</p>
+              <p>• Gamble <strong>{spinCost} points</strong> on the prize wheel for discounts, free shipping, and more</p>
             </div>
 
             <button
@@ -584,11 +601,12 @@ export default function Account() {
           <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
             <h2 className="text-2xl font-bold mb-2 text-center">Prize Wheel</h2>
             <p className="text-zinc-400 text-sm text-center mb-8 max-w-md mx-auto">
-              Spend {SPIN_COST} loyalty points per spin. Win discounts, free shipping, bonus points, or a free t-shirt.
+              Spend {spinCost} loyalty points per spin. Win discounts, free shipping, bonus points, or a free t-shirt.
               Prizes expire in 14 days — use them at checkout or forfeit to spin again.
             </p>
             <SpinWheel
               points={user.redeemableLoyaltyPoints}
+              spinCost={spinCost}
               activePrize={user.activeSpinPrize}
               onSpinComplete={(remainingPoints, prize) => {
                 setUser((prev) =>
@@ -764,6 +782,9 @@ function VerificationBlock({
         <span className="text-xs text-yellow-400 font-medium uppercase tracking-wide">Pending</span>
       </div>
       <p className="text-sm text-zinc-400 truncate mb-4">{value}</p>
+      <p className="text-xs text-zinc-500 mb-3">
+        Didn&apos;t get a code? Check spam/junk folders, then tap resend.
+      </p>
       <div className="flex gap-2 mb-3">
         <button
           onClick={onSend}

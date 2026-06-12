@@ -22,6 +22,7 @@ import {
 } from '@/lib/productOptions';
 import CoaLink from './CoaLink';
 import ProductOptionSelector from './ProductOptionSelector';
+import ProductRatingBadge from './ProductRatingBadge';
 import ProductReviews from './ProductReviews';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
@@ -30,6 +31,7 @@ import { getShopCategoryLabel, getShopPathForProduct } from '@/lib/shopNavigatio
 export default function ProductDetail({ product }: { product: Product }) {
   const { isMerchOnly, ready } = useAgeAccess();
   const { content } = useSiteContent();
+  const { features } = content;
   const isMerch = product.category === 'merch';
   const blocked = ready && isMerchOnly && !isMerch;
   const gallery = product.images?.length ? product.images : [product.image];
@@ -158,6 +160,11 @@ export default function ProductDetail({ product }: { product: Product }) {
               <p className="text-sm uppercase tracking-widest text-[#00ff9d] mb-2">{product.category}</p>
             )}
             <h1 className="text-3xl md:text-5xl font-bold mb-4">{product.name}</h1>
+            {features.starRatings.enabled && (
+              <div className="mb-4">
+                <ProductRatingBadge productId={product.id} size="md" />
+              </div>
+            )}
 
             <div className="flex items-baseline gap-3 mb-6">
               <p className="text-3xl font-bold text-[#00ff9d]">
@@ -225,7 +232,9 @@ export default function ProductDetail({ product }: { product: Product }) {
               </div>
             )}
 
-            {!isMerch && <CoaLink coaPdf={getCoaPdfPath(product)} productName={product.name} />}
+            {!isMerch && features.coaLinks.enabled && (
+              <CoaLink coaPdf={getCoaPdfPath(product)} productName={product.name} />
+            )}
 
             <button
               onClick={handleAdd}
@@ -246,7 +255,9 @@ export default function ProductDetail({ product }: { product: Product }) {
           </div>
         </div>
 
-        <ProductReviews productId={product.id} productName={product.name} />
+        {features.customerReviews.enabled && (
+          <ProductReviews productId={product.id} productName={product.name} />
+        )}
       </div>
 
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 p-4 flex items-center gap-4 z-40">

@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSiteContent } from '@/lib/useSiteContent';
 import ReviewCard, { type ReviewCardData } from './ReviewCard';
 import ReviewForm from './ReviewForm';
 import { StarDisplay } from './StarRating';
 
 export default function ProductReviews({ productId, productName }: { productId: string; productName: string }) {
+  const { content } = useSiteContent();
+  const { features } = content;
   const [reviews, setReviews] = useState<ReviewCardData[]>([]);
   const [avg, setAvg] = useState(0);
 
@@ -25,12 +28,18 @@ export default function ProductReviews({ productId, productName }: { productId: 
       <h2 className="text-3xl font-bold mb-2">Customer Reviews</h2>
       <div className="flex items-center gap-3 mb-8">
         {reviews.length > 0 ? (
-          <>
-            <StarDisplay rating={avg} />
+          features.starRatings.enabled ? (
+            <>
+              <StarDisplay rating={avg} />
+              <p className="text-zinc-400">
+                {avg.toFixed(1)} average · {reviews.length} review{reviews.length !== 1 ? 's' : ''}
+              </p>
+            </>
+          ) : (
             <p className="text-zinc-400">
-              {avg.toFixed(1)} average · {reviews.length} review{reviews.length !== 1 ? 's' : ''}
+              {reviews.length} review{reviews.length !== 1 ? 's' : ''}
             </p>
-          </>
+          )
         ) : (
           <p className="text-zinc-400">No reviews yet — be the first!</p>
         )}
@@ -45,7 +54,13 @@ export default function ProductReviews({ productId, productName }: { productId: 
       )}
 
       <div className="max-w-lg">
-        <ReviewForm productId={productId} productName={productName} onSuccess={loadReviews} />
+        <ReviewForm
+          productId={productId}
+          productName={productName}
+          onSuccess={loadReviews}
+          requirePurchase={features.customerReviews.requirePurchase}
+          rewardPoints={features.customerReviews.rewardPoints}
+        />
       </div>
     </section>
   );

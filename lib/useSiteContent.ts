@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
+import { mergeSiteFeatures } from '@/lib/featureTypes';
 
 let cachedContent: SiteContent | null = null;
 let fetchPromise: Promise<SiteContent> | null = null;
@@ -23,6 +24,7 @@ async function loadSiteContent(): Promise<SiteContent> {
                 ? data.content.shopNavigation.categories
                 : DEFAULT_SITE_CONTENT.shopNavigation.categories,
           },
+          features: mergeSiteFeatures(data.content?.features),
         };
         cachedContent = merged;
         return merged;

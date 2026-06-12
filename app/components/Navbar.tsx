@@ -62,6 +62,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               </span>
             </Link>
 
+            {content.features.productSearch.enabled && (
             <form onSubmit={handleSearch} className="hidden lg:flex flex-1 max-w-md mx-4">
               <div className="relative w-full">
                 <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
@@ -74,6 +75,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                 />
               </div>
             </form>
+            )}
 
             <div className="hidden md:flex items-center gap-6 text-sm">
               <div
@@ -110,8 +112,12 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               <Link href={`/shop/${MERCH_SHOP_ID}`} className="hover:text-[#00ff9d] transition">
                 Merch
               </Link>
-              {!isMerchOnly && <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>}
-              <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
+              {!isMerchOnly && content.features.coaLinks.enabled && (
+                <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>
+              )}
+              {content.features.customerReviews.enabled && (
+                <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
+              )}
             </div>
 
             <div className="flex items-center gap-4">
@@ -119,7 +125,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                 <i className="fa-solid fa-user" />
               </Link>
 
-              {isLoggedIn && (
+              {isLoggedIn && content.features.loyaltyProgram.enabled && (
                 <div className="hidden md:flex items-center gap-2 text-xs bg-zinc-900 px-3 py-1.5 rounded-xl">
                   <i className="fa-solid fa-coins text-[#00ff9d]" />
                   <span>{points} pts</span>
@@ -143,15 +149,17 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
 
           {isMobileMenuOpen && (
             <div className="md:hidden py-6 border-t border-zinc-800 space-y-4">
-              <form onSubmit={handleSearch}>
-                <input
-                  type="search"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 text-sm"
-                />
-              </form>
+              {content.features.productSearch.enabled && (
+                <form onSubmit={handleSearch}>
+                  <input
+                    type="search"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 text-sm"
+                  />
+                </form>
+              )}
               <Link href="/shop" className="block hover:text-[#00ff9d]">Shop — All Products</Link>
               {shopCategories.map((category) => (
                 <Link key={category.id} href={`/shop/${category.id}`} className="block pl-4 hover:text-[#00ff9d]">
@@ -159,8 +167,12 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                 </Link>
               ))}
               <Link href={`/shop/${MERCH_SHOP_ID}`} className="block hover:text-[#00ff9d]">Merch</Link>
-              {!isMerchOnly && <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>}
-              <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
+              {!isMerchOnly && content.features.coaLinks.enabled && (
+                <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>
+              )}
+              {content.features.customerReviews.enabled && (
+                <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
+              )}
             </div>
           )}
         </div>

@@ -32,8 +32,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Verification code sent to your ${channel}`,
+      message: result.devCode
+        ? `Dev mode verification code: ${result.devCode}`
+        : `Verification code sent to your ${channel}`,
       stub: result.stub,
+      devCode: result.devCode,
     });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to send code' }, { status: 500 });

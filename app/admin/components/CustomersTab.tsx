@@ -52,6 +52,8 @@ type MemberDraft = {
   loyaltyPoints: number;
   lockedLoyaltyPoints: number;
   idVerified: boolean;
+  emailVerified: boolean;
+  phoneVerified: boolean;
   signupBonusClaimed: boolean;
   useDefaultCommission: boolean;
   commissionPercent: string;
@@ -125,6 +127,8 @@ export default function CustomersTab() {
       loyaltyPoints: patch?.loyaltyPoints ?? user.loyaltyPoints,
       lockedLoyaltyPoints: patch?.lockedLoyaltyPoints ?? user.lockedLoyaltyPoints,
       idVerified: patch?.idVerified ?? user.idVerified ?? false,
+      emailVerified: patch?.emailVerified ?? user.emailVerified ?? false,
+      phoneVerified: patch?.phoneVerified ?? user.phoneVerified ?? false,
       signupBonusClaimed: patch?.signupBonusClaimed ?? user.signupBonusClaimed ?? false,
       useDefaultCommission: patch?.useDefaultCommission ?? !hasCommissionOverride,
       commissionPercent:
@@ -169,6 +173,8 @@ export default function CustomersTab() {
       loyaltyPoints: draft.loyaltyPoints,
       lockedLoyaltyPoints: draft.lockedLoyaltyPoints,
       idVerified: draft.idVerified,
+      emailVerified: draft.emailVerified,
+      phoneVerified: draft.phoneVerified,
       signupBonusClaimed: draft.signupBonusClaimed,
       commissionPercent: draft.useDefaultCommission ? null : Number(draft.commissionPercent),
       referrerRewardPoints: draft.useDefaultRewardPoints ? null : Number(draft.referrerRewardPoints),
@@ -344,6 +350,16 @@ function MemberProfilePanel({
           </p>
         )}
         <div className="flex flex-wrap gap-6 mt-4 text-sm">
+          <Checkbox
+            label="Email verified"
+            checked={draft.emailVerified}
+            onChange={(v) => onDraftChange({ emailVerified: v })}
+          />
+          <Checkbox
+            label="Phone verified"
+            checked={draft.phoneVerified}
+            onChange={(v) => onDraftChange({ phoneVerified: v })}
+          />
           <Checkbox
             label="ID verified (21+)"
             checked={draft.idVerified}

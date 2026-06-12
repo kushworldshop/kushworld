@@ -12,6 +12,7 @@ import {
   updateReferralRewardPointsByEmail,
 } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
+import { tryClaimSignupBonus } from '@/lib/accountVerification';
 import { getRedeemableLoyaltyPoints, readUsers, writeUsers, type UserSocials } from '@/lib/users';
 
 export interface AdminUserSummary {
@@ -190,6 +191,18 @@ export async function PATCH(request: NextRequest) {
       idVerified: body.idVerified !== undefined ? Boolean(body.idVerified) : current.idVerified,
       signupBonusClaimed:
         body.signupBonusClaimed !== undefined ? Boolean(body.signupBonusClaimed) : current.signupBonusClaimed,
+      emailVerifiedAt:
+        body.emailVerified === true
+          ? current.emailVerifiedAt || new Date().toISOString()
+          : body.emailVerified === false
+            ? undefined
+            : current.emailVerifiedAt,
+      phoneVerifiedAt:
+        body.phoneVerified === true
+          ? current.phoneVerifiedAt || new Date().toISOString()
+          : body.phoneVerified === false
+            ? undefined
+            : current.phoneVerifiedAt,
     };
 
     if (body.commissionPercent !== undefined) {
@@ -238,7 +251,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     await writeUsers(users);
-    const user = await toAdminSummary(users[index]);
+
+    if (body.emailVerified === true || body.phoneVerified === true) {
+      await tryClaimSignupBonus(userId);
+    }
+
+    const refreshed = await readUsers();
+    const saved = refreshed.find((user) => user.id === userId) ?? users[index];
+    const user = await toAdminSummary(saved);
     return NextResponse.json({ success: true, user });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to update user' }, { status: 500 });

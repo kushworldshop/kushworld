@@ -55,7 +55,12 @@ We'll notify you when your order ships.
   return { sent: res.ok };
 }
 
-export async function sendVerificationEmail(to: string, code: string) {
+export type EmailSendResult =
+  | { sent: true; stub: false }
+  | { sent: false; stub: true }
+  | { sent: false; stub: false; error: string };
+
+export async function sendVerificationEmail(to: string, code: string): Promise<EmailSendResult> {
   const body = `Welcome to Kush World!
 
 Your email verification code is: ${code}
@@ -71,19 +76,42 @@ Once you verify your email, you'll receive $10 in loyalty points (1,000 pts). Co
     return { sent: false, stub: true };
   }
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: FROM_EMAIL,
-      to,
-      subject: 'Verify your Kush World account',
-      text: body,
-    }),
-  });
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to,
+        subject: 'Verify your Kush World account',
+        text: body,
+      }),
+    });
 
-  return { sent: res.ok, stub: false };
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('[Resend] Verification email failed:', res.status, errBody);
+      return {
+        sent: false,
+        stub: false,
+        error: 'Could not send verification email. Try again or contact support.',
+      };
+    }
+
+    return { sent: true, stub: false };
+  } catch (err) {
+    console.error('[Resend] Verification email error:', err);
+    return {
+      sent: false,
+      stub: false,
+      error: 'Could not send verification email. Try again or contact support.',
+    };
+  }
+}
+
+export function isEmailVerificationConfigured(): boolean {
+  return !!RESEND_API_KEY;
 }

@@ -42,20 +42,32 @@ export async function POST(request: NextRequest) {
     }
 
     const channel = resolveSignupVerificationChannel(user);
-    if (channel === 'phone') {
-      await sendPhoneVerificationCode(user.id);
-    } else {
-      await sendEmailVerificationCode(user.id);
-    }
+    const verificationResult =
+      channel === 'phone'
+        ? await sendPhoneVerificationCode(user.id)
+        : await sendEmailVerificationCode(user.id);
 
     const profile = await getUserDashboard(user.id);
 
+    const destination = channel === 'phone' ? user.phone : user.email;
+    let message = verificationResult.success
+      ? `Account created! We sent a 6-digit code to ${destination}. Enter it below to unlock $10 in loyalty points.`
+      : `Account created, but we could not send your verification code. ${verificationResult.error || 'Use Send Code to try again.'}`;
+
+    if (verificationResult.devCode) {
+      message = `Account created! Dev mode code: ${verificationResult.devCode}`;
+    }
+
     const response = NextResponse.json({
       success: true,
-      message:
-        channel === 'phone'
-          ? 'Account created — verify your phone to unlock $10 in loyalty points.'
-          : 'Account created — verify your email to unlock $10 in loyalty points.',
+      message,
+      verification: {
+        channel,
+        sent: verificationResult.success,
+        stub: verificationResult.stub,
+        devCode: verificationResult.devCode,
+        error: verificationResult.error,
+      },
       user: profile,
     });
 

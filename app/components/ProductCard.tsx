@@ -15,8 +15,13 @@ import {
 } from '@/lib/productOptions';
 import CoaLink from './CoaLink';
 import ProductOptionSelector from './ProductOptionSelector';
+import ProductRatingBadge from './ProductRatingBadge';
+import { useSiteContent } from '@/lib/useSiteContent';
+import { isOnSale } from '@/lib/productCollections';
 
 export default function ProductCard({ product }: { product: Product }) {
+  const { content } = useSiteContent();
+  const { features } = content;
   const isMerch = product.category === 'merch';
   const [selectedOptions, setSelectedOptions] = useState(() => getDefaultSelectedOptions(product));
   const [added, setAdded] = useState(false);
@@ -26,6 +31,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const isInWishlist = useWishlistStore((state) => state.isInWishlist(product.id));
   const hasOptions = productHasOptions(product);
   const inStock = isProductInStock(product);
+  const onSale = isOnSale(product);
   const unitPrice = useMemo(
     () => getSelectedOptionsUnitPrice(product, selectedOptions),
     [product, selectedOptions]
@@ -68,18 +74,27 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <div className="bg-zinc-900 rounded-3xl overflow-hidden group relative">
-      <button
-        onClick={handleToggleWishlist}
-        className="absolute top-4 right-4 z-10 p-2 bg-black/70 hover:bg-black rounded-full transition-all"
-      >
-        <i className={`fa-solid fa-heart text-2xl transition-colors ${isInWishlist ? 'text-red-500' : 'text-zinc-400 group-hover:text-white'}`} />
-      </button>
-
-      {isMerch && (
-        <span className="absolute top-4 left-4 z-10 bg-black/80 text-[#00ff9d] text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
-          Studio
-        </span>
+      {features.wishlist.enabled && (
+        <button
+          onClick={handleToggleWishlist}
+          className="absolute top-4 right-4 z-10 p-2 bg-black/70 hover:bg-black rounded-full transition-all"
+        >
+          <i className={`fa-solid fa-heart text-2xl transition-colors ${isInWishlist ? 'text-red-500' : 'text-zinc-400 group-hover:text-white'}`} />
+        </button>
       )}
+
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+        {isMerch && (
+          <span className="bg-black/80 text-[#00ff9d] text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+            Studio
+          </span>
+        )}
+        {features.onSale.showBadge && onSale && (
+          <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+            Sale
+          </span>
+        )}
+      </div>
 
       <Link href={`/products/${getProductSlug(product)}`} className={`relative aspect-square block ${isMerch ? 'bg-white/5' : ''}`}>
         <Image
@@ -94,11 +109,16 @@ export default function ProductCard({ product }: { product: Product }) {
         <Link href={`/products/${getProductSlug(product)}`}>
           <h3 className="font-semibold text-xl line-clamp-2 mb-2 hover:text-[#00ff9d] transition">{product.name}</h3>
         </Link>
+        {features.starRatings.enabled && (
+          <div className="mb-2">
+            <ProductRatingBadge productId={product.id} />
+          </div>
+        )}
         <div className="mb-4">
           <p className="text-[#00ff9d] text-2xl font-bold">
             {hasOptions ? 'From ' : ''}${unitPrice}
           </p>
-          {product.compareAtPrice && product.compareAtPrice < product.price && (
+          {onSale && product.compareAtPrice && (
             <p className="text-xs text-zinc-500 line-through">${product.compareAtPrice}</p>
           )}
         </div>
@@ -110,7 +130,9 @@ export default function ProductCard({ product }: { product: Product }) {
           size="sm"
         />
 
-        {!isMerch && <CoaLink coaPdf={getCoaPdfPath(product)} productName={product.name} />}
+        {!isMerch && features.coaLinks.enabled && (
+          <CoaLink coaPdf={getCoaPdfPath(product)} productName={product.name} />
+        )}
 
         <button
           onClick={handleAddToCart}

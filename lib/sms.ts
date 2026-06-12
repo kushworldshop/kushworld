@@ -10,6 +10,10 @@ function normalizePhone(phone: string): string {
   return `+${digits}`;
 }
 
+export function isSmsVerificationConfigured(): boolean {
+  return !!(TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM);
+}
+
 export async function sendVerificationSms(
   to: string,
   code: string

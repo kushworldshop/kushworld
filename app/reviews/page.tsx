@@ -6,6 +6,7 @@ import ReviewCard, { type ReviewCardData } from '@/app/components/ReviewCard';
 import ReviewForm from '@/app/components/ReviewForm';
 import { StarDisplay } from '@/app/components/StarRating';
 import { products } from '@/lib/products';
+import { useSiteContent } from '@/lib/useSiteContent';
 
 interface ReviewStats {
   count: number;
@@ -14,6 +15,8 @@ interface ReviewStats {
 }
 
 export default function ReviewsPage() {
+  const { content } = useSiteContent();
+  const { features } = content;
   const [reviews, setReviews] = useState<ReviewCardData[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
 
@@ -29,6 +32,17 @@ export default function ReviewsPage() {
   useEffect(() => { loadReviews(); }, []);
 
   const productOptions = products.map((p) => ({ id: p.id, name: p.name }));
+
+  if (!features.customerReviews.enabled) {
+    return (
+      <SiteLayout>
+        <div className="max-w-2xl mx-auto px-6 py-24 text-center">
+          <h1 className="text-3xl font-bold mb-4">Reviews Unavailable</h1>
+          <p className="text-zinc-400">Customer reviews are turned off right now. Check back soon.</p>
+        </div>
+      </SiteLayout>
+    );
+  }
 
   return (
     <SiteLayout>
@@ -56,8 +70,12 @@ export default function ReviewsPage() {
             {stats && stats.count > 0 && (
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-10 flex flex-wrap items-center gap-8">
                 <div>
-                  <p className="text-5xl font-bold text-[#00ff9d]">{stats.average.toFixed(1)}</p>
-                  <StarDisplay rating={stats.average} />
+                  {features.starRatings.enabled && (
+                    <>
+                      <p className="text-5xl font-bold text-[#00ff9d]">{stats.average.toFixed(1)}</p>
+                      <StarDisplay rating={stats.average} />
+                    </>
+                  )}
                   <p className="text-sm text-zinc-500 mt-2">{stats.count} total reviews</p>
                 </div>
                 <div className="flex-1 min-w-[200px] space-y-2">
@@ -95,7 +113,12 @@ export default function ReviewsPage() {
           </div>
 
           <div className="lg:sticky lg:top-28 h-fit space-y-6">
-            <ReviewForm products={productOptions} onSuccess={loadReviews} />
+            <ReviewForm
+              products={productOptions}
+              onSuccess={loadReviews}
+              requirePurchase={features.customerReviews.requirePurchase}
+              rewardPoints={features.customerReviews.rewardPoints}
+            />
 
             <div className="bg-zinc-900 border border-[#00ff9d]/20 rounded-2xl p-6 text-sm text-zinc-400">
               <p className="font-semibold text-white mb-2">Verified trusted source</p>

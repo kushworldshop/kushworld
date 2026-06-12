@@ -15,12 +15,16 @@ export default function ReviewForm({
   products,
   onSuccess,
   compact = false,
+  requirePurchase = false,
+  rewardPoints = 0,
 }: {
   productId?: string;
   productName?: string;
   products?: ProductOption[];
   onSuccess?: () => void;
   compact?: boolean;
+  requirePurchase?: boolean;
+  rewardPoints?: number;
 }) {
   const [author, setAuthor] = useState('');
   const [rating, setRating] = useState(5);
@@ -59,7 +63,9 @@ export default function ReviewForm({
       }
 
       setComment('');
-      setMessage('Thanks! Your review is live.');
+      const pointsMsg =
+        data.pointsAwarded > 0 ? ` You earned ${data.pointsAwarded} loyalty points.` : '';
+      setMessage(`Thanks! Your review is live.${pointsMsg}`);
       onSuccess?.();
     } catch {
       setMessage('Network error. Please try again.');
@@ -79,6 +85,8 @@ export default function ReviewForm({
       </h3>
       <p className="text-sm text-zinc-500 mb-5">
         Keep it short — {MAX_REVIEW_LENGTH} characters max, like a post on X.
+        {requirePurchase && ' Sign in with the email used at checkout to verify your purchase.'}
+        {rewardPoints > 0 && ' Signed-in reviewers earn loyalty points.'}
       </p>
 
       <input

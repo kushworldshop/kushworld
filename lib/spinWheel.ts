@@ -1,3 +1,4 @@
+import { getSiteContent } from '@/lib/siteContent';
 import {
   PRIZE_EXPIRY_DAYS,
   SPIN_COST,
@@ -55,6 +56,14 @@ export async function forfeitSpinPrize(userId: string): Promise<void> {
   await clearActiveSpinPrize(userId);
 }
 
+async function getSpinCost(): Promise<number> {
+  const content = await getSiteContent();
+  if (!content.features.spinWheel.enabled) {
+    throw new Error('Spin wheel is currently disabled');
+  }
+  return content.features.spinWheel.spinCost || SPIN_COST;
+}
+
 export async function spinWheel(userId: string): Promise<{
   segment: WheelSegment;
   prize: SpinPrize | null;
@@ -70,18 +79,20 @@ export async function spinWheel(userId: string): Promise<{
     throw new Error('Use or forfeit your current wheel prize before spinning again');
   }
 
-  if (getRedeemableLoyaltyPoints(user) < SPIN_COST) {
+  const spinCost = await getSpinCost();
+
+  if (getRedeemableLoyaltyPoints(user) < spinCost) {
     const locked = user.lockedLoyaltyPoints ?? 0;
     throw new Error(
       locked > 0
-        ? `Need ${SPIN_COST} redeemable points to spin. Signup bonus points unlock after your first purchase.`
-        : `Need ${SPIN_COST} points to spin`
+        ? `Need ${spinCost} redeemable points to spin. Signup bonus points unlock after your first purchase.`
+        : `Need ${spinCost} points to spin`
     );
   }
 
-  const redeemed = await redeemLoyaltyPoints(userId, SPIN_COST);
+  const redeemed = await redeemLoyaltyPoints(userId, spinCost);
   if (!redeemed.success) {
-    throw new Error(redeemed.error || `Need ${SPIN_COST} points to spin`);
+    throw new Error(redeemed.error || `Need ${spinCost} points to spin`);
   }
 
   const segment = pickWeightedSegment();
@@ -107,7 +118,7 @@ export async function spinWheel(userId: string): Promise<{
     segment,
     prize,
     instantBonusPoints,
-    pointsSpent: SPIN_COST,
+    pointsSpent: spinCost,
     remainingPoints: updated ? getRedeemableLoyaltyPoints(updated) : redeemed.remaining,
     message,
   };

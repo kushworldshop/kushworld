@@ -26,6 +26,8 @@ export interface Product {
   merchSubcategory?: string;
   subcategory?: string;
   featured?: boolean;
+  bestSeller?: boolean;
+  isNew?: boolean;
   studioUrl?: string;
   hidden?: boolean;
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 import { Inter } from 'next/font/google';
 import AgeGateProvider from './components/AgeGateProvider';
 import JsonLd from './components/JsonLd';
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         <JsonLd data={organizationJsonLd()} />
         <AgeGateProvider>{children}</AgeGateProvider>
+        <Analytics />
       </body>
     </html>
   );
