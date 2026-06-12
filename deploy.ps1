@@ -1,0 +1,1 @@
+ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new -i $env:USERPROFILE\.ssh\kushworld_github_actions_ci root@46.62.249.173 "cd /var/www/kushworld && git pull && npm ci && npm run build && pm2 restart kushworld && pm2 status kushworld"

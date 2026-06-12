@@ -36,6 +36,24 @@ export function getFeaturedMerch(limit = 8): MerchProduct[] {
   return [...featured, ...rest].slice(0, limit);
 }
 
+const HOMEPAGE_SUBCATEGORIES = ['hoodies', 'tees', 'headwear', 'accessories'] as const;
+
+export function getHomepageMerch(limit = 4): MerchProduct[] {
+  const picked: MerchProduct[] = [];
+
+  for (const sub of HOMEPAGE_SUBCATEGORIES) {
+    const item =
+      merchProducts.find((p) => p.merchSubcategory === sub && p.featured) ??
+      merchProducts.find((p) => p.merchSubcategory === sub);
+    if (item && !picked.some((p) => p.id === item.id)) {
+      picked.push(item);
+    }
+  }
+
+  if (picked.length >= limit) return picked.slice(0, limit);
+  return getFeaturedMerch(limit);
+}
+
 export function getMerchSubcategoryLabel(sub?: string): string {
   const labels: Record<string, string> = {
     hoodies: 'Hoodies',

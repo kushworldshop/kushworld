@@ -36,12 +36,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pathname !== '/') {
-      router.push(`/?q=${encodeURIComponent(searchQuery)}#shop`);
-    } else {
-      window.dispatchEvent(new CustomEvent('product-search', { detail: searchQuery }));
-      document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' });
-    }
+    router.push(`/shop?q=${encodeURIComponent(searchQuery)}`);
     setIsMobileMenuOpen(false);
   };
 
@@ -75,7 +70,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
             </form>
 
             <div className="hidden md:flex items-center gap-6 text-sm">
-              <Link href={isMerchOnly ? '/#merch' : '/#shop'} className="hover:text-[#00ff9d] transition">Shop</Link>
+              <Link href="/shop" className="hover:text-[#00ff9d] transition">Shop</Link>
               <Link href="/#merch" className="hover:text-[#00ff9d] transition">Merch</Link>
               {!isMerchOnly && <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>}
               <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
@@ -121,7 +116,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                   className="w-full bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3 text-sm"
                 />
               </form>
-              <Link href={isMerchOnly ? '/#merch' : '/#shop'} className="block hover:text-[#00ff9d]">Shop</Link>
+              <Link href="/shop" className="block hover:text-[#00ff9d]">Shop</Link>
               <Link href="/#merch" className="block hover:text-[#00ff9d]">Merch</Link>
               {!isMerchOnly && <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>}
               <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>

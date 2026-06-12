@@ -64,7 +64,7 @@ export default function ProductDetail({ product }: { product: Product }) {
     <>
       <div className="max-w-7xl mx-auto px-6 py-12">
         <Link
-          href={isMerch ? '/#merch' : '/#shop'}
+          href={isMerch ? '/#merch' : '/shop'}
           className="text-sm text-zinc-400 hover:text-[#00ff9d] mb-8 inline-block"
         >
           ← Back to {isMerch ? 'Studio Merch' : 'Shop'}

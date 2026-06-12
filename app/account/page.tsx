@@ -358,7 +358,7 @@ export default function Account() {
             >
               Spin the Wheel
             </button>
-            <Link href="/#shop" className="inline-block mt-6 bg-white text-black px-8 py-4 rounded-2xl font-bold hover:bg-zinc-200 transition">
+            <Link href="/shop" className="inline-block mt-6 bg-white text-black px-8 py-4 rounded-2xl font-bold hover:bg-zinc-200 transition">
               Shop & Earn Points
             </Link>
           </div>
@@ -424,7 +424,7 @@ export default function Account() {
             ) : orders.length === 0 ? (
               <div className="bg-zinc-900 p-12 rounded-3xl text-center border border-zinc-800">
                 <p className="text-xl mb-4">No orders yet</p>
-                <Link href="/#shop" className="text-[#00ff9d] hover:underline">Start shopping</Link>
+                <Link href="/shop" className="text-[#00ff9d] hover:underline">Start shopping</Link>
               </div>
             ) : (
               <div className="space-y-6">

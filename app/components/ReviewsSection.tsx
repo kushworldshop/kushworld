@@ -15,7 +15,7 @@ export default function ReviewsSection() {
   const [stats, setStats] = useState<ReviewStats>({ count: 0, average: 0 });
 
   useEffect(() => {
-    fetch('/api/reviews?featured=true&limit=9')
+    fetch('/api/reviews?featured=true&limit=3')
       .then((r) => r.json())
       .then((data) => {
         setReviews(data.reviews || []);
@@ -60,7 +60,7 @@ export default function ReviewsSection() {
         </div>
 
         {reviews.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {reviews.map((review) => (
               <ReviewCard key={review.id} review={review} />
             ))}

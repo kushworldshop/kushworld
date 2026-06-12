@@ -104,7 +104,7 @@ export default function ReferralLanding() {
         </div>
 
         <button
-          onClick={() => router.push('/#shop')}
+          onClick={() => router.push('/shop')}
           className="w-full sm:w-auto px-12 py-5 bg-[#00ff9d] text-black text-xl font-bold rounded-2xl hover:scale-105 transition"
         >
           Start Shopping

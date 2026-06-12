@@ -23,7 +23,13 @@ const sortOptions = [
 
 export default function ShopSection({ merchOnly = false }: { merchOnly?: boolean }) {
   const searchParams = useSearchParams();
-  const [activeFilter, setActiveFilter] = useState(merchOnly ? 'merch' : 'all');
+  const categoryParam = searchParams.get('category');
+  const initialFilter = merchOnly
+    ? 'merch'
+    : categoryParam && filters.some((f) => f.id === categoryParam)
+      ? categoryParam
+      : 'all';
+  const [activeFilter, setActiveFilter] = useState(initialFilter);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('name-asc');
   const [maxPrice, setMaxPrice] = useState(2000);
@@ -50,8 +56,14 @@ export default function ShopSection({ merchOnly = false }: { merchOnly?: boolean
   }, []);
 
   useEffect(() => {
-    if (merchOnly) setActiveFilter('merch');
-  }, [merchOnly]);
+    if (merchOnly) {
+      setActiveFilter('merch');
+      return;
+    }
+    if (categoryParam && filters.some((f) => f.id === categoryParam)) {
+      setActiveFilter(categoryParam);
+    }
+  }, [merchOnly, categoryParam]);
 
   const visibleFilters = merchOnly ? filters.filter((f) => f.id === 'merch') : filters;
 

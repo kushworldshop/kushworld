@@ -1,65 +1,58 @@
 'use client';
 
 export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
-  if (merchOnly) {
-    return (
-      <section className="hero-bg h-screen flex items-center relative">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-3 bg-black/70 px-8 py-3 rounded-full mb-8 text-sm font-medium">
-            👕 KUSH WORLD STUDIO MERCH
-          </div>
-
-          <h1 className="text-6xl md:text-7xl font-bold leading-none mb-6">
-            OFFICIAL<br />STUDIO MERCH
-          </h1>
-          <p className="text-2xl text-zinc-300 max-w-2xl mx-auto mb-10">
-            Apparel, accessories &amp; more from Kush World Studio. Free shipping on orders $100+.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <a href="/#merch" className="px-16 py-7 bg-[#00ff9d] text-black text-2xl font-semibold rounded-3xl hover:scale-105 transition">
-              SHOP MERCH
-            </a>
-            <a href="/#shop" className="px-16 py-7 border border-[#00ff9d] text-[#00ff9d] text-2xl font-semibold rounded-3xl hover:bg-[#00ff9d]/10 transition">
-              VIEW ALL ITEMS
-            </a>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-x-10 gap-y-4 text-sm">
-            <div className="flex items-center gap-2"><i className="fa-solid fa-shirt text-[#00ff9d]"></i> STUDIO APPAREL</div>
-            <div className="flex items-center gap-2"><i className="fa-solid fa-truck text-[#00ff9d]"></i> FREE SHIPPING $100+</div>
-            <div className="flex items-center gap-2"><i className="fa-solid fa-palette text-[#00ff9d]"></i> CUSTOM PRINTED</div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    <section className="hero-bg h-screen flex items-center relative">
-      <div className="max-w-7xl mx-auto px-6 text-center">
-        <div className="inline-flex items-center gap-3 bg-black/70 px-8 py-3 rounded-full mb-8 text-sm font-medium">
-          🌿 LAB-TESTED • COAs ON EVERY PRODUCT
-        </div>
-
-        <h1 className="text-6xl md:text-7xl font-bold leading-none mb-6">PREMIUM HEMP,<br />DELIVERED RIGHT</h1>
-        <p className="text-2xl text-zinc-300 max-w-2xl mx-auto mb-10">
-          Premium merch, glass &amp; hemp goods. Lab-tested. Discreet insured shipping. 21+ only.
+    <section className="hero-bg min-h-[75vh] flex items-center relative">
+      <div className="max-w-4xl mx-auto px-6 text-center py-20">
+        <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-6">
+          {merchOnly ? 'Kush World Studio' : 'Kush World'}
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-          <a href="/#shop" className="px-16 py-7 bg-[#00ff9d] text-black text-2xl font-semibold rounded-3xl hover:scale-105 transition">
-            SHOP NOW — GET FREE 8TH ON FIRST ORDER
+        <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6 tracking-tight">
+          {merchOnly ? (
+            <>Official<br />Studio Merch</>
+          ) : (
+            <>Premium Goods,<br />Delivered Right</>
+          )}
+        </h1>
+
+        <p className="text-lg md:text-xl text-zinc-400 max-w-xl mx-auto mb-10 leading-relaxed">
+          {merchOnly
+            ? 'Custom apparel and accessories from Kush World Studio. Free shipping on orders $100+.'
+            : 'Lab-tested hemp products and official Kush World Studio merch. Discreet shipping nationwide.'}
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <a
+            href="#merch"
+            className="px-10 py-5 bg-[#00ff9d] text-black text-lg font-semibold rounded-2xl hover:scale-[1.02] transition"
+          >
+            Shop Merch
           </a>
-          <a href="#loyalty" className="px-16 py-7 border border-[#00ff9d] text-[#00ff9d] text-2xl font-semibold rounded-3xl hover:bg-[#00ff9d]/10 transition">
-            REWARDS PROGRAM
-          </a>
+          {!merchOnly && (
+            <a
+              href="/shop"
+              className="px-10 py-5 border border-zinc-600 text-zinc-200 text-lg font-semibold rounded-2xl hover:border-[#00ff9d] hover:text-[#00ff9d] transition"
+            >
+              Full Catalog
+            </a>
+          )}
         </div>
 
-        <div className="flex flex-wrap justify-center gap-x-10 gap-y-4 text-sm">
-          <div className="flex items-center gap-2"><i className="fa-solid fa-flask text-[#00ff9d]"></i> LAB TESTED + COAs</div>
-          <div className="flex items-center gap-2"><i className="fa-solid fa-truck text-[#00ff9d]"></i> FREE SHIPPING $200+</div>
-          <div className="flex items-center gap-2"><i className="fa-solid fa-shield-halved text-[#00ff9d]"></i> INSURED &amp; DISCREET</div>
+        <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 mt-12 text-xs text-zinc-500 uppercase tracking-wider">
+          {merchOnly ? (
+            <>
+              <span>Custom Made</span>
+              <span>Free Shipping $100+</span>
+              <span>Studio Quality</span>
+            </>
+          ) : (
+            <>
+              <span>Lab Tested + COAs</span>
+              <span>Free Shipping $200+</span>
+              <span>21+ Only</span>
+            </>
+          )}
         </div>
       </div>
     </section>

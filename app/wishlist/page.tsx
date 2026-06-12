@@ -29,7 +29,7 @@ export default function Wishlist() {
           <h1 className="text-4xl font-bold mb-4">Your Wishlist is Empty</h1>
           <p className="text-zinc-400 mb-10">Save items you love for later.</p>
           <Link 
-            href="/#shop" 
+            href="/shop" 
             className="inline-block bg-[#00ff9d] text-black px-10 py-4 rounded-2xl font-bold text-lg hover:bg-[#00ff9d]/90"
           >
             Browse Shop
@@ -44,7 +44,7 @@ export default function Wishlist() {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-12">
           <h1 className="text-5xl font-bold">Wishlist <span className="text-[#00ff9d]">({items.length})</span></h1>
-          <Link href="/#shop" className="text-[#00ff9d] hover:underline">Continue Shopping →</Link>
+          <Link href="/shop" className="text-[#00ff9d] hover:underline">Continue Shopping →</Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
