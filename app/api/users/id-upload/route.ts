@@ -3,8 +3,10 @@ import { getSessionUserId } from '@/lib/auth';
 import { getSiteContent } from '@/lib/siteContent';
 import { isFeatureEnabled } from '@/lib/featureTypes';
 import { getUserById, readUsers, writeUsers } from '@/lib/users';
+import { buildAutoRejectionMessage, validateIdPhoto } from '@/lib/idPhotoValidation';
 import {
   MAX_ID_SIZE_BYTES,
+  buildIdVerificationRecord,
   ensureDataDirs,
   resolveIdMimeType,
   saveUserIdImage,
@@ -53,6 +55,8 @@ export async function POST(request: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const saved = await saveUserIdImage(userId, buffer, mimeType);
+    const validation = await validateIdPhoto(buffer, mimeType);
+    const idVerification = buildIdVerificationRecord(saved, validation);
 
     const users = await readUsers();
     const index = users.findIndex((entry) => entry.id === userId);
@@ -63,24 +67,31 @@ export async function POST(request: NextRequest) {
     users[index] = {
       ...users[index],
       idVerified: false,
-      idVerification: {
-        status: 'uploaded',
-        uploadedAt: new Date().toISOString(),
-        fileName: saved.fileName,
-        mimeType: saved.mimeType,
-        rejectedAt: undefined,
-        rejectionReason: undefined,
-        verifiedAt: undefined,
-      },
+      idVerification,
     };
     await writeUsers(users);
+
+    if (idVerification.status === 'rejected') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: buildAutoRejectionMessage(idVerification.rejectionReason || 'Invalid upload'),
+          idVerification: {
+            status: idVerification.status,
+            rejectionReason: idVerification.rejectionReason,
+            autoRejected: idVerification.autoRejected,
+          },
+        },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       message: 'ID uploaded. We will review it and verify your account for faster checkout.',
       idVerification: {
-        status: 'uploaded',
-        uploadedAt: users[index].idVerification?.uploadedAt,
+        status: idVerification.status,
+        uploadedAt: idVerification.uploadedAt,
       },
     });
   } catch (error) {

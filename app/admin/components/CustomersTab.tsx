@@ -23,6 +23,7 @@ interface AdminUser {
     verifiedAt?: string;
     rejectedAt?: string;
     rejectionReason?: string;
+    autoRejected?: boolean;
   };
   blocked?: boolean;
   blockedAt?: string;
@@ -441,7 +442,12 @@ function MemberProfilePanel({
             {draft.blocked && <Badge label="Blocked" tone="red" />}
             {idStatus === 'verified' && <Badge label="ID verified" tone="green" />}
             {idStatus === 'uploaded' && <Badge label="ID pending" tone="amber" />}
-            {idStatus === 'rejected' && <Badge label="ID rejected" tone="red" />}
+            {idStatus === 'rejected' && (
+              <Badge
+                label={user.idVerification?.autoRejected ? 'ID auto-rejected' : 'ID rejected'}
+                tone="red"
+              />
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-3">

@@ -49,7 +49,11 @@ export default function IdVerificationUpload({
         credentials: 'include',
       });
       const raw = await res.text();
-      let data: { error?: string; message?: string } = {};
+      let data: {
+        error?: string;
+        message?: string;
+        idVerification?: { status?: string; rejectionReason?: string };
+      } = {};
       try {
         data = raw ? JSON.parse(raw) : {};
       } catch {
@@ -62,6 +66,9 @@ export default function IdVerificationUpload({
       }
       if (!res.ok) {
         setError(data.error || 'Upload failed');
+        if (data.idVerification?.status === 'rejected') {
+          onUpdated();
+        }
         return;
       }
       setMessage(data.message || 'ID uploaded successfully.');

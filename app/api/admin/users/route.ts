@@ -36,7 +36,10 @@ export interface AdminUserSummary {
   signupBonusClaimed?: boolean;
   emailVerified?: boolean;
   phoneVerified?: boolean;
-  idVerification?: Pick<UserIdVerification, 'status' | 'uploadedAt' | 'verifiedAt' | 'rejectedAt' | 'rejectionReason'>;
+  idVerification?: Pick<
+    UserIdVerification,
+    'status' | 'uploadedAt' | 'verifiedAt' | 'rejectedAt' | 'rejectionReason' | 'autoRejected'
+  >;
   blocked?: boolean;
   blockedAt?: string;
   blockReason?: string;
@@ -122,6 +125,7 @@ async function toAdminSummary(
           verifiedAt: user.idVerification.verifiedAt,
           rejectedAt: user.idVerification.rejectedAt,
           rejectionReason: user.idVerification.rejectionReason,
+          autoRejected: user.idVerification.autoRejected,
         }
       : user.idVerified
         ? { status: 'verified' as const }

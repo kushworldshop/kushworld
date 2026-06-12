@@ -102,6 +102,18 @@ export interface UserIdVerification {
   verifiedAt?: string;
   rejectedAt?: string;
   rejectionReason?: string;
+  autoRejected?: boolean;
+}
+
+export interface OrderIdVerification {
+  status: UserIdVerificationStatus;
+  uploadedAt?: string;
+  fileName?: string;
+  mimeType?: string;
+  verifiedAt?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  autoRejected?: boolean;
 }
 
 export const ID_EXT_BY_TYPE: Record<string, string> = {
@@ -119,6 +131,35 @@ export function getIdStoragePath(orderId: string, ext: string) {
 export function getUserIdStoragePath(userId: string, ext: string) {
   const safeId = userId.replace(/[^a-zA-Z0-9_-]/g, '');
   return path.join(ID_DIR, `user_${safeId}${ext}`);
+}
+
+export function buildIdVerificationRecord(
+  saved: { fileName: string; mimeType: string },
+  validation: { accepted: boolean; reason: string; method: string }
+): UserIdVerification {
+  const now = new Date().toISOString();
+  if (!validation.accepted) {
+    return {
+      status: 'rejected',
+      uploadedAt: now,
+      rejectedAt: now,
+      rejectionReason: validation.reason,
+      fileName: saved.fileName,
+      mimeType: saved.mimeType,
+      autoRejected: validation.method !== 'skipped',
+    };
+  }
+
+  return {
+    status: 'uploaded',
+    uploadedAt: now,
+    fileName: saved.fileName,
+    mimeType: saved.mimeType,
+    rejectedAt: undefined,
+    rejectionReason: undefined,
+    verifiedAt: undefined,
+    autoRejected: false,
+  };
 }
 
 export async function saveUserIdImage(

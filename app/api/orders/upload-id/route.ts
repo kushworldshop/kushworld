@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { buildAutoRejectionMessage, validateIdPhoto } from '@/lib/idPhotoValidation';
 import {
   MAX_ID_SIZE_BYTES,
   ensureDataDirs,
@@ -61,11 +62,37 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     await fs.writeFile(storagePath, buffer);
 
+    const validation = await validateIdPhoto(buffer, mimeType);
+    const now = new Date().toISOString();
+
+    if (!validation.accepted) {
+      orders[orderIndex].idVerification = {
+        status: 'rejected',
+        uploadedAt: now,
+        rejectedAt: now,
+        rejectionReason: validation.reason,
+        fileName: path.basename(storagePath),
+        mimeType,
+        autoRejected: validation.method !== 'skipped',
+      };
+      await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: buildAutoRejectionMessage(validation.reason),
+          idVerification: orders[orderIndex].idVerification,
+        },
+        { status: 400 }
+      );
+    }
+
     orders[orderIndex].idVerification = {
       status: 'uploaded',
-      uploadedAt: new Date().toISOString(),
+      uploadedAt: now,
       fileName: path.basename(storagePath),
       mimeType,
+      autoRejected: false,
     };
 
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
