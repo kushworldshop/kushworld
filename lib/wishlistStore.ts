@@ -6,6 +6,16 @@ interface WishlistItem {
   name: string;
   price: number;
   image: string;
+  category?: string;
+}
+
+function trackWishlistAdd(product: WishlistItem) {
+  if (typeof window === 'undefined') return;
+  fetch('/api/wishlist/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'add', ...product }),
+  }).catch(() => {});
 }
 
 interface WishlistStore {
@@ -21,12 +31,15 @@ export const useWishlistStore = create<WishlistStore>()(
     (set, get) => ({
       items: [],
 
-      addToWishlist: (product) =>
+      addToWishlist: (product) => {
+        const alreadyIn = get().items.some((item) => item.id === product.id);
+        if (!alreadyIn) {
+          trackWishlistAdd(product);
+        }
         set((state) => ({
-          items: state.items.some((item) => item.id === product.id)
-            ? state.items
-            : [...state.items, product],
-        })),
+          items: alreadyIn ? state.items : [...state.items, product],
+        }));
+      },
 
       removeFromWishlist: (id) =>
         set((state) => ({
