@@ -7,6 +7,7 @@ import {
   claimReferralPoints,
   getReferralLink,
   calculateReferralDiscount,
+  resolveReferralCommissionPercent,
   REFERRER_REWARD_POINTS,
 } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       referrerName: referral.referrerName,
       discount: settings.promoCustomerDiscount,
       discountResult,
-      commissionPercent: settings.referrerCommissionPercent,
+      commissionPercent: resolveReferralCommissionPercent(referral, settings.referrerCommissionPercent),
     });
   }
 

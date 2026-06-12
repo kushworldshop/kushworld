@@ -5,7 +5,7 @@ import {
   isSignupChannelVerified,
   resolveSignupVerificationChannel,
 } from '@/lib/signupBonus';
-import { createOrGetReferral, getReferralByEmail } from '@/lib/referrals';
+import { createOrGetReferral, getReferralByEmail, resolveReferralCommissionPercent } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
 import type { SpinPrize } from '@/lib/spinWheelTypes';
 
@@ -77,6 +77,7 @@ export interface PublicUserProfile {
     conversions: number;
     pointsEarned: number;
     commissionEarned: number;
+    commissionPercent: number;
     pendingPoints: number;
     pendingCommission: number;
   };
@@ -324,6 +325,7 @@ export async function getUserDashboard(userId: string): Promise<PublicUserProfil
       conversions: referral.conversions,
       pointsEarned,
       commissionEarned,
+      commissionPercent: resolveReferralCommissionPercent(referral, settings.referrerCommissionPercent),
       pendingPoints,
       pendingCommission: 0,
     };

@@ -16,7 +16,19 @@ export interface Referral {
   conversions: number;
   pointsClaimed: number;
   commissionEarned: number;
+  /** Per-code override; when unset, uses global referrerCommissionPercent from settings */
+  commissionPercent?: number;
   createdAt: string;
+}
+
+export function resolveReferralCommissionPercent(
+  referral: Pick<Referral, 'commissionPercent'>,
+  globalPercent: number
+): number {
+  if (referral.commissionPercent !== undefined && referral.commissionPercent !== null) {
+    return referral.commissionPercent;
+  }
+  return globalPercent;
 }
 
 function normalizeCode(code: string): string {
@@ -160,7 +172,8 @@ export async function recordReferralConversion(
   if (index === -1) return null;
 
   const settings = await getSettings();
-  const commission = calculateCommissionAmount(orderSubtotal, settings.referrerCommissionPercent);
+  const percent = resolveReferralCommissionPercent(referrals[index], settings.referrerCommissionPercent);
+  const commission = calculateCommissionAmount(orderSubtotal, percent);
 
   referrals[index].conversions += 1;
   referrals[index].commissionEarned = (referrals[index].commissionEarned ?? 0) + commission;
@@ -199,6 +212,32 @@ export async function updateReferralCode(
   referrals[userIndex].code = normalized;
   await writeReferrals(referrals);
   return { success: true, code: normalized };
+}
+
+export async function updateReferralCommissionByEmail(
+  email: string,
+  commissionPercent: number | null
+): Promise<{ success: boolean; referral?: Referral; error?: string }> {
+  const referrals = await readReferrals();
+  const normalized = email.trim().toLowerCase();
+  const index = referrals.findIndex((r) => r.referrerEmail.toLowerCase() === normalized);
+
+  if (index === -1) {
+    return { success: false, error: 'No promo code found for this customer' };
+  }
+
+  if (commissionPercent === null) {
+    delete referrals[index].commissionPercent;
+  } else {
+    const clamped = Math.min(50, Math.max(0, Number(commissionPercent)));
+    if (!Number.isFinite(clamped)) {
+      return { success: false, error: 'Invalid commission percent' };
+    }
+    referrals[index].commissionPercent = clamped;
+  }
+
+  await writeReferrals(referrals);
+  return { success: true, referral: referrals[index] };
 }
 
 export async function claimReferralPoints(email: string): Promise<{

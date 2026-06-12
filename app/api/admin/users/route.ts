@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
+import {
+  getReferralByEmail,
+  resolveReferralCommissionPercent,
+  updateReferralCommissionByEmail,
+} from '@/lib/referrals';
+import { getSettings } from '@/lib/settings';
 import { readUsers, writeUsers } from '@/lib/users';
 
 export interface AdminUserSummary {
@@ -17,9 +23,24 @@ export interface AdminUserSummary {
   bio?: string;
   avatarUrl?: string;
   referralCode?: string;
+  promoCode?: string;
+  commissionPercent?: number;
+  commissionPercentOverride?: number | null;
+  defaultCommissionPercent?: number;
+  commissionEarned?: number;
+  promoConversions?: number;
+  promoClicks?: number;
 }
 
-function toAdminSummary(user: Awaited<ReturnType<typeof readUsers>>[number]): AdminUserSummary {
+async function toAdminSummary(
+  user: Awaited<ReturnType<typeof readUsers>>[number]
+): Promise<AdminUserSummary> {
+  const settings = await getSettings();
+  const referral = await getReferralByEmail(user.email);
+  const effectiveCommission = referral
+    ? resolveReferralCommissionPercent(referral, settings.referrerCommissionPercent)
+    : settings.referrerCommissionPercent;
+
   return {
     id: user.id,
     email: user.email,
@@ -35,6 +56,16 @@ function toAdminSummary(user: Awaited<ReturnType<typeof readUsers>>[number]): Ad
     bio: user.bio,
     avatarUrl: user.avatarUrl,
     referralCode: user.referralCode,
+    promoCode: referral?.code ?? user.referralCode,
+    commissionPercent: effectiveCommission,
+    commissionPercentOverride:
+      referral?.commissionPercent !== undefined && referral?.commissionPercent !== null
+        ? referral.commissionPercent
+        : null,
+    defaultCommissionPercent: settings.referrerCommissionPercent,
+    commissionEarned: referral?.commissionEarned ?? 0,
+    promoConversions: referral?.conversions ?? 0,
+    promoClicks: referral?.clicks ?? 0,
   };
 }
 
@@ -45,19 +76,20 @@ export async function GET(request: NextRequest) {
 
   const search = request.nextUrl.searchParams.get('q')?.trim().toLowerCase() || '';
   const users = await readUsers();
-  const filtered = users
-    .filter((user) => {
-      if (!search) return true;
-      return (
-        user.email.toLowerCase().includes(search) ||
-        user.name.toLowerCase().includes(search) ||
-        (user.phone || '').includes(search)
-      );
-    })
-    .map(toAdminSummary)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const filtered = users.filter((user) => {
+    if (!search) return true;
+    return (
+      user.email.toLowerCase().includes(search) ||
+      user.name.toLowerCase().includes(search) ||
+      (user.phone || '').includes(search) ||
+      (user.referralCode || '').toLowerCase().includes(search)
+    );
+  });
 
-  return NextResponse.json({ success: true, users: filtered, total: filtered.length });
+  const summaries = await Promise.all(filtered.map(toAdminSummary));
+  summaries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return NextResponse.json({ success: true, users: summaries, total: summaries.length });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -96,8 +128,23 @@ export async function PATCH(request: NextRequest) {
         body.signupBonusClaimed !== undefined ? Boolean(body.signupBonusClaimed) : current.signupBonusClaimed,
     };
 
+    if (body.commissionPercent !== undefined) {
+      const useDefault = body.commissionPercent === '' || body.commissionPercent === null;
+      const commissionResult = await updateReferralCommissionByEmail(
+        users[index].email,
+        useDefault ? null : Number(body.commissionPercent)
+      );
+      if (!commissionResult.success) {
+        return NextResponse.json(
+          { success: false, error: commissionResult.error || 'Failed to update commission' },
+          { status: 400 }
+        );
+      }
+    }
+
     await writeUsers(users);
-    return NextResponse.json({ success: true, user: toAdminSummary(users[index]) });
+    const user = await toAdminSummary(users[index]);
+    return NextResponse.json({ success: true, user });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to update user' }, { status: 500 });
   }
