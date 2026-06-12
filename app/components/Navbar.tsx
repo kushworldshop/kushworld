@@ -79,13 +79,12 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               {!isMerchOnly && <Link href="/coa" className="hover:text-[#00ff9d] transition">COAs</Link>}
               <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
               <Link href="/cart" className="hover:text-[#00ff9d] transition">Cart</Link>
-              <Link href="/account" className="hover:text-[#00ff9d] transition">Account</Link>
             </div>
 
             <div className="flex items-center gap-4">
-              <button onClick={() => (window.location.href = '/account')} className="hover:text-[#00ff9d] transition text-lg">
+              <Link href="/account" aria-label="My account" className="hover:text-[#00ff9d] transition text-lg">
                 <i className="fa-solid fa-user" />
-              </button>
+              </Link>
 
               {isLoggedIn && (
                 <div className="hidden md:flex items-center gap-2 text-xs bg-zinc-900 px-3 py-1.5 rounded-xl">
@@ -125,7 +124,6 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               {!isMerchOnly && <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>}
               <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
               <Link href="/cart" className="block hover:text-[#00ff9d]">Cart</Link>
-              <Link href="/account" className="block hover:text-[#00ff9d]">My Account</Link>
             </div>
           )}
         </div>
