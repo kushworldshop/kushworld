@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useWishlistStore } from '@/lib/wishlistStore';
 import { useSiteContent } from '@/lib/useSiteContent';
+import SocialButtons from '@/app/components/SocialButtons';
 
 export default function Footer() {
   const wishlistCount = useWishlistStore((state) => state.items.length);
@@ -17,7 +18,8 @@ export default function Footer() {
               <img src={content.brand.logoUrl} alt={content.brand.name} className="h-10 w-auto" />
               <span className="text-2xl font-bold tracking-tight">{content.brand.name.toUpperCase()}</span>
             </div>
-            <p className="text-zinc-400 text-sm leading-relaxed max-w-xs">{content.footer.tagline}</p>
+            <p className="text-zinc-400 text-sm leading-relaxed max-w-xs mb-6">{content.footer.tagline}</p>
+            <SocialButtons size="sm" />
           </div>
 
           <div>

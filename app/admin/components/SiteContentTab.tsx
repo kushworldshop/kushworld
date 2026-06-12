@@ -214,9 +214,17 @@ export default function SiteContentTab({
             <Field label="Response time" value={content.contact.responseTime} onChange={(v) => onContentChange({ ...content, contact: { ...content.contact, responseTime: v } })} />
             <Field label="Contact page title" value={content.contact.pageTitle} onChange={(v) => onContentChange({ ...content, contact: { ...content.contact, pageTitle: v } })} />
             <Field label="Contact page subtitle" value={content.contact.pageSubtitle} onChange={(v) => onContentChange({ ...content, contact: { ...content.contact, pageSubtitle: v } })} multiline />
-            <Field label="Twitter URL" value={content.social.twitterUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, twitterUrl: v } })} />
-            <Field label="Twitter handle label" value={content.social.twitterHandle} onChange={(v) => onContentChange({ ...content, social: { ...content.social, twitterHandle: v } })} />
-            <Field label="Studio URL" value={content.social.studioUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, studioUrl: v } })} />
+            <h3 className="font-bold pt-2">Social links</h3>
+            <Field label="X (Twitter) URL" value={content.social.twitterUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, twitterUrl: v } })} />
+            <Field label="X handle label" value={content.social.twitterHandle} onChange={(v) => onContentChange({ ...content, social: { ...content.social, twitterHandle: v } })} />
+            <Field label="Kush World Studio URL" value={content.social.studioUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, studioUrl: v } })} />
+            <Field label="Discord URL" value={content.social.discordUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, discordUrl: v } })} />
+            <Field label="TikTok URL" value={content.social.tiktokUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, tiktokUrl: v } })} />
+            <Field label="Facebook URL" value={content.social.facebookUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, facebookUrl: v } })} />
+            <Field label="WhatsApp URL" value={content.social.whatsappUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, whatsappUrl: v } })} />
+            <Field label="Instagram URL" value={content.social.instagramUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, instagramUrl: v } })} />
+            <Field label="Twitch URL" value={content.social.twitchUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, twitchUrl: v } })} />
+            <Field label="Linktree URL" value={content.social.linktreeUrl} onChange={(v) => onContentChange({ ...content, social: { ...content.social, linktreeUrl: v } })} />
           </>
         )}
 

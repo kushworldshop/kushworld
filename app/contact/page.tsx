@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import SiteLayout from '@/app/components/SiteLayout';
+import SocialButtons from '@/app/components/SocialButtons';
 import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function Contact() {
@@ -24,6 +25,10 @@ export default function Contact() {
           <div>
             <p className="text-sm text-zinc-500">Response Time</p>
             <p>Within {content.contact.responseTime}</p>
+          </div>
+          <div>
+            <p className="text-sm text-zinc-500 mb-3">Follow Us</p>
+            <SocialButtons />
           </div>
         </div>
 

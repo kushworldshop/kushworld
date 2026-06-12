@@ -56,6 +56,13 @@ export interface SiteContent {
     twitterUrl: string;
     twitterHandle: string;
     studioUrl: string;
+    discordUrl: string;
+    tiktokUrl: string;
+    facebookUrl: string;
+    whatsappUrl: string;
+    instagramUrl: string;
+    twitchUrl: string;
+    linktreeUrl: string;
   };
   merchSection: {
     eyebrow: string;
@@ -145,9 +152,16 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     formSuccessMessage: "Message received! We'll get back to you soon.",
   },
   social: {
-    twitterUrl: 'https://x.com/KushWorld',
-    twitterHandle: '@KushWorld',
+    twitterUrl: 'https://x.com/kushworld',
+    twitterHandle: '@kushworld',
     studioUrl: 'https://kushworldstudio.co',
+    discordUrl: 'https://discord.gg/48HmtfDgQp',
+    tiktokUrl: 'https://www.tiktok.com/@kushwrldshop',
+    facebookUrl: 'https://www.facebook.com/profile.php?id=61585255765095&mibextid=wwXIfr',
+    whatsappUrl: 'https://wa.me/15627724106',
+    instagramUrl: 'https://www.instagram.com/kushworldllc',
+    twitchUrl: 'https://www.twitch.tv/kushworldshop',
+    linktreeUrl: 'https://linktr.ee/kushworldllc',
   },
   merchSection: {
     eyebrow: 'Kush World Studio',
@@ -183,7 +197,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     eyebrow: 'Verified on X · Hundreds More',
     title: 'What People Are Saying',
     ctaLabel: 'See All Reviews',
-    socialCtaLabel: 'Follow @KushWorld',
+    socialCtaLabel: 'Follow @kushworld',
   },
   faq: {
     title: 'Frequently Asked Questions',

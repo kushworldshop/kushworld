@@ -14,8 +14,15 @@ export const ORGANIZATION = {
   logo: DEFAULT_OG_IMAGE,
   email: 'kushworldshop@gmail.com',
   sameAs: [
-    'https://x.com/KushWorld',
+    'https://discord.gg/48HmtfDgQp',
     'https://kushworldstudio.co',
+    'https://x.com/kushworld',
+    'https://www.tiktok.com/@kushwrldshop',
+    'https://www.facebook.com/profile.php?id=61585255765095&mibextid=wwXIfr',
+    'https://wa.me/15627724106',
+    'https://www.instagram.com/kushworldllc',
+    'https://www.twitch.tv/kushworldshop',
+    'https://linktr.ee/kushworldllc',
   ],
 };
 
@@ -134,8 +141,8 @@ export function buildPageMetadata({
       title,
       description,
       images: [image.startsWith('http') ? image : absoluteUrl(image)],
-      creator: '@KushWorld',
-      site: '@KushWorld',
+      creator: '@kushworld',
+      site: '@kushworld',
     },
   };
 }
