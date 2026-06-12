@@ -5,6 +5,7 @@ import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAgeAccess } from '@/lib/useAgeAccess';
+import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const totalItems = useCartStore((state) => state.totalItems());
@@ -17,6 +18,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
   const { isMerchOnly } = useAgeAccess();
+  const { content } = useSiteContent();
 
   useEffect(() => {
     fetch('/api/users/me')
@@ -42,18 +44,20 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
 
   return (
     <>
-      <div className="bg-[#00ff9d] text-black py-3 text-center text-sm font-medium flex items-center justify-center gap-4 flex-wrap px-6">
-        {isMerchOnly
-          ? '👕 Studio merch — Custom made to order'
-          : '👕 Studio merch now in shop • Lab-tested hemp • Discreet shipping nationwide'}
-      </div>
+      {content.announcementBar.enabled && (
+        <div className="bg-[#00ff9d] text-black py-3 text-center text-sm font-medium flex items-center justify-center gap-4 flex-wrap px-6">
+          {isMerchOnly ? content.announcementBar.merchOnly : content.announcementBar.fullAccess}
+        </div>
+      )}
 
       <nav className="bg-black border-b border-zinc-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-20 gap-4">
             <Link href="/" className="flex items-center gap-3 flex-shrink-0">
-              <img src="/logo.png" alt="Kush World" className="h-12 w-auto" />
-              <span className="text-xl md:text-2xl font-bold text-white tracking-tight hidden sm:inline">KUSH WORLD</span>
+              <img src={content.brand.logoUrl} alt={content.brand.name} className="h-12 w-auto" />
+              <span className="text-xl md:text-2xl font-bold text-white tracking-tight hidden sm:inline">
+                {content.brand.name.toUpperCase()}
+              </span>
             </Link>
 
             <form onSubmit={handleSearch} className="hidden lg:flex flex-1 max-w-md mx-4">

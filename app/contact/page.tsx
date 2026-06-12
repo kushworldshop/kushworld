@@ -2,30 +2,37 @@
 
 import { useState } from 'react';
 import SiteLayout from '@/app/components/SiteLayout';
+import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function Contact() {
   const [submitted, setSubmitted] = useState(false);
+  const { content } = useSiteContent();
 
   return (
     <SiteLayout>
       <div className="max-w-xl mx-auto px-6 py-16">
-        <h1 className="text-4xl font-bold mb-4">Contact Us</h1>
-        <p className="text-zinc-400 mb-10">Questions about orders, COAs, or wholesale? Reach out.</p>
+        <h1 className="text-4xl font-bold mb-4">{content.contact.pageTitle}</h1>
+        <p className="text-zinc-400 mb-10">{content.contact.pageSubtitle}</p>
 
         <div className="bg-zinc-900 rounded-2xl p-8 border border-zinc-700 space-y-6 mb-10">
           <div>
             <p className="text-sm text-zinc-500">Email</p>
-            <a href="mailto:kushworldshop@gmail.com" className="text-[#00ff9d] text-lg">kushworldshop@gmail.com</a>
+            <a href={`mailto:${content.contact.email}`} className="text-[#00ff9d] text-lg">
+              {content.contact.email}
+            </a>
           </div>
           <div>
             <p className="text-sm text-zinc-500">Response Time</p>
-            <p>Within 24–48 hours</p>
+            <p>Within {content.contact.responseTime}</p>
           </div>
         </div>
 
         {!submitted ? (
           <form
-            onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSubmitted(true);
+            }}
             className="space-y-4"
           >
             <input required placeholder="Your name" className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4" />
@@ -36,7 +43,7 @@ export default function Contact() {
             </button>
           </form>
         ) : (
-          <p className="text-center text-[#00ff9d] py-8">Message received! We&apos;ll get back to you soon.</p>
+          <p className="text-center text-[#00ff9d] py-8">{content.contact.formSuccessMessage}</p>
         )}
       </div>
     </SiteLayout>

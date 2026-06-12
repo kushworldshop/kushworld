@@ -1,16 +1,18 @@
+'use client';
+
 import Link from 'next/link';
-import { HOME_FAQS } from '@/lib/seo';
+import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function SeoFaq() {
+  const { content } = useSiteContent();
+
   return (
     <section id="faq" className="py-20 bg-zinc-950 border-t border-zinc-900">
       <div className="max-w-3xl mx-auto px-6">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Frequently Asked Questions</h2>
-        <p className="text-zinc-400 text-center mb-12">
-          Everything you need to know about shopping at Kush World.
-        </p>
+        <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">{content.faq.title}</h2>
+        <p className="text-zinc-400 text-center mb-12">{content.faq.subtitle}</p>
         <div className="space-y-4">
-          {HOME_FAQS.map((faq) => (
+          {content.faq.items.map((faq) => (
             <details
               key={faq.question}
               className="group bg-zinc-900/60 border border-zinc-800 rounded-2xl p-6 open:border-[#00ff9d]/30"

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAdminAuthorized } from '@/lib/adminAuth';
+import { isAdminRequest } from '@/lib/adminAuth';
 import { getAdminProducts, updateProductOverride } from '@/lib/productCatalog';
 
 export async function GET(request: NextRequest) {
-  const password = request.headers.get('x-admin-password');
-  if (!isAdminAuthorized(password)) {
+  if (!isAdminRequest(request)) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -17,8 +16,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const password = request.headers.get('x-admin-password');
-  if (!isAdminAuthorized(password)) {
+  if (!isAdminRequest(request)) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 

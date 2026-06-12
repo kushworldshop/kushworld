@@ -2,23 +2,25 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { getHomepageMerch, getMerchSubcategoryLabel, MERCH_FREE_SHIPPING, STUDIO_URL } from '@/lib/merch';
+import { getHomepageMerch, getMerchSubcategoryLabel } from '@/lib/merch';
+import { useSiteContent } from '@/lib/useSiteContent';
 import { getProductSlug } from '@/lib/products';
 
 const featured = getHomepageMerch(4);
 
 export default function MerchSection() {
+  const { content } = useSiteContent();
+
   return (
     <section id="merch" className="py-20 md:py-28 bg-zinc-950">
       <div className="max-w-5xl mx-auto px-6">
         <div className="text-center mb-14">
           <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.25em] mb-4">
-            Kush World Studio
+            {content.merchSection.eyebrow}
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">Official Merch</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 tracking-tight">{content.merchSection.title}</h2>
           <p className="text-zinc-400 max-w-md mx-auto leading-relaxed">
-            A curated pick from our studio line — hoodies, tees, hats, and more.
-            Free shipping on orders ${MERCH_FREE_SHIPPING}+.
+            {content.merchSection.subtitle} Free shipping on orders ${content.shipping.freeShippingThresholdMerch}+.
           </p>
         </div>
 
@@ -58,15 +60,15 @@ export default function MerchSection() {
             href="/shop/merch"
             className="px-8 py-4 bg-[#00ff9d] text-black font-bold rounded-2xl hover:bg-[#00ff9d]/90 transition"
           >
-            View All Merch
+            {content.merchSection.ctaLabel}
           </Link>
           <a
-            href={STUDIO_URL}
+            href={content.social.studioUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-zinc-400 hover:text-[#00ff9d] transition"
           >
-            Visit kushworldstudio.co →
+            {content.merchSection.studioLinkLabel}
           </a>
         </div>
       </div>

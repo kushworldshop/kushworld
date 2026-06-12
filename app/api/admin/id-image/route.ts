@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'kushworld2026';
+import { isAdminRequest } from '@/lib/adminAuth';
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
 export async function GET(request: NextRequest) {
-  const adminPassword = request.headers.get('x-admin-password');
   const orderId = request.nextUrl.searchParams.get('orderId');
 
-  if (adminPassword !== ADMIN_PASSWORD) {
+  if (!isAdminRequest(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

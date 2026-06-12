@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { adminFetch } from '@/lib/adminClient';
+import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
+import SiteContentTab from '@/app/admin/components/SiteContentTab';
+import CustomersTab from '@/app/admin/components/CustomersTab';
 
-const ADMIN_PASSWORD = "kushworld2026"; // Change this anytime you want
-
-type AdminTab = 'orders' | 'promo' | 'products' | 'wishlist';
+type AdminTab = 'orders' | 'promo' | 'products' | 'wishlist' | 'site' | 'customers';
 
 interface WishlistStat {
   id: string;
@@ -57,35 +59,53 @@ export default function AdminOrders() {
   const [wishlistStats, setWishlistStats] = useState<WishlistStat[]>([]);
   const [wishlistMeta, setWishlistMeta] = useState({ totalWishlists: 0, uniqueProducts: 0, updatedAt: '' });
   const [loadingWishlist, setLoadingWishlist] = useState(false);
+  const [siteContent, setSiteContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
+
+  const bootstrapAdmin = () => {
+    loadOrders();
+    loadSettings();
+    loadProducts();
+    loadWishlistStats();
+    loadSiteContent();
+  };
 
   useEffect(() => {
-    if (localStorage.getItem('adminAuthenticated') === 'true') {
-      setAuthenticated(true);
-      loadOrders();
-      loadSettings();
-      loadProducts();
-      loadWishlistStats();
-    } else {
-      setLoading(false);
-    }
+    adminFetch('/api/admin/session')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated) {
+          setAuthenticated(true);
+          bootstrapAdmin();
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(() => setLoading(false));
   }, []);
 
-  const handleLogin = () => {
-    if (passwordInput === ADMIN_PASSWORD) {
-      localStorage.setItem('adminAuthenticated', 'true');
+  const handleLogin = async () => {
+    setError('');
+    try {
+      const res = await adminFetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Incorrect password');
+        return;
+      }
       setAuthenticated(true);
       setError('');
-      loadOrders();
-      loadSettings();
-      loadProducts();
-      loadWishlistStats();
-    } else {
-      setError('Incorrect password');
+      bootstrapAdmin();
+    } catch {
+      setError('Login failed');
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('adminAuthenticated');
+  const logout = async () => {
+    await adminFetch('/api/admin/logout', { method: 'POST' });
     setAuthenticated(false);
     setPasswordInput('');
   };
@@ -103,11 +123,21 @@ export default function AdminOrders() {
     setLoading(false);
   };
 
+  const loadSiteContent = async () => {
+    try {
+      const res = await adminFetch('/api/admin/site-content');
+      if (res.ok) {
+        const data = await res.json();
+        setSiteContent({ ...DEFAULT_SITE_CONTENT, ...(data.content || {}) });
+      }
+    } catch (e) {
+      console.error('Failed to load site content');
+    }
+  };
+
   const loadSettings = async () => {
     try {
-      const res = await fetch('/api/admin/settings', {
-        headers: { 'x-admin-password': ADMIN_PASSWORD },
-      });
+      const res = await adminFetch('/api/admin/settings');
       if (res.ok) {
         const data = await res.json();
         setSettings(data.settings);
@@ -120,9 +150,7 @@ export default function AdminOrders() {
   const loadProducts = async () => {
     setLoadingProducts(true);
     try {
-      const res = await fetch('/api/admin/products', {
-        headers: { 'x-admin-password': ADMIN_PASSWORD },
-      });
+      const res = await adminFetch('/api/admin/products');
       if (res.ok) {
         const data = await res.json();
         setAdminProducts(data.products || []);
@@ -151,9 +179,7 @@ export default function AdminOrders() {
   const loadWishlistStats = async () => {
     setLoadingWishlist(true);
     try {
-      const res = await fetch('/api/admin/wishlist-stats', {
-        headers: { 'x-admin-password': ADMIN_PASSWORD },
-      });
+      const res = await adminFetch('/api/admin/wishlist-stats');
       if (res.ok) {
         const data = await res.json();
         setWishlistStats(data.products || []);
@@ -178,9 +204,8 @@ export default function AdminOrders() {
       formData.append('productId', product.id);
       formData.append('image', file);
 
-      const res = await fetch('/api/admin/products/upload', {
+      const res = await adminFetch('/api/admin/products/upload', {
         method: 'POST',
-        headers: { 'x-admin-password': ADMIN_PASSWORD },
         body: formData,
       });
       const data = await res.json();
@@ -208,11 +233,10 @@ export default function AdminOrders() {
     setSavingProductId(product.id);
     setProductsMessage('');
     try {
-      const res = await fetch('/api/admin/products', {
+      const res = await adminFetch('/api/admin/products', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-password': ADMIN_PASSWORD,
         },
         body: JSON.stringify({
           id: product.id,
@@ -246,11 +270,10 @@ export default function AdminOrders() {
     setSavingSettings(true);
     setSettingsMessage('');
     try {
-      const res = await fetch('/api/admin/settings', {
+      const res = await adminFetch('/api/admin/settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-password': ADMIN_PASSWORD,
         },
         body: JSON.stringify(settings),
       });
@@ -296,9 +319,7 @@ export default function AdminOrders() {
 
   const viewIdImage = async (orderId: string) => {
     try {
-      const res = await fetch(`/api/admin/id-image?orderId=${orderId}`, {
-        headers: { 'x-admin-password': ADMIN_PASSWORD },
-      });
+      const res = await adminFetch(`/api/admin/id-image?orderId=${orderId}`);
       if (!res.ok) {
         alert('No ID image found for this order');
         return;
@@ -379,7 +400,25 @@ export default function AdminOrders() {
           >
             Wishlist Insights
           </button>
+          <button
+            onClick={() => { setTab('site'); loadSiteContent(); }}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'site' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Site Content
+          </button>
+          <button
+            onClick={() => setTab('customers')}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'customers' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Customers
+          </button>
         </div>
+
+        {tab === 'site' && (
+          <SiteContentTab content={siteContent} onContentChange={setSiteContent} />
+        )}
+
+        {tab === 'customers' && <CustomersTab />}
 
         {tab === 'promo' && settings && (
           <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-10 max-w-2xl">

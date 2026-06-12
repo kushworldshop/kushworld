@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ReviewCard, { type ReviewCardData } from './ReviewCard';
 import { StarDisplay } from './StarRating';
+import { useSiteContent } from '@/lib/useSiteContent';
 
 interface ReviewStats {
   count: number;
@@ -11,6 +12,7 @@ interface ReviewStats {
 }
 
 export default function ReviewsSection() {
+  const { content } = useSiteContent();
   const [reviews, setReviews] = useState<ReviewCardData[]>([]);
   const [stats, setStats] = useState<ReviewStats>({ count: 0, average: 0 });
 
@@ -29,9 +31,9 @@ export default function ReviewsSection() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
           <div>
             <p className="text-[#00ff9d] text-sm font-medium uppercase tracking-widest mb-3">
-              Verified on X · Hundreds More
+              {content.reviewsSection.eyebrow}
             </p>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">What People Are Saying</h2>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">{content.reviewsSection.title}</h2>
             {stats.count > 0 && (
               <div className="flex items-center gap-3">
                 <StarDisplay rating={stats.average} />
@@ -46,15 +48,15 @@ export default function ReviewsSection() {
               href="/reviews"
               className="px-8 py-4 bg-[#00ff9d] text-black rounded-2xl font-bold text-center"
             >
-              See All Reviews
+              {content.reviewsSection.ctaLabel}
             </Link>
             <a
-              href="https://x.com/KushWorld"
+              href={content.social.twitterUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="px-8 py-4 border border-zinc-700 rounded-2xl font-bold text-center hover:border-[#00ff9d] transition"
             >
-              Follow @KushWorld
+              {content.reviewsSection.socialCtaLabel}
             </a>
           </div>
         </div>
