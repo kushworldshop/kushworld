@@ -7,12 +7,14 @@ import SiteLayout from '@/app/components/SiteLayout';
 import { products, getCoaPdfPath, getProductSlug } from '@/lib/products';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 
+const hempProducts = products.filter((product) => product.category !== 'merch');
+
 export default function CoaPage() {
   const { isMerchOnly, ready } = useAgeAccess();
   const [availability, setAvailability] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    products.forEach(async (product) => {
+    hempProducts.forEach(async (product) => {
       const path = getCoaPdfPath(product);
       try {
         const res = await fetch(path, { method: 'HEAD' });
@@ -44,11 +46,11 @@ export default function CoaPage() {
       <div className="max-w-7xl mx-auto px-6 py-16">
         <h1 className="text-5xl font-bold mb-4">Certificates of Analysis</h1>
         <p className="text-zinc-400 mb-12 max-w-2xl">
-          Every Kush World product is lab tested. Download the COA (Certificate of Analysis) for full potency and purity results.
+          Every Kush World hemp product is lab tested. Download the COA (Certificate of Analysis) for full potency and purity results.
         </p>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => {
+          {hempProducts.map((product) => {
             const coaPath = getCoaPdfPath(product);
             const available = availability[product.id];
 
