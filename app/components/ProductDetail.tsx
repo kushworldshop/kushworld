@@ -7,10 +7,12 @@ import { useCartStore } from '@/lib/cartStore';
 import {
   getCoaPdfPath,
   getProductDescription,
+  getProductSlug,
   getTierPricing,
   isProductInStock,
   type Product,
 } from '@/lib/products';
+import GrokChat from '@/app/components/GrokChat';
 import { getMerchSubcategoryLabel, MERCH_FREE_SHIPPING } from '@/lib/merch';
 import { getTierPrice } from '@/lib/checkout';
 import {
@@ -257,6 +259,24 @@ export default function ProductDetail({ product }: { product: Product }) {
 
         {features.customerReviews.enabled && (
           <ProductReviews productId={product.id} productName={product.name} />
+        )}
+
+        {features.grokAssistant.enabled && (
+          <div className="mt-10">
+            <GrokChat
+              mode="product"
+              productSlug={getProductSlug(product)}
+              title="Ask Grok about this product"
+              subtitle="Questions about this item, COAs, sizing, or how it fits your order."
+              placeholder={`Ask about ${product.name}...`}
+              suggestedPrompts={[
+                'Is this lab tested?',
+                'What are the effects?',
+                'Any volume discounts?',
+                'Shipping time for this item?',
+              ]}
+            />
+          </div>
         )}
       </div>
 

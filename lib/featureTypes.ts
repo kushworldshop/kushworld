@@ -59,6 +59,7 @@ export interface SiteFeatures {
   auctions: FeatureToggle;
   raffles: FeatureToggle;
   mysteryBoxes: FeatureToggle;
+  grokAssistant: FeatureToggle;
 }
 
 export const DEFAULT_SITE_FEATURES: SiteFeatures = {
@@ -119,6 +120,7 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
   auctions: { enabled: false },
   raffles: { enabled: false },
   mysteryBoxes: { enabled: false },
+  grokAssistant: { enabled: true },
 };
 
 export type FeaturePatch = {

@@ -389,6 +389,12 @@ export default function FeaturesTab({
               checked={features.idVerification.enabled}
               onChange={(enabled) => patchFeatures({ idVerification: { enabled } })}
             />
+            <Toggle
+              label="Grok AI assistant"
+              description="Support chat on Contact, product Q&A, admin tools, and content drafting. Requires XAI_API_KEY on server."
+              checked={features.grokAssistant.enabled}
+              onChange={(enabled) => patchFeatures({ grokAssistant: { enabled } })}
+            />
           </>
         )}
 

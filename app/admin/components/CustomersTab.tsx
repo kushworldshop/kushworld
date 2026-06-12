@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { adminFetch } from '@/lib/adminClient';
+import GrokChat from '@/app/components/GrokChat';
 import type { UserSocials } from '@/lib/users';
 
 interface AdminUser {
@@ -25,6 +26,7 @@ interface AdminUser {
     rejectionReason?: string;
     autoRejected?: boolean;
   };
+  orderCount: number;
   blocked?: boolean;
   blockedAt?: string;
   blockReason?: string;
@@ -39,7 +41,6 @@ interface AdminUser {
   };
   promoCode?: string;
   referralLink?: string;
-  orderCount: number;
   commissionPercent?: number;
   commissionPercentOverride?: number | null;
   defaultCommissionPercent?: number;
@@ -523,7 +524,34 @@ function MemberProfilePanel({
             Approve ID
           </button>
         </div>
-        <div className="flex flex-wrap gap-2 items-end">
+        <GrokChat
+          useAdminAuth
+          mode="admin"
+          adminTask="ID verification and member support"
+          adminContext={{
+            memberName: user.name,
+            email: user.email,
+            phone: user.phone,
+            idStatus,
+            idRejectionReason: user.idVerification?.rejectionReason,
+            autoRejected: user.idVerification?.autoRejected,
+            orders: user.orderCount,
+            loyaltyPoints: draft.loyaltyPoints,
+            emailVerified: draft.emailVerified,
+            phoneVerified: draft.phoneVerified,
+          }}
+          title="Grok Admin Assist"
+          subtitle="Draft rejection messages or get a quick member summary."
+          placeholder="Draft a polite ID rejection because the photo is blurry..."
+          suggestedPrompts={[
+            'Summarize this member in 3 bullets',
+            'Draft ID rejection — photo is too blurry',
+            'Draft ID rejection — not a government ID',
+          ]}
+          onContentGenerated={(text) => setRejectReason(text)}
+        />
+
+        <div className="flex flex-wrap gap-2 items-end mt-4">
           <div className="flex-1 min-w-[200px]">
             <Field
               label="Rejection reason (optional)"

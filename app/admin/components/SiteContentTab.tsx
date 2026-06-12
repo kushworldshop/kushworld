@@ -5,6 +5,7 @@ import { adminFetch } from '@/lib/adminClient';
 import { invalidateSiteContentCache } from '@/lib/useSiteContent';
 import type { FaqItem, SiteContent } from '@/lib/siteContentTypes';
 import ShopNavigationEditor from '@/app/admin/components/ShopNavigationEditor';
+import GrokChat from '@/app/components/GrokChat';
 
 type SectionKey =
   | 'brand'
@@ -308,6 +309,33 @@ export default function SiteContentTab({
               </div>
             ))}
           </>
+        )}
+
+        {content.features.grokAssistant.enabled && (
+          <GrokChat
+            useAdminAuth
+            mode="content"
+            contentType={section}
+            existingText={
+              section === 'policies'
+                ? content.policies.privacy.body
+                : section === 'contact'
+                  ? `${content.contact.pageTitle}\n${content.contact.pageSubtitle}`
+                  : section === 'homepage'
+                    ? content.faq.items.map((item) => `${item.question}\n${item.answer}`).join('\n\n')
+                    : section === 'brand'
+                      ? `${content.brand.name}\n${content.brand.tagline}`
+                      : ''
+            }
+            title="Grok Content Assistant"
+            subtitle="Draft or improve copy for the section you are editing. Paste Grok's output into the fields above, then Save."
+            placeholder="Write a clearer FAQ answer about discreet shipping..."
+            suggestedPrompts={[
+              'Improve the FAQ answers for clarity',
+              'Draft a friendlier contact page subtitle',
+              'Write a shipping policy paragraph about discreet packaging',
+            ]}
+          />
         )}
 
         <button onClick={save} disabled={saving} className="bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold disabled:opacity-50">

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import SiteLayout from '@/app/components/SiteLayout';
 import SocialButtons from '@/app/components/SocialButtons';
+import GrokChat from '@/app/components/GrokChat';
 import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function Contact() {
@@ -31,6 +32,23 @@ export default function Contact() {
             <SocialButtons />
           </div>
         </div>
+
+        {content.features.grokAssistant.enabled && (
+          <div className="mb-10">
+            <GrokChat
+              mode="support"
+              title="Ask Grok"
+              subtitle="Instant answers about orders, shipping, ID verification, loyalty points, and more."
+              placeholder="e.g. How does ID verification work?"
+              suggestedPrompts={[
+                'How long does shipping take?',
+                'What payment methods do you accept?',
+                'How do loyalty points work?',
+                'Why was my ID rejected?',
+              ]}
+            />
+          </div>
+        )}
 
         {!submitted ? (
           <form
