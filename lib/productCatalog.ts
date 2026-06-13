@@ -182,7 +182,20 @@ export async function updateProductOverride(
     else delete next.isNew;
   }
 
-  const cleaned = Object.fromEntries(
+  const cleaned = cleanOverrideForStorage(base, next);
+
+  if (Object.keys(cleaned).length === 0) {
+    delete overrides[id];
+  } else {
+    overrides[id] = cleaned;
+  }
+
+  await writeProductOverrides(overrides);
+  return mergeProduct(base, overrides[id]);
+}
+
+function cleanOverrideForStorage(base: Product, next: ProductOverride): ProductOverride {
+  return Object.fromEntries(
     Object.entries(next).filter(([key, value]) => {
       if (value === undefined || value === '') return false;
       if (key === 'hidden') return value === true;
@@ -197,15 +210,38 @@ export async function updateProductOverride(
       return value !== baseValue;
     })
   ) as ProductOverride;
+}
 
-  if (Object.keys(cleaned).length === 0) {
-    delete overrides[id];
-  } else {
-    overrides[id] = cleaned;
+export async function setProductsHidden(ids: string[], hidden: boolean): Promise<number> {
+  const uniqueIds = [...new Set(ids)];
+  const overrides = await readProductOverrides();
+  let updated = 0;
+
+  for (const id of uniqueIds) {
+    const base = baseProducts.find((product) => product.id === id);
+    if (!base) continue;
+
+    const merged = mergeProduct(base, overrides[id]);
+    if (isProductHidden(merged) === hidden) continue;
+
+    const next: ProductOverride = { ...(overrides[id] ?? {}) };
+    if (hidden) next.hidden = true;
+    else delete next.hidden;
+
+    const cleaned = cleanOverrideForStorage(base, next);
+    if (Object.keys(cleaned).length === 0) {
+      delete overrides[id];
+    } else {
+      overrides[id] = cleaned;
+    }
+    updated += 1;
   }
 
-  await writeProductOverrides(overrides);
-  return mergeProduct(base, overrides[id]);
+  if (updated > 0) {
+    await writeProductOverrides(overrides);
+  }
+
+  return updated;
 }
 
 function sanitizeOptionGroups(groups: ProductOptionGroup[]): ProductOptionGroup[] {

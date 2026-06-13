@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { getAdminProducts, updateProductOverride } from '@/lib/productCatalog';
+import { getAdminProducts, setProductsHidden, updateProductOverride } from '@/lib/productCatalog';
 
 export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {
@@ -24,6 +24,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const {
       id,
+      ids,
       name,
       price,
       cost,
@@ -40,6 +41,16 @@ export async function PATCH(request: NextRequest) {
       bestSeller,
       isNew,
     } = body;
+
+    if (Array.isArray(ids) && typeof hidden === 'boolean') {
+      const productIds = ids.filter((value): value is string => typeof value === 'string' && value.length > 0);
+      if (productIds.length === 0) {
+        return NextResponse.json({ success: false, error: 'Product ids required' }, { status: 400 });
+      }
+
+      const updated = await setProductsHidden(productIds, hidden);
+      return NextResponse.json({ success: true, updated, hidden });
+    }
 
     if (!id || typeof id !== 'string') {
       return NextResponse.json({ success: false, error: 'Product id required' }, { status: 400 });

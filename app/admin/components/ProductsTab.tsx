@@ -80,6 +80,7 @@ export default function ProductsTab() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
   const [togglingVisibilityId, setTogglingVisibilityId] = useState<string | null>(null);
+  const [bulkVisibility, setBulkVisibility] = useState<'hide' | 'unhide' | null>(null);
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const [siteContent, setSiteContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
 
@@ -157,6 +158,25 @@ export default function ProductsTab() {
     () => Object.keys(edits).filter((id) => products.some((product) => product.id === id)),
     [edits, products]
   );
+
+  const hideableCount = useMemo(
+    () => filteredProducts.filter((product) => !product.hidden).length,
+    [filteredProducts]
+  );
+
+  const unhideableCount = useMemo(
+    () => filteredProducts.filter((product) => product.hidden).length,
+    [filteredProducts]
+  );
+
+  const bulkVisibilityLabel = useMemo(() => {
+    const parts: string[] = [];
+    if (search.trim()) parts.push(`matching "${search.trim()}"`);
+    if (category !== 'all') parts.push(`in ${category}`);
+    if (visibilityFilter === 'visible') parts.push('currently visible');
+    if (visibilityFilter === 'hidden') parts.push('currently hidden');
+    return parts.length > 0 ? parts.join(', ') : 'all products';
+  }, [search, category, visibilityFilter]);
 
   const getDraft = (product: AdminProduct) => buildProductDraft(product, edits);
 
@@ -271,6 +291,48 @@ export default function ProductsTab() {
     setSavingAll(false);
   };
 
+  const setBulkVisibilityForFiltered = async (hidden: boolean) => {
+    const targets = filteredProducts.filter((product) => product.hidden !== hidden);
+    if (targets.length === 0) {
+      setMessage(hidden ? 'No visible products to hide' : 'No hidden products to unhide');
+      return;
+    }
+
+    const action = hidden ? 'hide' : 'unhide';
+    const confirmed = window.confirm(
+      `${hidden ? 'Hide' : 'Unhide'} ${targets.length} product${targets.length === 1 ? '' : 's'} (${bulkVisibilityLabel})?`
+    );
+    if (!confirmed) return;
+
+    setBulkVisibility(hidden ? 'hide' : 'unhide');
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: targets.map((product) => product.id),
+          hidden,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage(
+          `${hidden ? 'Hidden' : 'Unhidden'} ${data.updated ?? targets.length} product${
+            (data.updated ?? targets.length) === 1 ? '' : 's'
+          }`
+        );
+        await loadProducts();
+      } else {
+        setMessage(data.error || `Failed to ${action} products`);
+      }
+    } catch {
+      setMessage(`Failed to ${action} products`);
+    } finally {
+      setBulkVisibility(null);
+    }
+  };
+
   const toggleVisibility = async (product: AdminProduct) => {
     const nextHidden = !product.hidden;
     setTogglingVisibilityId(product.id);
@@ -335,15 +397,29 @@ export default function ProductsTab() {
           {dirtyIds.length > 0 && (
             <button
               onClick={saveAllDirty}
-              disabled={savingAll}
+              disabled={savingAll || bulkVisibility !== null}
               className="bg-[#00ff9d] text-black px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
             >
               {savingAll ? 'Saving all...' : `Save ${dirtyIds.length} change${dirtyIds.length === 1 ? '' : 's'}`}
             </button>
           )}
           <button
+            onClick={() => setBulkVisibilityForFiltered(true)}
+            disabled={loading || bulkVisibility !== null || hideableCount === 0}
+            className="bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
+          >
+            {bulkVisibility === 'hide' ? 'Hiding...' : `Hide all (${hideableCount})`}
+          </button>
+          <button
+            onClick={() => setBulkVisibilityForFiltered(false)}
+            disabled={loading || bulkVisibility !== null || unhideableCount === 0}
+            className="bg-zinc-800 hover:bg-zinc-700 px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
+          >
+            {bulkVisibility === 'unhide' ? 'Unhiding...' : `Unhide all (${unhideableCount})`}
+          </button>
+          <button
             onClick={loadProducts}
-            disabled={loading}
+            disabled={loading || bulkVisibility !== null}
             className="bg-zinc-800 hover:bg-zinc-700 px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
           >
             {loading ? 'Refreshing...' : 'Refresh'}
