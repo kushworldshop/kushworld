@@ -5,6 +5,7 @@ import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
+import type { ReferralNotification } from '@/lib/referralNotifications';
 import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { useSiteContent } from '@/lib/useSiteContent';
 import IdVerificationUpload from '@/app/components/IdVerificationUpload';
@@ -70,6 +71,7 @@ export default function Account() {
   const [copied, setCopied] = useState(false);
   const [copiedPromo, setCopiedPromo] = useState(false);
   const [promoTerms, setPromoTerms] = useState<PromoTerms | null>(null);
+  const [markingNotificationsRead, setMarkingNotificationsRead] = useState(false);
   const loadProfile = async () => {
     const res = await fetch('/api/users/me');
     if (!res.ok) {
@@ -123,6 +125,37 @@ export default function Account() {
       setTab(tabParam);
     }
   }, []);
+
+  const markReferralNotificationsRead = async (all = true) => {
+    setMarkingNotificationsRead(true);
+    try {
+      const res = await fetch('/api/users/me/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUser((prev) =>
+          prev
+            ? {
+                ...prev,
+                unreadReferralNotificationCount: data.unreadCount ?? 0,
+                referralNotifications: prev.referralNotifications?.map((item) => ({ ...item, read: true })),
+              }
+            : prev
+        );
+      }
+    } finally {
+      setMarkingNotificationsRead(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'referrals' && (user?.unreadReferralNotificationCount ?? 0) > 0) {
+      markReferralNotificationsRead(true);
+    }
+  }, [tab, user?.unreadReferralNotificationCount]);
 
   const handleAuth = async () => {
     setMessage('');
@@ -383,6 +416,10 @@ export default function Account() {
   }
 
   const stats = user.referralStats;
+  const referralNotifications = user.referralNotifications ?? [];
+  const unreadReferralNotifications = user.unreadReferralNotificationCount ?? 0;
+  const effectiveCommissionPercent = stats?.commissionPercent ?? promoTerms?.referrerCommissionPercent ?? 5;
+  const effectiveRewardPoints = promoTerms?.referrerRewardPoints ?? 100;
 
   return (
     <SiteLayout>
@@ -404,6 +441,21 @@ export default function Account() {
           <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-2xl px-5 py-3 mb-6 text-sm text-yellow-200">
             {user.lockedLoyaltyPoints.toLocaleString()} signup bonus points are locked until you complete your first purchase.
           </div>
+        )}
+
+        {unreadReferralNotifications > 0 && tab !== 'referrals' && features.referrals.enabled && (
+          <button
+            type="button"
+            onClick={() => setTab('referrals')}
+            className="w-full text-left bg-[#00ff9d]/10 border border-[#00ff9d]/30 rounded-2xl px-5 py-4 mb-6 text-sm hover:bg-[#00ff9d]/15 transition"
+          >
+            <p className="font-medium text-[#00ff9d]">
+              {unreadReferralNotifications} referral update{unreadReferralNotifications === 1 ? '' : 's'}
+            </p>
+            <p className="text-zinc-300 mt-1">
+              Your promo code or commission settings changed — view details in Referrals.
+            </p>
+          </button>
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
@@ -429,11 +481,16 @@ export default function Account() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-5 py-2 rounded-full text-sm font-medium capitalize transition ${
+              className={`px-5 py-2 rounded-full text-sm font-medium capitalize transition relative ${
                 tab === t ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
               }`}
             >
               {t}
+              {t === 'referrals' && unreadReferralNotifications > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-amber-400 text-black text-[10px] font-bold flex items-center justify-center">
+                  {unreadReferralNotifications > 9 ? '9+' : unreadReferralNotifications}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -637,8 +694,8 @@ export default function Account() {
               Share your personal promo code at checkout. Friends get{' '}
               <strong>${promoTerms?.customerDiscount ?? 10} off</strong>
               {promoTerms?.firstOrderOnly ? ' their first order' : ''}. You earn{' '}
-              <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on the order subtotal plus{' '}
-              <strong>{promoTerms?.referrerRewardPoints ?? 100} loyalty points</strong> per use.
+              <strong>{effectiveCommissionPercent}% commission</strong> on the order subtotal plus{' '}
+              <strong>{effectiveRewardPoints} loyalty points</strong> per use.
             </p>
 
             {user.referralCode && (
@@ -679,6 +736,12 @@ export default function Account() {
                 {stats?.pendingPoints} referral points pending — they credit automatically when friends complete orders.
               </p>
             )}
+
+            <ReferralUpdatesPanel
+              notifications={referralNotifications}
+              markingRead={markingNotificationsRead}
+              onMarkRead={() => markReferralNotificationsRead(true)}
+            />
           </div>
         )}
 
@@ -726,6 +789,78 @@ export default function Account() {
         )}
       </div>
     </SiteLayout>
+  );
+}
+
+function ReferralUpdatesPanel({
+  notifications,
+  markingRead,
+  onMarkRead,
+}: {
+  notifications: ReferralNotification[];
+  markingRead: boolean;
+  onMarkRead: () => void;
+}) {
+  if (notifications.length === 0) {
+    return (
+      <div className="border-t border-zinc-800 pt-6">
+        <h3 className="text-lg font-semibold mb-2">Program updates</h3>
+        <p className="text-sm text-zinc-500">
+          When your promo code, commission rate, or referral rewards change, updates appear here and we email you for admin changes.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-zinc-800 pt-6 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold">Program updates</h3>
+        {notifications.some((item) => !item.read) && (
+          <button
+            type="button"
+            onClick={onMarkRead}
+            disabled={markingRead}
+            className="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg disabled:opacity-50"
+          >
+            {markingRead ? 'Updating...' : 'Mark all read'}
+          </button>
+        )}
+      </div>
+      <div className="space-y-3">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`rounded-2xl border p-4 ${
+              notification.read
+                ? 'border-zinc-800 bg-black/40'
+                : 'border-[#00ff9d]/30 bg-[#00ff9d]/5'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium text-sm">{notification.title}</p>
+                <p className="text-sm text-zinc-400 mt-1">{notification.message}</p>
+              </div>
+              {!notification.read && (
+                <span className="text-[10px] uppercase tracking-wide text-[#00ff9d] flex-shrink-0">New</span>
+              )}
+            </div>
+            <p className="text-xs text-zinc-500 mt-3">
+              {new Date(notification.createdAt).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+              {notification.meta?.changedBy === 'admin' && ' · Updated by Kush World'}
+              {notification.meta?.changedBy === 'customer' && ' · Updated by you'}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

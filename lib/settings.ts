@@ -1,5 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { notifyGlobalProgramUpdated } from '@/lib/referralNotifications';
+import { readReferrals } from '@/lib/referrals';
 
 const SETTINGS_FILE = path.join(process.cwd(), 'data', 'settings.json');
 
@@ -64,6 +66,43 @@ export async function updateSettings(
   };
 
   await fs.writeFile(SETTINGS_FILE, JSON.stringify(next, null, 2));
+
+  const commissionChanged =
+    next.referrerCommissionPercent !== current.referrerCommissionPercent;
+  const rewardPointsChanged = next.referrerRewardPoints !== current.referrerRewardPoints;
+
+  if (commissionChanged || rewardPointsChanged) {
+    const referrals = await readReferrals();
+    for (const referral of referrals) {
+      const usesDefaultCommission =
+        referral.commissionPercent === undefined || referral.commissionPercent === null;
+      const usesDefaultRewardPoints =
+        referral.rewardPointsOverride === undefined || referral.rewardPointsOverride === null;
+
+      if (commissionChanged && usesDefaultCommission) {
+        await notifyGlobalProgramUpdated(
+          referral.referrerEmail,
+          `Site-wide referral commission changed from ${current.referrerCommissionPercent}% to ${next.referrerCommissionPercent}%. This applies to your promo code.`,
+          {
+            oldValue: current.referrerCommissionPercent,
+            newValue: next.referrerCommissionPercent,
+          }
+        );
+      }
+
+      if (rewardPointsChanged && usesDefaultRewardPoints) {
+        await notifyGlobalProgramUpdated(
+          referral.referrerEmail,
+          `Site-wide referral reward points changed from ${current.referrerRewardPoints} to ${next.referrerRewardPoints} per conversion. This applies to your promo code.`,
+          {
+            oldValue: current.referrerRewardPoints,
+            newValue: next.referrerRewardPoints,
+          }
+        );
+      }
+    }
+  }
+
   return next;
 }
 

@@ -252,7 +252,8 @@ export async function PATCH(request: NextRequest) {
       const useDefault = body.commissionPercent === '' || body.commissionPercent === null;
       const commissionResult = await updateReferralCommissionByEmail(
         users[index].email,
-        useDefault ? null : Number(body.commissionPercent)
+        useDefault ? null : Number(body.commissionPercent),
+        { changedBy: 'admin' }
       );
       if (!commissionResult.success) {
         return NextResponse.json(
@@ -266,7 +267,8 @@ export async function PATCH(request: NextRequest) {
       const useDefault = body.referrerRewardPoints === '' || body.referrerRewardPoints === null;
       const rewardResult = await updateReferralRewardPointsByEmail(
         users[index].email,
-        useDefault ? null : Number(body.referrerRewardPoints)
+        useDefault ? null : Number(body.referrerRewardPoints),
+        { changedBy: 'admin' }
       );
       if (!rewardResult.success) {
         return NextResponse.json(
@@ -283,7 +285,9 @@ export async function PATCH(request: NextRequest) {
       }
 
       await createOrGetReferral(users[index].name, users[index].email);
-      const codeResult = await updateReferralCode(users[index].email, trimmed, users[index].name);
+      const codeResult = await updateReferralCode(users[index].email, trimmed, users[index].name, {
+        changedBy: 'admin',
+      });
       if (!codeResult.success) {
         return NextResponse.json(
           { success: false, error: codeResult.error || 'Failed to update promo code' },

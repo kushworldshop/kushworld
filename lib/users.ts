@@ -11,6 +11,11 @@ import {
   resolveReferralCommissionPercent,
   resolveReferralRewardPoints,
 } from '@/lib/referrals';
+import {
+  getReferralNotificationsForEmail,
+  getUnreadReferralNotificationCount,
+  type ReferralNotification,
+} from '@/lib/referralNotifications';
 import { getSettings } from '@/lib/settings';
 import { markSpinHistoryUsed } from '@/lib/spinWheelHistory';
 import type { SpinPrize } from '@/lib/spinWheelTypes';
@@ -93,6 +98,8 @@ export interface PublicUserProfile {
     pendingPoints: number;
     pendingCommission: number;
   };
+  referralNotifications?: ReferralNotification[];
+  unreadReferralNotificationCount?: number;
 }
 
 async function ensureUsersFile() {
@@ -391,5 +398,15 @@ export async function getUserDashboard(userId: string): Promise<PublicUserProfil
     };
   }
 
-  return toPublicProfile(user, referralStats);
+  const [referralNotifications, unreadReferralNotificationCount] = await Promise.all([
+    getReferralNotificationsForEmail(user.email),
+    getUnreadReferralNotificationCount(user.email),
+  ]);
+
+  const profile = toPublicProfile(user, referralStats);
+  return {
+    ...profile,
+    referralNotifications,
+    unreadReferralNotificationCount,
+  };
 }

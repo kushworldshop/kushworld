@@ -2,6 +2,13 @@ import fs from 'fs/promises';
 import path from 'path';
 import { MIN_ORDER_AMOUNT } from '@/lib/checkout';
 import { REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
+import {
+  notifyCommissionRateUpdated,
+  notifyPromoCodeUpdated,
+  notifyReferralConversion,
+  notifyRewardPointsUpdated,
+  type ReferralChangeSource,
+} from '@/lib/referralNotifications';
 import { calculateCommissionAmount, getSettings } from '@/lib/settings';
 
 export { REFERRER_REWARD_POINTS };
@@ -75,7 +82,7 @@ async function ensureReferralsFile() {
   }
 }
 
-async function readReferrals(): Promise<Referral[]> {
+export async function readReferrals(): Promise<Referral[]> {
   await ensureReferralsFile();
   const data = await fs.readFile(REFERRALS_FILE, 'utf8');
   return JSON.parse(data);
@@ -191,13 +198,17 @@ export async function recordReferralConversion(
   referrals[index].commissionEarned = (referrals[index].commissionEarned ?? 0) + commission;
   await writeReferrals(referrals);
   console.log(`Promo conversion: ${normalized} -> order ${orderId} (+$${commission})`);
+
+  await notifyReferralConversion(referrals[index].referrerEmail, orderId, commission);
+
   return referrals[index];
 }
 
 export async function updateReferralCode(
   email: string,
   newCode: string,
-  referrerName?: string
+  referrerName?: string,
+  options?: { changedBy?: ReferralChangeSource }
 ): Promise<{ success: boolean; code?: string; error?: string }> {
   const normalized = normalizeCode(newCode);
   if (!/^[A-Z0-9-]{4,20}$/.test(normalized)) {
@@ -227,14 +238,20 @@ export async function updateReferralCode(
     return { success: false, error: 'That code conflicts with a site coupon' };
   }
 
+  const oldCode = referrals[userIndex].code;
   referrals[userIndex].code = normalized;
   await writeReferrals(referrals);
+
+  const changedBy = options?.changedBy ?? 'customer';
+  await notifyPromoCodeUpdated(normalizedEmail, oldCode, normalized, changedBy);
+
   return { success: true, code: normalized };
 }
 
 export async function updateReferralRewardPointsByEmail(
   email: string,
-  rewardPoints: number | null
+  rewardPoints: number | null,
+  options?: { changedBy?: ReferralChangeSource }
 ): Promise<{ success: boolean; referral?: Referral; error?: string }> {
   const referrals = await readReferrals();
   const normalized = email.trim().toLowerCase();
@@ -243,6 +260,8 @@ export async function updateReferralRewardPointsByEmail(
   if (index === -1) {
     return { success: false, error: 'No promo code found for this customer' };
   }
+
+  const oldOverride = referrals[index].rewardPointsOverride ?? null;
 
   if (rewardPoints === null) {
     delete referrals[index].rewardPointsOverride;
@@ -255,12 +274,22 @@ export async function updateReferralRewardPointsByEmail(
   }
 
   await writeReferrals(referrals);
+
+  const changedBy = options?.changedBy ?? 'admin';
+  await notifyRewardPointsUpdated(
+    normalized,
+    oldOverride,
+    referrals[index].rewardPointsOverride ?? null,
+    changedBy
+  );
+
   return { success: true, referral: referrals[index] };
 }
 
 export async function updateReferralCommissionByEmail(
   email: string,
-  commissionPercent: number | null
+  commissionPercent: number | null,
+  options?: { changedBy?: ReferralChangeSource }
 ): Promise<{ success: boolean; referral?: Referral; error?: string }> {
   const referrals = await readReferrals();
   const normalized = email.trim().toLowerCase();
@@ -269,6 +298,8 @@ export async function updateReferralCommissionByEmail(
   if (index === -1) {
     return { success: false, error: 'No promo code found for this customer' };
   }
+
+  const oldOverride = referrals[index].commissionPercent ?? null;
 
   if (commissionPercent === null) {
     delete referrals[index].commissionPercent;
@@ -281,6 +312,15 @@ export async function updateReferralCommissionByEmail(
   }
 
   await writeReferrals(referrals);
+
+  const changedBy = options?.changedBy ?? 'admin';
+  await notifyCommissionRateUpdated(
+    normalized,
+    oldOverride,
+    referrals[index].commissionPercent ?? null,
+    changedBy
+  );
+
   return { success: true, referral: referrals[index] };
 }
 

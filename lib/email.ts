@@ -210,3 +210,63 @@ View shipping status anytime: ${accountUrl}
     };
   }
 }
+
+export async function sendReferralProgramUpdateEmail(
+  to: string,
+  input: { name?: string; title: string; message: string }
+): Promise<EmailSendResult> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://kushworld.shop';
+  const accountUrl = `${siteUrl}/account?tab=referrals`;
+  const greeting = input.name?.trim() ? `Hi ${input.name.trim()},` : 'Hi there,';
+
+  const body = `${greeting}
+
+${input.title}
+
+${input.message}
+
+View your referral dashboard and full update history:
+${accountUrl}
+
+— Kush World Team`;
+
+  if (!RESEND_API_KEY) {
+    console.log(`[Email stub] To: ${to}\nSubject: ${input.title}\n${body}`);
+    return { sent: false, stub: true };
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to,
+        subject: `${input.title} — Kush World`,
+        text: body,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('[Resend] Referral update email failed:', res.status, errBody);
+      return {
+        sent: false,
+        stub: false,
+        error: 'Could not send referral update email.',
+      };
+    }
+
+    return { sent: true, stub: false };
+  } catch (err) {
+    console.error('[Resend] Referral update email error:', err);
+    return {
+      sent: false,
+      stub: false,
+      error: 'Could not send referral update email.',
+    };
+  }
+}

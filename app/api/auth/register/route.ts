@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (typeof promoCode === 'string' && promoCode.trim()) {
-      const codeResult = await updateReferralCode(user.email, promoCode.trim(), user.name);
+      const codeResult = await updateReferralCode(user.email, promoCode.trim(), user.name, {
+        changedBy: 'customer',
+      });
       if (!codeResult.success) {
         return NextResponse.json({ success: false, error: codeResult.error }, { status: 400 });
       }
