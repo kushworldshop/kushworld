@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
@@ -109,6 +109,7 @@ export default function ProductsTab() {
   const [bulkVisibility, setBulkVisibility] = useState<'hide' | 'unhide' | null>(null);
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const [siteContent, setSiteContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
+  const [descriptionMessage, setDescriptionMessage] = useState('');
 
   const loadProducts = async () => {
     setLoading(true);
@@ -664,6 +665,9 @@ export default function ProductsTab() {
               onSave={() => saveProduct(selectedProduct)}
               onToggleVisibility={() => toggleVisibility(selectedProduct)}
               onUploadImage={(file) => uploadImage(selectedProduct, file)}
+              grokEnabled={siteContent.features.grokAssistant.enabled}
+              descriptionMessage={descriptionMessage}
+              onDescriptionMessage={setDescriptionMessage}
             />
           )}
         </div>
@@ -684,6 +688,9 @@ function ProductDetailPanel({
   onSave,
   onToggleVisibility,
   onUploadImage,
+  grokEnabled,
+  descriptionMessage,
+  onDescriptionMessage,
 }: {
   product: AdminProduct;
   draft: ProductDraft;
@@ -692,6 +699,9 @@ function ProductDetailPanel({
   togglingVisibility: boolean;
   uploadingImage: boolean;
   siteContent: SiteContent;
+  grokEnabled: boolean;
+  descriptionMessage: string;
+  onDescriptionMessage: Dispatch<SetStateAction<string>>;
   onDraftChange: (
     field: keyof AdminProduct | 'trackInventory',
     value: string | number | boolean | ProductOptionGroup[]
@@ -700,7 +710,44 @@ function ProductDetailPanel({
   onToggleVisibility: () => void;
   onUploadImage: (file: File) => void;
 }) {
+  const [generatingDescription, setGeneratingDescription] = useState(false);
   const margin = getProductMargin(draft.price, draft.cost > 0 ? draft.cost : undefined);
+
+  const generateDescription = async () => {
+    if (!grokEnabled) {
+      onDescriptionMessage('Enable Grok in Admin → Features first.');
+      return;
+    }
+
+    setGeneratingDescription(true);
+    onDescriptionMessage('');
+    try {
+      const res = await adminFetch('/api/admin/products/description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          name: draft.name,
+          category: draft.category,
+          subcategory: draft.subcategory,
+          merchSubcategory: draft.merchSubcategory,
+          price: draft.price,
+          existingDescription: draft.description,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        onDescriptionMessage(data.error || 'Failed to generate description');
+        return;
+      }
+      onDraftChange('description', data.description);
+      onDescriptionMessage('Grok wrote a new SEO description — review and save when ready.');
+    } catch {
+      onDescriptionMessage('Failed to reach Grok. Try again.');
+    } finally {
+      setGeneratingDescription(false);
+    }
+  };
 
   return (
     <div>
@@ -877,9 +924,28 @@ function ProductDetailPanel({
           <textarea
             value={draft.description}
             onChange={(e) => onDraftChange('description', e.target.value)}
-            rows={3}
+            rows={6}
             className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
           />
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={generateDescription}
+              disabled={generatingDescription || !grokEnabled}
+              className="bg-[#00ff9d]/15 text-[#00ff9d] hover:bg-[#00ff9d]/25 border border-[#00ff9d]/40 px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {generatingDescription ? 'Grok is writing...' : '✦ Write SEO description with Grok'}
+            </button>
+            <p className="text-xs text-zinc-500 max-w-md">
+              Compliant hemp copy + SEO keywords (TVN-style). Review before saving — Grok does not auto-publish.
+            </p>
+          </div>
+          {descriptionMessage && (
+            <p className="text-xs text-[#00ff9d] mt-2">{descriptionMessage}</p>
+          )}
+          {!grokEnabled && (
+            <p className="text-xs text-amber-300 mt-2">Turn on Grok assistant in Features to use this.</p>
+          )}
         </div>
         <ProductOptionsEditor
           value={draft.optionGroups}
