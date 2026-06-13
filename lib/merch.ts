@@ -65,15 +65,19 @@ export function getHomepageMerch(limit = 4): MerchProduct[] {
   return getHomepageMerchFromProducts(merchProducts, limit);
 }
 
+export const MERCH_SUBCATEGORIES = [
+  { id: 'hoodies', label: 'Hoodies' },
+  { id: 'tees', label: 'T-Shirts' },
+  { id: 'headwear', label: 'Hats & Beanies' },
+  { id: 'accessories', label: 'Accessories' },
+  { id: 'apparel', label: 'Apparel' },
+  { id: 'home', label: 'Home & Decor' },
+  { id: 'merch', label: 'General Merch' },
+] as const;
+
+export type MerchSubcategoryId = (typeof MERCH_SUBCATEGORIES)[number]['id'];
+
 export function getMerchSubcategoryLabel(sub?: string): string {
-  const labels: Record<string, string> = {
-    hoodies: 'Hoodies',
-    tees: 'T-Shirts',
-    headwear: 'Hats & Beanies',
-    accessories: 'Accessories',
-    home: 'Home & Decor',
-    apparel: 'Apparel',
-    merch: 'Merch',
-  };
-  return labels[sub ?? ''] ?? 'Merch';
+  const match = MERCH_SUBCATEGORIES.find((item) => item.id === sub);
+  return match?.label ?? 'Merch';
 }

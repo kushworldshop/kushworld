@@ -163,6 +163,38 @@ export function getSubsectionsForProductCategory(
   return shopCategory?.subsections ?? [];
 }
 
+export function getProductCategoryLabel(nav: ShopNavigation, productCategory: string): string {
+  if (productCategory === 'merch') return 'Studio Merch';
+  const shopCategory = nav.categories.find((category) =>
+    category.productCategories.includes(productCategory)
+  );
+  return shopCategory?.label ?? productCategory;
+}
+
+export const ADMIN_PRODUCT_CATEGORY_TABS = [
+  { id: 'all', label: 'All' },
+  { id: 'merch', label: 'Merch' },
+  { id: 'vaporizers', label: 'Vaporizers' },
+  { id: 'concentrates', label: 'Concentrates' },
+  { id: 'flower', label: 'Flower' },
+  { id: 'edibles', label: 'Edibles' },
+  { id: 'pre-rolls', label: 'Pre Rolls' },
+  { id: 'accessories', label: 'Accessories' },
+  { id: 'mushrooms', label: 'Mushrooms' },
+] as const;
+
+export type AdminProductCategoryTabId = (typeof ADMIN_PRODUCT_CATEGORY_TABS)[number]['id'];
+
+export function productMatchesAdminCategoryTab(
+  product: Pick<Product, 'category'>,
+  tabId: AdminProductCategoryTabId
+): boolean {
+  if (tabId === 'all') return true;
+  if (tabId === 'merch') return product.category === 'merch';
+  if (tabId === 'vaporizers') return product.category === 'vapes';
+  return product.category === tabId;
+}
+
 export function getShopCategoryLabel(nav: ShopNavigation, categoryId: string): string {
   if (isMerchShopCategory(categoryId)) return 'Studio Merch';
   return getShopCategoryById(nav, categoryId)?.label ?? categoryId;

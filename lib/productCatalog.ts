@@ -23,6 +23,7 @@ export type ProductOverride = Partial<
     | 'hidden'
     | 'category'
     | 'subcategory'
+    | 'merchSubcategory'
     | 'compareAtPrice'
     | 'featured'
     | 'bestSeller'
@@ -163,6 +164,11 @@ export async function updateProductOverride(
     const subcategory = updates.subcategory.trim();
     if (subcategory) next.subcategory = subcategory;
     else delete next.subcategory;
+  }
+  if (updates.merchSubcategory !== undefined) {
+    const merchSubcategory = updates.merchSubcategory.trim();
+    if (merchSubcategory) next.merchSubcategory = merchSubcategory;
+    else delete next.merchSubcategory;
   }
   if (updates.compareAtPrice !== undefined) {
     const compareAt = Math.max(0, Number(updates.compareAtPrice));

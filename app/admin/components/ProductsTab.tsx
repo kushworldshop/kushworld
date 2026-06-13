@@ -6,7 +6,15 @@ import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import ProductOptionsEditor from '@/app/admin/components/ProductOptionsEditor';
 import { getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
-import { getAllProductCategorySlugs, getSubsectionsForProductCategory } from '@/lib/shopNavigation';
+import { MERCH_SUBCATEGORIES, getMerchSubcategoryLabel } from '@/lib/merch';
+import {
+  ADMIN_PRODUCT_CATEGORY_TABS,
+  getAllProductCategorySlugs,
+  getProductCategoryLabel,
+  getSubsectionsForProductCategory,
+  productMatchesAdminCategoryTab,
+  type AdminProductCategoryTabId,
+} from '@/lib/shopNavigation';
 import { formatCurrency, formatPercent, getProductMargin } from '@/lib/productEconomics';
 
 interface AdminProduct {
@@ -19,6 +27,7 @@ interface AdminProduct {
   description?: string;
   category: string;
   subcategory?: string;
+  merchSubcategory?: string;
   optionGroups?: ProductOptionGroup[];
   sizes?: string[];
   colors?: string[];
@@ -53,6 +62,7 @@ function buildProductDraft(
     description: patch?.description ?? product.description ?? '',
     category: patch?.category ?? product.category,
     subcategory: patch?.subcategory ?? product.subcategory ?? '',
+    merchSubcategory: patch?.merchSubcategory ?? product.merchSubcategory ?? '',
     optionGroups: patch?.optionGroups ?? product.optionGroups ?? getProductOptionGroups(product),
     compareAtPrice: patch?.compareAtPrice ?? product.compareAtPrice ?? 0,
     featured: patch?.featured ?? product.featured ?? false,
@@ -61,18 +71,34 @@ function buildProductDraft(
   };
 }
 
-function matchesCategoryFilter(product: AdminProduct, category: string) {
-  if (category === 'all') return true;
-  if (category === 'merch') return product.category === 'merch';
-  if (category === 'vaporizers') return product.category === 'vapes';
-  return product.category === category;
+function buildProductSavePayload(productId: string, draft: ProductDraft) {
+  const isMerch = draft.category === 'merch';
+  return {
+    id: productId,
+    name: draft.name,
+    price: draft.price,
+    cost: draft.cost,
+    trackInventory: draft.trackInventory,
+    inventory: draft.trackInventory ? draft.inventory : undefined,
+    image: draft.image,
+    description: draft.description,
+    optionGroups: draft.optionGroups,
+    category: draft.category,
+    subcategory: isMerch ? '' : draft.subcategory,
+    merchSubcategory: isMerch ? draft.merchSubcategory : '',
+    compareAtPrice: draft.compareAtPrice > 0 ? draft.compareAtPrice : 0,
+    featured: draft.featured,
+    bestSeller: draft.bestSeller,
+    isNew: draft.isNew,
+  };
 }
 
 export default function ProductsTab() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [edits, setEdits] = useState<Record<string, Partial<AdminProduct> & { trackInventory?: boolean }>>({});
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('all');
+  const [categoryTab, setCategoryTab] = useState<AdminProductCategoryTabId>('all');
+  const [merchTypeFilter, setMerchTypeFilter] = useState<string>('all');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'visible' | 'hidden'>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -123,7 +149,12 @@ export default function ProductsTab() {
   const filteredProducts = useMemo(() => {
     const q = search.toLowerCase().trim();
     return products
-      .filter((product) => matchesCategoryFilter(product, category))
+      .filter((product) => productMatchesAdminCategoryTab(product, categoryTab))
+      .filter((product) => {
+        if (categoryTab !== 'merch' || merchTypeFilter === 'all') return true;
+        const draft = buildProductDraft(product, edits);
+        return draft.merchSubcategory === merchTypeFilter;
+      })
       .filter((product) => {
         if (visibilityFilter === 'visible') return !product.hidden;
         if (visibilityFilter === 'hidden') return product.hidden;
@@ -131,13 +162,16 @@ export default function ProductsTab() {
       })
       .filter((product) => {
         if (!q) return true;
+        const draft = buildProductDraft(product, edits);
         return (
           product.name.toLowerCase().includes(q) ||
           product.id.includes(q) ||
-          product.category.toLowerCase().includes(q)
+          product.category.toLowerCase().includes(q) ||
+          draft.merchSubcategory.toLowerCase().includes(q) ||
+          getMerchSubcategoryLabel(draft.merchSubcategory).toLowerCase().includes(q)
         );
       });
-  }, [products, search, category, visibilityFilter]);
+  }, [products, search, categoryTab, merchTypeFilter, visibilityFilter, edits]);
 
   useEffect(() => {
     if (filteredProducts.length === 0) {
@@ -172,11 +206,17 @@ export default function ProductsTab() {
   const bulkVisibilityLabel = useMemo(() => {
     const parts: string[] = [];
     if (search.trim()) parts.push(`matching "${search.trim()}"`);
-    if (category !== 'all') parts.push(`in ${category}`);
+    if (categoryTab !== 'all') {
+      const tab = ADMIN_PRODUCT_CATEGORY_TABS.find((item) => item.id === categoryTab);
+      parts.push(`in ${tab?.label ?? categoryTab}`);
+    }
+    if (categoryTab === 'merch' && merchTypeFilter !== 'all') {
+      parts.push(getMerchSubcategoryLabel(merchTypeFilter).toLowerCase());
+    }
     if (visibilityFilter === 'visible') parts.push('currently visible');
     if (visibilityFilter === 'hidden') parts.push('currently hidden');
     return parts.length > 0 ? parts.join(', ') : 'all products';
-  }, [search, category, visibilityFilter]);
+  }, [search, categoryTab, merchTypeFilter, visibilityFilter]);
 
   const getDraft = (product: AdminProduct) => buildProductDraft(product, edits);
 
@@ -185,7 +225,17 @@ export default function ProductsTab() {
     field: keyof AdminProduct | 'trackInventory',
     value: string | number | boolean | ProductOptionGroup[]
   ) => {
-    setEdits((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+    setEdits((prev) => {
+      const patch = { ...prev[id], [field]: value };
+      if (field === 'category') {
+        if (value === 'merch') {
+          patch.subcategory = '';
+        } else {
+          patch.merchSubcategory = '';
+        }
+      }
+      return { ...prev, [id]: patch };
+    });
   };
 
   const clearEdits = (id: string) => {
@@ -204,23 +254,7 @@ export default function ProductsTab() {
       const res = await adminFetch('/api/admin/products', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: product.id,
-          name: draft.name,
-          price: draft.price,
-          cost: draft.cost,
-          trackInventory: draft.trackInventory,
-          inventory: draft.trackInventory ? draft.inventory : undefined,
-          image: draft.image,
-          description: draft.description,
-          optionGroups: draft.optionGroups,
-          category: draft.category,
-          subcategory: draft.subcategory,
-          compareAtPrice: draft.compareAtPrice > 0 ? draft.compareAtPrice : 0,
-          featured: draft.featured,
-          bestSeller: draft.bestSeller,
-          isNew: draft.isNew,
-        }),
+        body: JSON.stringify(buildProductSavePayload(product.id, draft)),
       });
       const data = await res.json();
       if (data.success) {
@@ -252,23 +286,7 @@ export default function ProductsTab() {
         const res = await adminFetch('/api/admin/products', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: product.id,
-            name: draft.name,
-            price: draft.price,
-            cost: draft.cost,
-            trackInventory: draft.trackInventory,
-            inventory: draft.trackInventory ? draft.inventory : undefined,
-            image: draft.image,
-            description: draft.description,
-            optionGroups: draft.optionGroups,
-            category: draft.category,
-            subcategory: draft.subcategory,
-            compareAtPrice: draft.compareAtPrice > 0 ? draft.compareAtPrice : 0,
-            featured: draft.featured,
-            bestSeller: draft.bestSeller,
-            isNew: draft.isNew,
-          }),
+          body: JSON.stringify(buildProductSavePayload(product.id, draft)),
         });
         const data = await res.json();
         if (data.success) {
@@ -428,6 +446,57 @@ export default function ProductsTab() {
         </div>
       </div>
 
+      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 mb-4">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {ADMIN_PRODUCT_CATEGORY_TABS.map((tab) => {
+            const active = categoryTab === tab.id;
+            const count = products.filter((product) => productMatchesAdminCategoryTab(product, tab.id)).length;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setCategoryTab(tab.id);
+                  if (tab.id !== 'merch') setMerchTypeFilter('all');
+                }}
+                className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition ${
+                  active ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
+                }`}
+              >
+                {tab.label}
+                <span className={`ml-2 text-xs ${active ? 'text-black/70' : 'text-zinc-500'}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {categoryTab === 'merch' && (
+          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setMerchTypeFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                merchTypeFilter === 'all' ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
+              }`}
+            >
+              All merch
+            </button>
+            {MERCH_SUBCATEGORIES.map((sub) => (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() => setMerchTypeFilter(sub.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                  merchTypeFilter === sub.id ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
+                }`}
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="grid lg:grid-cols-[380px_1fr] gap-6 min-h-[640px]">
         <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 flex flex-col max-h-[calc(100vh-12rem)] lg:max-h-[calc(100vh-10rem)]">
           <div className="space-y-3 mb-3">
@@ -437,32 +506,15 @@ export default function ProductsTab() {
               placeholder="Search products..."
               className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
             />
-            <div className="flex gap-2">
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="flex-1 bg-black border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-              >
-                <option value="all">All categories</option>
-                <option value="vaporizers">Vaporizers</option>
-                <option value="concentrates">Concentrates</option>
-                <option value="flower">Flower</option>
-                <option value="edibles">Edibles</option>
-                <option value="pre-rolls">Pre Rolls</option>
-                <option value="accessories">Accessories</option>
-                <option value="mushrooms">Mushrooms</option>
-                <option value="merch">Merch</option>
-              </select>
-              <select
-                value={visibilityFilter}
-                onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'visible' | 'hidden')}
-                className="flex-1 bg-black border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-              >
-                <option value="all">All</option>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
-              </select>
-            </div>
+            <select
+              value={visibilityFilter}
+              onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'visible' | 'hidden')}
+              className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+            >
+              <option value="all">All visibility</option>
+              <option value="visible">Visible only</option>
+              <option value="hidden">Hidden only</option>
+            </select>
           </div>
 
           <p className="text-xs text-zinc-500 mb-3 px-1">
@@ -510,7 +562,13 @@ export default function ProductsTab() {
                         )}
                       </div>
                       <div className="flex flex-wrap gap-1.5 mt-1 text-[10px] text-zinc-500">
-                        <span className="capitalize">{product.category}</span>
+                        <span>{getProductCategoryLabel(siteContent.shopNavigation, product.category)}</span>
+                        {product.category === 'merch' && draft.merchSubcategory && (
+                          <span className="text-zinc-400">{getMerchSubcategoryLabel(draft.merchSubcategory)}</span>
+                        )}
+                        {product.category !== 'merch' && draft.subcategory && (
+                          <span className="text-zinc-400">{draft.subcategory}</span>
+                        )}
                         {product.hidden && <span className="text-amber-400">Hidden</span>}
                         {product.hasOverride && <span className="text-[#00ff9d]">Custom</span>}
                         {draft.featured && <span>Featured</span>}
@@ -655,7 +713,10 @@ function ProductDetailPanel({
         <div className="min-w-0">
           <h3 className="text-xl font-bold truncate">{draft.name}</h3>
           <p className="text-xs text-zinc-500 mt-1">
-            ID: {product.id} · {product.category}
+            ID: {product.id} · {getProductCategoryLabel(siteContent.shopNavigation, draft.category)}
+            {draft.category === 'merch' && draft.merchSubcategory && (
+              <span className="ml-2">· {getMerchSubcategoryLabel(draft.merchSubcategory)}</span>
+            )}
             {product.hidden && <span className="text-amber-400 ml-2">Hidden from shop</span>}
             {product.hasOverride && <span className="text-[#00ff9d] ml-2">Customized</span>}
           </p>
@@ -746,26 +807,45 @@ function ProductDetailPanel({
           >
             {getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => (
               <option key={slug} value={slug}>
-                {slug}
+                {getProductCategoryLabel(siteContent.shopNavigation, slug)}
               </option>
             ))}
           </select>
         </div>
-        <div>
-          <label className="text-xs text-zinc-500 block mb-1">Sub-section</label>
-          <select
-            value={draft.subcategory}
-            onChange={(e) => onDraftChange('subcategory', e.target.value)}
-            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-          >
-            <option value="">None</option>
-            {getSubsectionsForProductCategory(siteContent.shopNavigation, draft.category).map((subsection) => (
-              <option key={subsection.id} value={subsection.id}>
-                {subsection.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {draft.category === 'merch' ? (
+          <div>
+            <label className="text-xs text-zinc-500 block mb-1">Merch type</label>
+            <select
+              value={draft.merchSubcategory}
+              onChange={(e) => onDraftChange('merchSubcategory', e.target.value)}
+              className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+            >
+              <option value="">Select type...</option>
+              {MERCH_SUBCATEGORIES.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-zinc-500 mt-1">T-shirt, hoodie, hat, etc.</p>
+          </div>
+        ) : (
+          <div>
+            <label className="text-xs text-zinc-500 block mb-1">Sub-section</label>
+            <select
+              value={draft.subcategory}
+              onChange={(e) => onDraftChange('subcategory', e.target.value)}
+              className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+            >
+              <option value="">None</option>
+              {getSubsectionsForProductCategory(siteContent.shopNavigation, draft.category).map((subsection) => (
+                <option key={subsection.id} value={subsection.id}>
+                  {subsection.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="md:col-span-2">
           <label className="text-xs text-zinc-500 block mb-1">Product Image</label>
           <input
