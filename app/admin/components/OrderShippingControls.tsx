@@ -13,6 +13,8 @@ export default function OrderShippingControls({
     trackingNumber?: string;
     trackingCarrier?: string;
     shippedAt?: string;
+    shippingNotificationSentAt?: string;
+    trackingNotificationSentAt?: string;
   };
   onUpdated: () => void;
 }) {
@@ -39,7 +41,13 @@ export default function OrderShippingControls({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Update failed');
-      setMessage('Saved');
+      if (data.shippingEmailSent) {
+        setMessage('Saved — shipping email sent to customer');
+      } else if (data.shippingEmailError) {
+        setMessage(`Saved, but email failed: ${data.shippingEmailError}`);
+      } else {
+        setMessage('Saved');
+      }
       onUpdated();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to save');
@@ -54,6 +62,11 @@ export default function OrderShippingControls({
       {order.shippedAt && (
         <p className="text-xs text-zinc-500 mb-3">
           Shipped {new Date(order.shippedAt).toLocaleString()}
+        </p>
+      )}
+      {order.shippingNotificationSentAt && (
+        <p className="text-xs text-[#00ff9d] mb-3">
+          Shipping email sent {new Date(order.shippingNotificationSentAt).toLocaleString()}
         </p>
       )}
       <div className="grid md:grid-cols-[1fr_160px] gap-3 mb-3">

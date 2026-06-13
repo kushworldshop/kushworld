@@ -1003,6 +1003,11 @@ export default function AdminOrders() {
                         )}
                       </p>
                     )}
+                    {order.shippingNotificationSentAt && (
+                      <p className="text-xs mt-1 text-emerald-400">
+                        Shipping email sent {new Date(order.shippingNotificationSentAt).toLocaleString()}
+                      </p>
+                    )}
                     {order.shippingMethod && (
                       <p className="text-sm mt-1 text-zinc-400">
                         Shipping: <span className="text-white">{order.shippingMethod}</span>

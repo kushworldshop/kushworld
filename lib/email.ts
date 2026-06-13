@@ -115,3 +115,98 @@ Once you verify your email, you'll receive $10 in loyalty points (1,000 pts). Co
 export function isEmailVerificationConfigured(): boolean {
   return !!RESEND_API_KEY;
 }
+
+export type ShippingEmailKind = 'shipped' | 'tracking_update';
+
+export async function sendShippingNotification(
+  to: string,
+  order: {
+    id: string;
+    name?: string;
+    trackingNumber?: string;
+    trackingUrl?: string | null;
+    carrierLabel?: string;
+  },
+  kind: ShippingEmailKind = 'shipped'
+): Promise<EmailSendResult> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://kushworld.shop';
+  const accountUrl = `${siteUrl}/account?tab=orders`;
+  const greeting = order.name?.trim() ? `Hi ${order.name.trim()},` : 'Hi there,';
+  const tracking = order.trackingNumber?.trim();
+
+  const trackingBlock = tracking
+    ? `Tracking number: ${tracking}
+${order.carrierLabel ? `Carrier: ${order.carrierLabel}` : ''}
+${order.trackingUrl ? `Track your package: ${order.trackingUrl}` : 'Track your package from your account page.'}`
+    : '';
+
+  const body =
+    kind === 'tracking_update'
+      ? `${greeting}
+
+Your Kush World order now has tracking available.
+
+Order ID: ${order.id}
+
+${trackingBlock}
+
+View all order details: ${accountUrl}
+
+— Kush World Team`
+      : `${greeting}
+
+Great news — your Kush World order has shipped!
+
+Order ID: ${order.id}
+
+${trackingBlock || 'Tracking will be added to your account as soon as it is available.'}
+
+View shipping status anytime: ${accountUrl}
+
+— Kush World Team`;
+
+  const subject =
+    kind === 'tracking_update'
+      ? `Tracking added — Kush World order ${order.id}`
+      : `Your Kush World order has shipped — ${order.id}`;
+
+  if (!RESEND_API_KEY) {
+    console.log(`[Email stub] To: ${to}\nSubject: ${subject}\n${body}`);
+    return { sent: false, stub: true };
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to,
+        subject,
+        text: body,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('[Resend] Shipping email failed:', res.status, errBody);
+      return {
+        sent: false,
+        stub: false,
+        error: 'Could not send shipping notification email.',
+      };
+    }
+
+    return { sent: true, stub: false };
+  } catch (err) {
+    console.error('[Resend] Shipping email error:', err);
+    return {
+      sent: false,
+      stub: false,
+      error: 'Could not send shipping notification email.',
+    };
+  }
+}

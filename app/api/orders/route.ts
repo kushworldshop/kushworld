@@ -19,6 +19,10 @@ import {
   restoreInventoryForOrder,
 } from '@/lib/inventory';
 import { normalizeTrackingCarrier } from '@/lib/orderShipping';
+import {
+  applyShippingEmailTimestamps,
+  maybeSendShippingEmail,
+} from '@/lib/orderShippingEmail';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -72,6 +76,8 @@ export async function PATCH(request: NextRequest) {
     if (index === -1) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
+
+    const previousOrder = { ...orders[index] };
 
     if (approveCancel || approveRefund) {
       const order = orders[index];
@@ -129,9 +135,27 @@ export async function PATCH(request: NextRequest) {
     }
 
     orders[index].updatedAt = new Date().toISOString();
+
+    let shippingEmailSent = false;
+    let shippingEmailError: string | undefined;
+    const emailResult = await maybeSendShippingEmail(previousOrder, orders[index]);
+    if (emailResult.kind) {
+      if (emailResult.sent) {
+        orders[index] = applyShippingEmailTimestamps(orders[index], emailResult.kind);
+        shippingEmailSent = true;
+      } else {
+        shippingEmailError = emailResult.error;
+      }
+    }
+
     await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
 
-    return NextResponse.json({ success: true, order: orders[index] });
+    return NextResponse.json({
+      success: true,
+      order: orders[index],
+      shippingEmailSent,
+      shippingEmailError,
+    });
   } catch (error) {
     console.error('Order update error:', error);
     return NextResponse.json({ success: false, error: 'Failed to update order' }, { status: 500 });
