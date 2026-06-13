@@ -607,8 +607,8 @@ export default function Account() {
           <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
             <h2 className="text-2xl font-bold mb-2 text-center">Prize Wheel</h2>
             <p className="text-zinc-400 text-sm text-center mb-8 max-w-md mx-auto">
-              Spend {spinCost} loyalty points per spin. Win discounts, free shipping, bonus points, or a free t-shirt.
-              Prizes expire in 14 days — use them at checkout or forfeit to spin again.
+              Spend {spinCost} loyalty points per spin. Slot-style odds — most spins are small wins or try again.
+              The free studio t-shirt is the rare jackpot (~0.3%). Prizes expire in 14 days.
             </p>
             <SpinWheel
               points={user.redeemableLoyaltyPoints}

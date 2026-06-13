@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import {
   WHEEL_SEGMENTS,
+  formatWheelOdds,
   getWheelRotationDelta,
   type SpinPrize,
 } from '@/lib/spinWheelTypes';
@@ -166,16 +167,32 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
       )}
       {error && <p className="text-red-400 text-sm text-center max-w-sm">{error}</p>}
 
-      <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-2 w-full max-w-lg">
-        {WHEEL_SEGMENTS.filter((s) => s.type !== 'try_again').map((seg) => (
-          <div
-            key={seg.id}
-            className="text-center text-xs bg-zinc-900 rounded-xl p-3 border border-zinc-800"
-          >
-            <div className="w-3 h-3 rounded-full mx-auto mb-1" style={{ background: seg.color }} />
-            {seg.label}
-          </div>
-        ))}
+      <div className="mt-8 w-full max-w-lg">
+        <p className="text-xs text-zinc-500 text-center mb-3 uppercase tracking-wider">Odds per spin</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {WHEEL_SEGMENTS.map((seg) => {
+            const isJackpot = seg.type === 'free_tshirt';
+            return (
+              <div
+                key={seg.id}
+                className={`text-center text-xs rounded-xl p-3 border ${
+                  isJackpot
+                    ? 'bg-pink-950/40 border-pink-500/50'
+                    : seg.type === 'try_again'
+                      ? 'bg-zinc-950 border-zinc-800'
+                      : 'bg-zinc-900 border-zinc-800'
+                }`}
+              >
+                <div className="w-3 h-3 rounded-full mx-auto mb-1" style={{ background: seg.color }} />
+                <p className="font-medium">{seg.label}</p>
+                <p className={`mt-1 ${isJackpot ? 'text-pink-300' : 'text-zinc-500'}`}>
+                  {formatWheelOdds(seg)}
+                  {isJackpot && ' · Jackpot'}
+                </p>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

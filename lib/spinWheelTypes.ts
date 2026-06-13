@@ -30,16 +30,36 @@ export interface SpinPrize {
   usedAt?: string;
 }
 
+/** Weights use a 1000-point pool (slot-style RTP). Higher weight = more common outcome. */
+export const WHEEL_WEIGHT_POOL = 1000;
+
 export const WHEEL_SEGMENTS: WheelSegment[] = [
-  { id: 'try_again', label: 'Try Again', color: '#52525b', weight: 28, type: 'try_again' },
-  { id: 'bonus_50', label: '+50 Points', color: '#3b82f6', weight: 18, type: 'bonus_points', value: 50 },
-  { id: 'ten_off', label: '10% Off', color: '#eab308', weight: 16, type: 'percent_off_10', value: 10 },
-  { id: 'five_off', label: '$5 Off', color: '#f97316', weight: 14, type: 'fixed_5_off', value: 5 },
-  { id: 'free_ship', label: 'Free Shipping', color: '#22c55e', weight: 10, type: 'free_shipping' },
-  { id: 'twenty_off', label: '20% Off', color: '#a855f7', weight: 8, type: 'percent_off_20', value: 20 },
-  { id: 'free_shirt', label: 'Free T-Shirt', color: '#ec4899', weight: 4, type: 'free_tshirt' },
-  { id: 'bonus_100', label: '+100 Points', color: '#06b6d4', weight: 2, type: 'bonus_points', value: 100 },
+  { id: 'try_again', label: 'Try Again', color: '#52525b', weight: 460, type: 'try_again' },
+  { id: 'bonus_50', label: '+50 Points', color: '#3b82f6', weight: 220, type: 'bonus_points', value: 50 },
+  { id: 'five_off', label: '$5 Off', color: '#f97316', weight: 130, type: 'fixed_5_off', value: 5 },
+  { id: 'ten_off', label: '10% Off', color: '#eab308', weight: 90, type: 'percent_off_10', value: 10 },
+  { id: 'free_ship', label: 'Free Shipping', color: '#22c55e', weight: 55, type: 'free_shipping' },
+  { id: 'twenty_off', label: '20% Off', color: '#a855f7', weight: 32, type: 'percent_off_20', value: 20 },
+  { id: 'bonus_100', label: '+100 Points', color: '#06b6d4', weight: 10, type: 'bonus_points', value: 100 },
+  { id: 'free_shirt', label: 'Free T-Shirt', color: '#ec4899', weight: 3, type: 'free_tshirt' },
 ];
+
+export function getTotalWheelWeight(): number {
+  return WHEEL_SEGMENTS.reduce((sum, segment) => sum + segment.weight, 0);
+}
+
+export function getWheelSegmentOddsPercent(segment: WheelSegment): number {
+  const total = getTotalWheelWeight();
+  if (total <= 0) return 0;
+  return Math.round((segment.weight / total) * 1000) / 10;
+}
+
+export function formatWheelOdds(segment: WheelSegment): string {
+  const pct = getWheelSegmentOddsPercent(segment);
+  if (pct >= 1) return `${pct}%`;
+  if (pct >= 0.1) return `${pct}%`;
+  return '<0.1%';
+}
 
 export function getSegmentIndex(segmentId: string): number {
   return WHEEL_SEGMENTS.findIndex((s) => s.id === segmentId);
