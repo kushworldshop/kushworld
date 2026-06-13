@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { verifyOrderAccessToken } from '@/lib/orderAccessToken';
 import { buildAutoRejectionMessage, validateIdPhoto } from '@/lib/idPhotoValidation';
 import {
   MAX_ID_SIZE_BYTES,
@@ -24,10 +25,11 @@ export async function POST(request: NextRequest) {
     await ensureDataDirs();
     const formData = await request.formData();
     const orderId = String(formData.get('orderId') || '').trim();
+    const accessToken = String(formData.get('orderAccessToken') || '').trim();
     const file = formData.get('idImage');
 
-    if (!orderId) {
-      return NextResponse.json({ success: false, error: 'Order ID required' }, { status: 400 });
+    if (!orderId || !accessToken) {
+      return NextResponse.json({ success: false, error: 'Order verification required' }, { status: 400 });
     }
 
     if (!(file instanceof File)) {
@@ -55,6 +57,12 @@ export async function POST(request: NextRequest) {
 
     if (orderIndex === -1) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
+    }
+
+    const orderEmail =
+      orders[orderIndex].customer?.email || orders[orderIndex].email || '';
+    if (!verifyOrderAccessToken(orderId, orderEmail, accessToken)) {
+      return NextResponse.json({ success: false, error: 'Invalid order access' }, { status: 403 });
     }
 
     const ext = EXT_BY_TYPE[mimeType] || '.jpg';

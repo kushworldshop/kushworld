@@ -46,6 +46,7 @@ export default function Checkout() {
   const [requiresIdUpload, setRequiresIdUpload] = useState(false);
   const [idUploaded, setIdUploaded] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const [orderAccessToken, setOrderAccessToken] = useState('');
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadingId, setUploadingId] = useState(false);
@@ -88,6 +89,7 @@ export default function Checkout() {
   const [btcEnabled, setBtcEnabled] = useState(true);
   const [btcPayment, setBtcPayment] = useState<{
     orderId: string;
+    orderAccessToken: string;
     address: string;
     amountBtc: number;
     amountUsd: number;
@@ -168,6 +170,7 @@ export default function Checkout() {
 
     const formData = new FormData();
     formData.append('orderId', orderId);
+    formData.append('orderAccessToken', orderAccessToken);
     formData.append('idImage', idFile);
 
     try {
@@ -327,8 +330,12 @@ export default function Checkout() {
     return null;
   };
 
-  const completeOrder = async (result: { orderId: string; requiresIdUpload: boolean }, paid: boolean) => {
+  const completeOrder = async (
+    result: { orderId: string; orderAccessToken?: string; requiresIdUpload: boolean },
+    paid: boolean
+  ) => {
     setOrderId(result.orderId);
+    setOrderAccessToken(result.orderAccessToken || '');
     setRequiresIdUpload(result.requiresIdUpload);
     setPaymentComplete(paid);
     setOrderPlaced(true);
@@ -435,9 +442,11 @@ export default function Checkout() {
       }
 
       setOrderId(result.orderId);
+      setOrderAccessToken(result.orderAccessToken || '');
       setRequiresIdUpload(result.requiresIdUpload);
       setBtcPayment({
         orderId: result.orderId,
+        orderAccessToken: result.orderAccessToken || '',
         ...result.payment,
       });
       setOrderPlaced(true);
@@ -516,6 +525,7 @@ export default function Checkout() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
         <BtcPaymentScreen
           orderId={btcPayment.orderId}
+          orderAccessToken={btcPayment.orderAccessToken}
           payment={btcPayment}
           onPaid={() => setBtcPaymentComplete(true)}
         />

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import SiteLayout from '@/app/components/SiteLayout';
-import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { REFERRAL_DISCOUNT, REFERRER_REWARD_POINTS } from '@/lib/referralConstants';
 
 interface ReferralData {
@@ -16,7 +15,6 @@ interface ReferralData {
 }
 
 export default function ReferralDashboard() {
-  const addPoints = useLoyaltyStore((s) => s.addPoints);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [referral, setReferral] = useState<ReferralData | null>(null);
@@ -52,14 +50,14 @@ export default function ReferralDashboard() {
   };
 
   const loadExistingRewards = async (lookupEmail: string) => {
-    const res = await fetch(`/api/referrals?email=${encodeURIComponent(lookupEmail)}`);
-    const data = await res.json();
+    const res = await fetch(`/api/referrals?email=${encodeURIComponent(lookupEmail)}`, {
+      credentials: 'include',
+    });
+    if (res.status === 401) return;
 
+    const data = await res.json();
     if (data.exists) {
       setReferral(data);
-      if (data.pointsToAdd > 0) {
-        addPoints(data.pointsToAdd);
-      }
     }
   };
 
@@ -70,16 +68,19 @@ export default function ReferralDashboard() {
     setError('');
 
     try {
-      const res = await fetch(`/api/referrals?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`/api/referrals?email=${encodeURIComponent(email)}`, {
+        credentials: 'include',
+      });
+      if (res.status === 401) {
+        setError('Sign in to your account to look up an existing referral link.');
+        return;
+      }
       const data = await res.json();
       if (!data.exists) {
         setError('No referral link found for this email. Create one below.');
         return;
       }
       setReferral(data);
-      if (data.pointsToAdd > 0) {
-        addPoints(data.pointsToAdd);
-      }
     } catch {
       setError('Network error. Please try again.');
     } finally {

@@ -21,7 +21,7 @@ export default function OrdersTab() {
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/orders');
+      const res = await adminFetch('/api/orders');
       if (res.ok) {
         const data = await res.json();
         setOrders(Array.isArray(data) ? data : []);
@@ -68,7 +68,7 @@ export default function OrdersTab() {
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     try {
-      await fetch('/api/orders', {
+      await adminFetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: orderId, status: newStatus }),
@@ -87,7 +87,7 @@ export default function OrdersTab() {
     if (!confirm(`Approve ${label}?`)) return;
 
     try {
-      const res = await fetch('/api/orders', {
+      const res = await adminFetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -109,7 +109,7 @@ export default function OrdersTab() {
 
   const confirmBtcPayment = async (orderId: string) => {
     try {
-      await fetch('/api/orders', {
+      await adminFetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: orderId, paymentStatus: 'paid' }),
@@ -122,7 +122,7 @@ export default function OrdersTab() {
 
   const approveIdVerification = async (orderId: string) => {
     try {
-      await fetch('/api/orders', {
+      await adminFetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: orderId, idVerificationStatus: 'verified' }),

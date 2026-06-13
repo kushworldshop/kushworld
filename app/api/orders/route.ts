@@ -1,8 +1,12 @@
-'use server';
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { isAdminRequest } from '@/lib/adminAuth';
 import { isCustomerVerified } from '@/lib/verification';
+import { buildOrderRecord } from '@/lib/buildOrderRecord';
+import { createOrderAccessToken } from '@/lib/orderAccessToken';
+import { generateOrderId } from '@/lib/orderIds';
+import { validateCheckoutItems } from '@/lib/validateCheckout';
 import { sendOrderConfirmation } from '@/lib/email';
 import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
 import { resolveOrderTotals } from '@/lib/orderCheckout';
@@ -41,16 +45,24 @@ async function ensureOrdersFile() {
   }
 }
 
-// GET all orders (for admin)
-export async function GET() {
+// GET all orders (admin only)
+export async function GET(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
   await ensureOrdersFile();
   const data = await fs.readFile(ORDERS_FILE, 'utf8');
   const orders = JSON.parse(data);
   return NextResponse.json(orders);
 }
 
-// PATCH order status (for admin)
+// PATCH order status (admin only)
 export async function PATCH(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     await ensureOrdersFile();
     const body = await request.json();
@@ -168,9 +180,17 @@ export async function POST(request: NextRequest) {
     await ensureOrdersFile();
     const body = await request.json();
     const customer = body.customer ?? {};
-    
     const email = customer.email ?? body.email;
-    const subtotal = body.subtotal ?? 0;
+
+    let validated;
+    try {
+      validated = await validateCheckoutItems(body.items || [], body.subtotal, email);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid cart';
+      return NextResponse.json({ success: false, error: message }, { status: 400 });
+    }
+
+    const { items: orderItems, subtotal, isFirstOrder } = validated;
 
     let promoMeta: Awaited<ReturnType<typeof resolvePromoForOrder>> = { promoDiscount: 0 };
     try {
@@ -179,7 +199,7 @@ export async function POST(request: NextRequest) {
         referralCode: body.referralCode,
         couponCode: body.couponCode,
         subtotal,
-        isFirstOrder: !!body.isFirstOrder,
+        isFirstOrder,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid promo code';
@@ -192,7 +212,6 @@ export async function POST(request: NextRequest) {
         subtotal,
         promoDiscount: promoMeta.promoDiscount,
         loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
-        shipping: body.shipping,
         shippingCarrier: body.shippingCarrier,
         spinPrizeId: body.spinPrizeId,
       });
@@ -202,18 +221,9 @@ export async function POST(request: NextRequest) {
     }
 
     const {
-      discount,
-      shipping,
-      shippingCarrier,
-      shippingMethod,
       total,
       loyaltyPointsUsed,
-      loyaltyDiscount,
-      promoDiscount,
-      spinDiscount,
       spinPrizeId,
-      spinPrizeLabel,
-      freeTshirt,
     } = resolved;
 
     if (subtotal < MIN_ORDER_AMOUNT) {
@@ -226,8 +236,8 @@ export async function POST(request: NextRequest) {
     }
 
     const alreadyVerified = email ? await isCustomerVerified(email) : false;
-    const needsIdVerification = orderRequiresIdVerification(body.items || []);
-    const orderItems = body.items || [];
+    const needsIdVerification = orderRequiresIdVerification(orderItems);
+    const orderId = generateOrderId();
 
     try {
       await deductInventoryForOrder(orderItems);
@@ -238,43 +248,25 @@ export async function POST(request: NextRequest) {
       throw err;
     }
 
-    const newOrder = {
-      id: `KW-${Date.now().toString().slice(-8)}`,
-      ...body,
+    const allowedPaymentMethods = ['zelle', 'paypal', 'chime', 'manual'];
+    const paymentMethod = allowedPaymentMethods.includes(body.paymentMethod)
+      ? body.paymentMethod
+      : 'manual';
+
+    const newOrder = buildOrderRecord({
+      id: orderId,
+      customer,
+      items: orderItems,
       subtotal,
-      promoDiscount,
-      loyaltyPointsUsed,
-      loyaltyDiscount,
-      spinDiscount: spinDiscount || undefined,
-      spinPrizeId,
-      spinPrizeLabel,
-      freeTshirtNote: freeTshirt ? 'Wheel prize: Free T-Shirt — include in shipment' : undefined,
-      promoCode: promoMeta.promoCode,
-      promoSource: promoMeta.promoSource,
-      referrerCode: promoMeta.referrerCode,
-      referrerName: promoMeta.referrerName,
-      discount,
-      shipping,
-      shippingCarrier,
-      shippingMethod,
-      total,
-      email,
-      name: customer.name ?? body.name,
-      address: customer.address ?? body.address,
-      city: customer.city ?? body.city,
-      state: customer.state ?? body.state,
-      zip: customer.zip ?? body.zip,
-      phone: customer.phone ?? body.phone,
-      status: 'pending',
-      inventoryDeducted: true,
-      inventoryRestored: false,
+      paymentMethod,
+      promoMeta,
+      resolved,
       idVerification: !needsIdVerification
         ? { status: 'verified', note: 'Merch-only order — no ID required' }
         : alreadyVerified
           ? { status: 'verified', note: 'Returning verified customer' }
           : { status: 'required' },
-      createdAt: new Date().toISOString(),
-    };
+    });
 
     let data: string;
     let orders: Record<string, unknown>[];
@@ -313,10 +305,10 @@ export async function POST(request: NextRequest) {
         id: newOrder.id,
         total,
         subtotal,
-        shipping,
-        discount,
-        paymentMethod: body.paymentMethod || 'manual',
-        items: (body.items || []).map((i: { name: string; quantity: number; price: number }) => ({
+        shipping: resolved.shipping,
+        discount: resolved.discount,
+        paymentMethod,
+        items: orderItems.map((i) => ({
           name: i.name,
           quantity: i.quantity,
           price: i.price,
@@ -324,9 +316,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const orderAccessToken = email ? createOrderAccessToken(newOrder.id, email) : undefined;
+
     return NextResponse.json({
       success: true,
       orderId: newOrder.id,
+      orderAccessToken,
       requiresIdUpload: needsIdVerification && !alreadyVerified,
     });
   } catch (error) {

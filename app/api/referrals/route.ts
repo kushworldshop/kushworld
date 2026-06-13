@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionUserId } from '@/lib/auth';
+import { getUserById } from '@/lib/users';
 import {
   getReferralByCode,
   getReferralByEmail,
   createOrGetReferral,
   recordReferralClick,
-  claimReferralPoints,
   getReferralLink,
   calculateReferralDiscount,
   resolveReferralCommissionPercent,
-  REFERRER_REWARD_POINTS,
 } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
 
@@ -39,12 +39,20 @@ export async function GET(request: NextRequest) {
   }
 
   if (email) {
+    const userId = await getSessionUserId();
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'Sign in to view referral stats' }, { status: 401 });
+    }
+
+    const user = await getUserById(userId);
+    if (!user || user.email.trim().toLowerCase() !== email.trim().toLowerCase()) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    }
+
     const referral = await getReferralByEmail(email);
     if (!referral) {
       return NextResponse.json({ exists: false });
     }
-
-    const { pointsToAdd } = await claimReferralPoints(email);
 
     return NextResponse.json({
       exists: true,
@@ -54,7 +62,6 @@ export async function GET(request: NextRequest) {
       clicks: referral.clicks,
       conversions: referral.conversions,
       rewardPerReferral: (await getSettings()).referrerRewardPoints,
-      pointsToAdd,
     });
   }
 

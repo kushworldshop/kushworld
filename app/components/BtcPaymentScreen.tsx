@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 interface BtcPaymentScreenProps {
   orderId: string;
+  orderAccessToken: string;
   payment: {
     address: string;
     amountBtc: number;
@@ -16,7 +17,12 @@ interface BtcPaymentScreenProps {
   onPaid: () => void;
 }
 
-export default function BtcPaymentScreen({ orderId, payment, onPaid }: BtcPaymentScreenProps) {
+export default function BtcPaymentScreen({
+  orderId,
+  orderAccessToken,
+  payment,
+  onPaid,
+}: BtcPaymentScreenProps) {
   const [status, setStatus] = useState<'awaiting' | 'confirming' | 'paid' | 'expired'>('awaiting');
   const [confirmations, setConfirmations] = useState(0);
   const [txid, setTxid] = useState('');
@@ -46,7 +52,9 @@ export default function BtcPaymentScreen({ orderId, payment, onPaid }: BtcPaymen
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/payments/btc/status?orderId=${encodeURIComponent(orderId)}`);
+        const res = await fetch(
+          `/api/payments/btc/status?orderId=${encodeURIComponent(orderId)}&orderAccessToken=${encodeURIComponent(orderAccessToken)}`
+        );
         const data = await res.json();
         if (!active || !res.ok) return;
 
@@ -81,7 +89,7 @@ export default function BtcPaymentScreen({ orderId, payment, onPaid }: BtcPaymen
       active = false;
       clearInterval(interval);
     };
-  }, [orderId, onPaid]);
+  }, [orderId, orderAccessToken, onPaid]);
 
   const copyText = async (value: string, key: 'address' | 'amount') => {
     await navigator.clipboard.writeText(value);

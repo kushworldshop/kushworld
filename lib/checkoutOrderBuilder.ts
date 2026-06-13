@@ -3,6 +3,7 @@ import { resolveOrderTotals } from '@/lib/orderCheckout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { resolvePromoForOrder } from '@/lib/orderPromo';
 import { isCustomerVerified } from '@/lib/verification';
+import { validateCheckoutItems } from '@/lib/validateCheckout';
 
 export interface CheckoutOrderInput {
   customer?: {
@@ -19,33 +20,36 @@ export interface CheckoutOrderInput {
   promoCode?: string;
   referralCode?: string;
   couponCode?: string;
-  isFirstOrder?: boolean;
   loyaltyPointsUsed?: number;
-  shipping?: number;
   shippingCarrier?: string;
   spinPrizeId?: string;
   paymentMethod?: string;
-  [key: string]: unknown;
 }
 
 export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: string) {
   const customer = body.customer ?? {};
-  const email = customer.email ?? (body.email as string | undefined);
-  const subtotal = body.subtotal ?? 0;
+  const email = customer.email;
+
+  const validated = await validateCheckoutItems(
+    (body.items || []) as Parameters<typeof validateCheckoutItems>[0],
+    body.subtotal,
+    email
+  );
+
+  const { items, subtotal, isFirstOrder } = validated;
 
   const promoMeta = await resolvePromoForOrder({
     promoCode: body.promoCode,
     referralCode: body.referralCode,
     couponCode: body.couponCode,
     subtotal,
-    isFirstOrder: !!body.isFirstOrder,
+    isFirstOrder,
   });
 
   const resolved = await resolveOrderTotals({
     subtotal,
     promoDiscount: promoMeta.promoDiscount,
     loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
-    shipping: body.shipping,
     shippingCarrier: body.shippingCarrier as 'usps' | 'fedex' | undefined,
     spinPrizeId: body.spinPrizeId,
   });
@@ -54,15 +58,13 @@ export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: stri
     throw new Error(`Minimum order is $${MIN_ORDER_AMOUNT}`);
   }
 
-  const state = String(customer.state ?? body.state ?? '').toUpperCase().trim();
+  const state = String(customer.state ?? '').toUpperCase().trim();
   if (state && RESTRICTED_STATES.includes(state)) {
     throw new Error(`Cannot ship to ${state}`);
   }
 
   const alreadyVerified = email ? await isCustomerVerified(email) : false;
-  const needsIdVerification = orderRequiresIdVerification(
-    (body.items || []) as { id: string; category?: string }[]
-  );
+  const needsIdVerification = orderRequiresIdVerification(items);
 
   const {
     discount,
@@ -81,8 +83,8 @@ export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: stri
 
   const order = {
     id: orderId,
-    ...body,
     customer,
+    items,
     subtotal,
     promoDiscount,
     loyaltyPointsUsed,
@@ -101,12 +103,13 @@ export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: stri
     shippingMethod,
     total,
     email,
-    name: customer.name ?? body.name,
-    address: customer.address ?? body.address,
-    city: customer.city ?? body.city,
-    state: customer.state ?? body.state,
-    zip: customer.zip ?? body.zip,
-    phone: customer.phone ?? body.phone,
+    name: customer.name,
+    address: customer.address,
+    city: customer.city,
+    state: customer.state,
+    zip: customer.zip,
+    phone: customer.phone,
+    paymentMethod: body.paymentMethod || 'btc',
     status: 'pending',
     idVerification: !needsIdVerification
       ? { status: 'verified', note: 'Merch-only order — no ID required' }

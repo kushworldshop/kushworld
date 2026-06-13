@@ -5,6 +5,7 @@ import {
   isBtcPaymentExpired,
 } from '@/lib/bitcoinCheckout';
 import { fulfillPaidOrder } from '@/lib/orderFulfillment';
+import { verifyOrderAccessToken } from '@/lib/orderAccessToken';
 import { getOrderById, updateOrderById } from '@/lib/ordersStore';
 
 interface StoredOrder {
@@ -27,13 +28,21 @@ interface StoredOrder {
 
 export async function GET(request: NextRequest) {
   const orderId = request.nextUrl.searchParams.get('orderId');
-  if (!orderId) {
-    return NextResponse.json({ success: false, error: 'Order id required' }, { status: 400 });
+  const accessToken = request.nextUrl.searchParams.get('orderAccessToken');
+  if (!orderId || !accessToken) {
+    return NextResponse.json({ success: false, error: 'Order verification required' }, { status: 400 });
   }
 
-  const order = await getOrderById<StoredOrder>(orderId);
+  const order = await getOrderById<StoredOrder & { email?: string; customer?: { email?: string } }>(
+    orderId
+  );
   if (!order || order.paymentMethod !== 'btc' || !order.btcPayment) {
     return NextResponse.json({ success: false, error: 'Bitcoin order not found' }, { status: 404 });
+  }
+
+  const orderEmail = order.customer?.email || order.email || '';
+  if (!verifyOrderAccessToken(orderId, orderEmail, accessToken)) {
+    return NextResponse.json({ success: false, error: 'Invalid order access' }, { status: 403 });
   }
 
   if (order.paymentStatus === 'paid') {

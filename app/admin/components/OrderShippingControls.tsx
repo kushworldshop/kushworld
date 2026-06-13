@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { adminFetch } from '@/lib/adminClient';
 import { normalizeTrackingCarrier, type TrackingCarrier } from '@/lib/orderShipping';
 
 export default function OrderShippingControls({
@@ -34,7 +35,7 @@ export default function OrderShippingControls({
     setSaving(true);
     setMessage('');
     try {
-      const res = await fetch('/api/orders', {
+      const res = await adminFetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: order.id, ...payload }),

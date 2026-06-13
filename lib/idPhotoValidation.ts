@@ -301,13 +301,18 @@ export async function validateIdPhoto(
 
   if (!isIdPhotoVisionConfigured()) {
     console.warn(
-      '[ID validation] No XAI_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY — skipping vision auto-review; manual review required.'
+      '[ID validation] No vision API configured — rejecting upload until ID verification is enabled.'
     );
+    return {
+      accepted: false,
+      reason: 'ID verification is temporarily unavailable. Please try again later or contact support.',
+      method: 'skipped',
+    };
   }
 
   return {
-    accepted: true,
-    reason: 'Pending manual review by Kush World staff',
+    accepted: false,
+    reason: 'Could not verify this image automatically. Upload a clear photo of your government ID.',
     method: 'skipped',
   };
 }

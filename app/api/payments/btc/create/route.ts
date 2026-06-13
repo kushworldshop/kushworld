@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createBtcPaymentDetails, type BtcPaymentRecord } from '@/lib/bitcoinCheckout';
 import { buildCheckoutOrder } from '@/lib/checkoutOrderBuilder';
+import { createOrderAccessToken } from '@/lib/orderAccessToken';
+import { generateOrderId } from '@/lib/orderIds';
 import { readOrders, writeOrders } from '@/lib/ordersStore';
 import {
   deductInventoryForOrder,
@@ -20,11 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!body.items?.length || !body.subtotal || body.subtotal <= 0) {
-      return NextResponse.json({ success: false, error: 'Cart is empty or total is invalid' }, { status: 400 });
-    }
-
-    const orderId = `KW-${Date.now().toString().slice(-8)}`;
+    const orderId = generateOrderId();
 
     try {
       await deductInventoryForOrder(body.items);
@@ -76,9 +74,12 @@ export async function POST(request: NextRequest) {
       throw saveError;
     }
 
+    const orderEmail = customer.email || (orderData.email as string | undefined);
+
     return NextResponse.json({
       success: true,
       orderId,
+      orderAccessToken: orderEmail ? createOrderAccessToken(orderId, orderEmail) : undefined,
       requiresIdUpload: needsIdVerification && !alreadyVerified,
       payment: {
         address: btcPayment.address,

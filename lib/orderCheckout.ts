@@ -55,7 +55,7 @@ export async function resolveOrderTotals(input: {
 
   const discount = Math.min(subtotal, promoDiscount + loyaltyDiscount + spinDiscount);
   const shippingCarrier = input.shippingCarrier ?? 'usps';
-  let shipping = input.shipping ?? calculateShipping(subtotal, shippingCarrier);
+  let shipping = calculateShipping(subtotal, shippingCarrier);
   if (freeShippingFromPrize) {
     shipping = 0;
   }

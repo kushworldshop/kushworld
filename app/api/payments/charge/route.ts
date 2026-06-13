@@ -14,6 +14,10 @@ import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
 import { markUserSpinPrizeUsed, unlockLoyaltyPointsAfterPurchase } from '@/lib/users';
 import { resolvePromoForOrder } from '@/lib/orderPromo';
 import { deductInventoryForOrder, InventoryError } from '@/lib/inventory';
+import { buildOrderRecord } from '@/lib/buildOrderRecord';
+import { createOrderAccessToken } from '@/lib/orderAccessToken';
+import { generateOrderId } from '@/lib/orderIds';
+import { validateCheckoutItems } from '@/lib/validateCheckout';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -30,7 +34,7 @@ async function ensureOrdersFile() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { customer, items, subtotal, opaqueData, referralCode } = body;
+    const { customer, opaqueData, referralCode } = body;
 
     if (!customer?.name || !customer?.email || !customer?.address) {
       return NextResponse.json(
@@ -46,12 +50,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!items?.length || !subtotal || subtotal <= 0) {
-      return NextResponse.json(
-        { success: false, error: 'Cart is empty or total is invalid' },
-        { status: 400 }
-      );
+    let validated;
+    try {
+      validated = await validateCheckoutItems(body.items || [], body.subtotal, customer.email);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Invalid cart';
+      return NextResponse.json({ success: false, error: message }, { status: 400 });
     }
+
+    const { items, subtotal, isFirstOrder } = validated;
 
     if (subtotal < MIN_ORDER_AMOUNT) {
       return NextResponse.json({ success: false, error: `Minimum order is $${MIN_ORDER_AMOUNT}` }, { status: 400 });
@@ -69,7 +76,7 @@ export async function POST(request: NextRequest) {
         referralCode: body.referralCode ?? referralCode,
         couponCode: body.couponCode,
         subtotal,
-        isFirstOrder: !!body.isFirstOrder,
+        isFirstOrder,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid promo code';
@@ -82,7 +89,6 @@ export async function POST(request: NextRequest) {
         subtotal,
         promoDiscount: promoMeta.promoDiscount,
         loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
-        shipping: body.shipping,
         shippingCarrier: body.shippingCarrier,
         spinPrizeId: body.spinPrizeId,
       });
@@ -94,18 +100,11 @@ export async function POST(request: NextRequest) {
     const {
       discount,
       shipping,
-      shippingCarrier,
-      shippingMethod,
       total: orderTotal,
       loyaltyPointsUsed,
-      loyaltyDiscount,
-      promoDiscount,
-      spinDiscount,
       spinPrizeId,
-      spinPrizeLabel,
-      freeTshirt,
     } = resolved;
-    const orderId = `KW-${Date.now().toString().slice(-8)}`;
+    const orderId = generateOrderId();
 
     try {
       await deductInventoryForOrder(items);
@@ -132,48 +131,24 @@ export async function POST(request: NextRequest) {
     const alreadyVerified = await isCustomerVerified(email);
     const needsIdVerification = orderRequiresIdVerification(items || []);
 
-    const newOrder = {
+    const newOrder = buildOrderRecord({
       id: orderId,
       customer,
       items,
       subtotal,
-      promoDiscount,
-      loyaltyPointsUsed,
-      loyaltyDiscount,
-      spinDiscount: spinDiscount || undefined,
-      spinPrizeId,
-      spinPrizeLabel,
-      freeTshirtNote: freeTshirt ? 'Wheel prize: Free T-Shirt — include in shipment' : undefined,
-      discount,
-      shipping,
-      shippingCarrier,
-      shippingMethod,
-      total: orderTotal,
       paymentMethod: 'card',
-      promoCode: promoMeta.promoCode,
-      promoSource: promoMeta.promoSource,
-      referrerCode: promoMeta.referrerCode,
-      referrerName: promoMeta.referrerName,
+      promoMeta,
+      resolved,
       paymentStatus: 'paid',
       transactionId: payment.transactionId,
       authCode: payment.authCode,
-      email,
-      name: customer.name,
-      address: customer.address,
-      city: customer.city,
-      state: customer.state,
-      zip: customer.zip,
-      phone: customer.phone,
       status: 'processing',
-      inventoryDeducted: true,
-      inventoryRestored: false,
       idVerification: !needsIdVerification
         ? { status: 'verified', note: 'Merch-only order — no ID required' }
         : alreadyVerified
           ? { status: 'verified', note: 'Returning verified customer' }
           : { status: 'required' },
-      createdAt: new Date().toISOString(),
-    };
+    });
 
     const data = await fs.readFile(ORDERS_FILE, 'utf8');
     const orders = JSON.parse(data);
@@ -217,6 +192,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       orderId,
+      orderAccessToken: createOrderAccessToken(orderId, email),
       transactionId: payment.transactionId,
       requiresIdUpload: needsIdVerification && !alreadyVerified,
     });

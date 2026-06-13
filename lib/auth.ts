@@ -1,12 +1,13 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { cookies } from 'next/headers';
 import { getUserById, isUserBlocked } from '@/lib/users';
+import { getSessionSecret } from '@/lib/security/secrets';
 
 const SESSION_COOKIE = 'kushworld_session';
 const SESSION_DAYS = 30;
 
 function getSecret(): string {
-  return process.env.SESSION_SECRET || 'kushworld-dev-secret-change-in-production';
+  return getSessionSecret();
 }
 
 function sign(payload: string): string {

@@ -9,6 +9,39 @@ import {
 
 const CODE_TTL_MS = 15 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
+const MAX_VERIFY_ATTEMPTS = 5;
+const VERIFY_LOCK_MS = 15 * 60 * 1000;
+
+const verifyAttempts = new Map<string, { count: number; lockedUntil?: number }>();
+
+function checkVerifyAttempts(userId: string): { allowed: boolean; error?: string } {
+  const now = Date.now();
+  const record = verifyAttempts.get(userId);
+  if (record?.lockedUntil && now < record.lockedUntil) {
+    return {
+      allowed: false,
+      error: 'Too many failed attempts. Wait 15 minutes and request a new code.',
+    };
+  }
+  if (record?.lockedUntil && now >= record.lockedUntil) {
+    verifyAttempts.delete(userId);
+  }
+  return { allowed: true };
+}
+
+function recordFailedVerifyAttempt(userId: string) {
+  const record = verifyAttempts.get(userId) ?? { count: 0 };
+  record.count += 1;
+  if (record.count >= MAX_VERIFY_ATTEMPTS) {
+    record.lockedUntil = Date.now() + VERIFY_LOCK_MS;
+    record.count = 0;
+  }
+  verifyAttempts.set(userId, record);
+}
+
+function clearVerifyAttempts(userId: string) {
+  verifyAttempts.delete(userId);
+}
 
 export type VerificationSendResult = {
   success: boolean;
@@ -172,6 +205,11 @@ export async function confirmEmailCode(
   userId: string,
   code: string
 ): Promise<{ success: boolean; error?: string; bonusClaimed?: boolean; pointsAwarded?: number }> {
+  const attemptCheck = checkVerifyAttempts(`email:${userId}`);
+  if (!attemptCheck.allowed) {
+    return { success: false, error: attemptCheck.error };
+  }
+
   const user = await getUserById(userId);
   if (!user) return { success: false, error: 'User not found' };
   if (user.emailVerifiedAt) return { success: true, bonusClaimed: !!user.signupBonusClaimed };
@@ -183,8 +221,11 @@ export async function confirmEmailCode(
     return { success: false, error: 'Code expired — request a new one' };
   }
   if (user.pendingEmailCode !== code.trim()) {
+    recordFailedVerifyAttempt(`email:${userId}`);
     return { success: false, error: 'Invalid code' };
   }
+
+  clearVerifyAttempts(`email:${userId}`);
 
   await updateUserRecord(userId, (u) => ({
     ...u,
@@ -205,6 +246,11 @@ export async function confirmPhoneCode(
   userId: string,
   code: string
 ): Promise<{ success: boolean; error?: string; bonusClaimed?: boolean; pointsAwarded?: number }> {
+  const attemptCheck = checkVerifyAttempts(`phone:${userId}`);
+  if (!attemptCheck.allowed) {
+    return { success: false, error: attemptCheck.error };
+  }
+
   const user = await getUserById(userId);
   if (!user) return { success: false, error: 'User not found' };
   if (user.phoneVerifiedAt) return { success: true, bonusClaimed: !!user.signupBonusClaimed };
@@ -216,8 +262,11 @@ export async function confirmPhoneCode(
     return { success: false, error: 'Code expired — request a new one' };
   }
   if (user.pendingPhoneCode !== code.trim()) {
+    recordFailedVerifyAttempt(`phone:${userId}`);
     return { success: false, error: 'Invalid code' };
   }
+
+  clearVerifyAttempts(`phone:${userId}`);
 
   await updateUserRecord(userId, (u) => ({
     ...u,
