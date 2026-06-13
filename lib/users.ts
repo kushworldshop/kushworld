@@ -12,6 +12,7 @@ import {
   resolveReferralRewardPoints,
 } from '@/lib/referrals';
 import { getSettings } from '@/lib/settings';
+import { markSpinHistoryUsed } from '@/lib/spinWheelHistory';
 import type { SpinPrize } from '@/lib/spinWheelTypes';
 import type { UserIdVerification } from '@/lib/verification';
 
@@ -343,7 +344,11 @@ export async function clearActiveSpinPrize(userId: string): Promise<void> {
   await writeUsers(users);
 }
 
-export async function markUserSpinPrizeUsed(userId: string, prizeId: string): Promise<void> {
+export async function markUserSpinPrizeUsed(
+  userId: string,
+  prizeId: string,
+  meta?: { orderId?: string; orderTotal?: number }
+): Promise<void> {
   const users = await readUsers();
   const index = users.findIndex((u) => u.id === userId);
   if (index === -1) return;
@@ -351,11 +356,13 @@ export async function markUserSpinPrizeUsed(userId: string, prizeId: string): Pr
   const prize = users[index].activeSpinPrize;
   if (!prize || prize.id !== prizeId) return;
 
+  const usedAt = new Date().toISOString();
   users[index].activeSpinPrize = {
     ...prize,
-    usedAt: new Date().toISOString(),
+    usedAt,
   };
   await writeUsers(users);
+  await markSpinHistoryUsed(prizeId, meta);
 }
 
 export async function getUserDashboard(userId: string): Promise<PublicUserProfile | null> {

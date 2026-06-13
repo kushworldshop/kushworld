@@ -9,9 +9,10 @@ import FeaturesTab from '@/app/admin/components/FeaturesTab';
 import OrderShippingControls from '@/app/admin/components/OrderShippingControls';
 import CustomersTab from '@/app/admin/components/CustomersTab';
 import ProductsTab from '@/app/admin/components/ProductsTab';
+import SpinWheelTab from '@/app/admin/components/SpinWheelTab';
 import { formatCartItemOptions } from '@/lib/productOptions';
 
-type AdminTab = 'orders' | 'products' | 'wishlist' | 'site' | 'features' | 'customers';
+type AdminTab = 'orders' | 'products' | 'wishlist' | 'wheel' | 'site' | 'features' | 'customers';
 
 interface WishlistStat {
   id: string;
@@ -272,6 +273,12 @@ export default function AdminOrders() {
             Wishlist Insights
           </button>
           <button
+            onClick={() => setTab('wheel')}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'wheel' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Wheel Wins
+          </button>
+          <button
             onClick={() => { setTab('site'); loadSiteContent(); }}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'site' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
@@ -302,6 +309,8 @@ export default function AdminOrders() {
         {tab === 'customers' && <CustomersTab />}
 
         {tab === 'products' && <ProductsTab />}
+
+        {tab === 'wheel' && <SpinWheelTab />}
 
         {tab === 'wishlist' && (
           <div className="mb-10">

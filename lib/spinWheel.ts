@@ -7,6 +7,7 @@ import {
   type SpinPrize,
   type WheelSegment,
 } from '@/lib/spinWheelTypes';
+import { markSpinHistoryForfeited, recordSpinHistory } from '@/lib/spinWheelHistory';
 import {
   addLoyaltyPoints,
   clearActiveSpinPrize,
@@ -62,7 +63,12 @@ export function getActiveSpinPrize(user: UserProfile): SpinPrize | null {
 }
 
 export async function forfeitSpinPrize(userId: string): Promise<void> {
+  const user = await getUserById(userId);
+  const prizeId = user?.activeSpinPrize?.id;
   await clearActiveSpinPrize(userId);
+  if (prizeId) {
+    await markSpinHistoryForfeited(prizeId);
+  }
 }
 
 async function getSpinCost(): Promise<number> {
@@ -119,6 +125,45 @@ export async function spinWheel(userId: string): Promise<{
     prize = buildPrizeFromSegment(segment);
     await setActiveSpinPrize(userId, prize);
     message = `You won: ${segment.label}! Use it on your next order.`;
+  }
+
+  if (segment.type === 'try_again') {
+    await recordSpinHistory({
+      userId: user.id,
+      userEmail: user.email,
+      userName: user.name,
+      pointsSpent: spinCost,
+      segmentId: segment.id,
+      segmentLabel: segment.label,
+      prizeType: segment.type,
+      status: 'no_prize',
+    });
+  } else if (segment.type === 'bonus_points') {
+    await recordSpinHistory({
+      userId: user.id,
+      userEmail: user.email,
+      userName: user.name,
+      pointsSpent: spinCost,
+      segmentId: segment.id,
+      segmentLabel: segment.label,
+      prizeType: segment.type,
+      instantBonusPoints,
+      status: 'instant_points',
+    });
+  } else if (prize) {
+    await recordSpinHistory({
+      userId: user.id,
+      userEmail: user.email,
+      userName: user.name,
+      pointsSpent: spinCost,
+      segmentId: segment.id,
+      segmentLabel: segment.label,
+      prizeType: segment.type,
+      prizeId: prize.id,
+      prizeLabel: prize.label,
+      expiresAt: prize.expiresAt,
+      status: 'pending',
+    });
   }
 
   const updated = await getUserById(userId);

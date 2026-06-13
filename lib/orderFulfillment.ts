@@ -35,7 +35,10 @@ export async function fulfillPaidOrder(order: FulfillmentOrder) {
       await finalizeLoyaltyRedemption(userId, order.loyaltyPointsUsed!);
     }
     if (order.spinPrizeId) {
-      await markUserSpinPrizeUsed(userId, order.spinPrizeId);
+      await markUserSpinPrizeUsed(userId, order.spinPrizeId, {
+        orderId: order.id,
+        orderTotal: order.total,
+      });
     }
     await awardPurchaseLoyalty(userId, subtotal);
     await unlockLoyaltyPointsAfterPurchase(userId);

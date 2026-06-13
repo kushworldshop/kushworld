@@ -299,7 +299,10 @@ export async function POST(request: NextRequest) {
         await finalizeLoyaltyRedemption(userId, loyaltyPointsUsed);
       }
       if (spinPrizeId) {
-        await markUserSpinPrizeUsed(userId, spinPrizeId);
+        await markUserSpinPrizeUsed(userId, spinPrizeId, {
+          orderId: newOrder.id,
+          orderTotal: total,
+        });
       }
       await awardPurchaseLoyalty(userId, subtotal);
       await unlockLoyaltyPointsAfterPurchase(userId);
