@@ -1,0 +1,70 @@
+KUSHWORLD.SHOP — CLOUDFLARE SETUP CHECKLIST
+============================================
+
+Domain registrar: GoDaddy (ns05/ns06.domaincontrol.com)
+Origin server:    46.62.249.173 (Hetzner)
+SSL on origin:    Let's Encrypt (already installed)
+
+STEP 1 — Add site to Cloudflare
+--------------------------------
+1. Go to https://dash.cloudflare.com/sign-up (or log in)
+2. Click "Add a site" → enter: kushworld.shop
+3. Pick the Free plan
+4. Cloudflare scans existing DNS — confirm these records:
+
+   TYPE   NAME   CONTENT           PROXY
+   A      @      46.62.249.173     Proxied (orange cloud ON)
+   A      www    46.62.249.173     Proxied (orange cloud ON)
+
+   Remove any old/conflicting A records pointing elsewhere.
+
+STEP 2 — Change nameservers at GoDaddy
+--------------------------------------
+1. Cloudflare shows 2 nameservers (e.g. ada.ns.cloudflare.com, bob.ns.cloudflare.com)
+2. GoDaddy → My Products → kushworld.shop → DNS → Nameservers
+3. Choose "Change nameservers" → "Enter my own nameservers"
+4. Paste Cloudflare's 2 nameservers → Save
+5. Back in Cloudflare, click Continue — wait for "Active" status (usually 15 min–24 hrs)
+
+STEP 3 — Cloudflare SSL/TLS settings
+------------------------------------
+SSL/TLS → Overview:     Full (strict)
+SSL/TLS → Edge Certs:    Always Use HTTPS = ON
+SSL/TLS → Edge Certs:    Automatic HTTPS Rewrites = ON
+
+STEP 4 — Security settings (recommended)
+----------------------------------------
+Security → Settings:
+  Security Level:        Medium (or High if you see bot traffic)
+  Bot Fight Mode:        ON (free plan)
+  Browser Integrity:     ON
+
+Security → WAF (if available on your plan):
+  Enable OWASP core ruleset if shown
+
+Speed → Optimization:
+  Auto Minify: CSS + JS (optional)
+
+STEP 5 — Lock origin server (run on VPS after Cloudflare is Active)
+------------------------------------------------------------------
+SSH to server, then:
+
+  cd /var/www/kushworld
+  git pull
+  bash scripts/setup-cloudflare-origin.sh --lock-origin
+
+This makes nginx only accept web traffic from Cloudflare IPs
+so attackers cannot bypass Cloudflare by hitting 46.62.249.173 directly.
+
+STEP 6 — Verify
+---------------
+  https://kushworld.shop loads
+  https://www.kushworld.shop loads
+  Admin login works
+  Checkout / image upload works
+  In Cloudflare Analytics you should see traffic within ~1 hour
+
+OPTIONAL — Under Attack mode (during a DDoS)
+--------------------------------------------
+Cloudflare → Overview → Quick Actions → "I'm Under Attack"
+Turn off when the attack subsides.
