@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import AdminNumberInput from '@/app/admin/components/AdminNumberInput';
 import type { ProductOptionGroup, ProductOptionValue } from '@/lib/productOptions';
 import {
   DEVICE_OPTION_GROUP_PRESETS,
@@ -335,14 +336,11 @@ export default function ProductOptionsEditor({
                     />
                     <label className="flex items-center gap-2 text-xs text-zinc-500">
                       +$
-                      <input
-                        type="number"
-                        step={0.01}
-                        value={option.priceAdjustment ?? ''}
-                        onChange={(e) =>
-                          updateValue(groupIndex, valueIndex, {
-                            priceAdjustment: e.target.value === '' ? undefined : Number(e.target.value),
-                          })
+                      <AdminNumberInput
+                        optional
+                        value={option.priceAdjustment}
+                        onChange={(priceAdjustment) =>
+                          updateValue(groupIndex, valueIndex, { priceAdjustment })
                         }
                         placeholder="0"
                         className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-2 text-sm"

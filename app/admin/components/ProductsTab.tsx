@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import { adminFetch } from '@/lib/adminClient';
 import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
+import AdminNumberInput from '@/app/admin/components/AdminNumberInput';
 import ProductOptionsEditor from '@/app/admin/components/ProductOptionsEditor';
 import { getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
 import { MERCH_SUBCATEGORIES, getMerchSubcategoryLabel } from '@/lib/merch';
@@ -732,24 +733,19 @@ export default function ProductsTab() {
                   >
                     <label className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                       $
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.01}
+                      <AdminNumberInput
                         value={draft.price}
-                        onChange={(e) => updateDraft(product.id, 'price', Number(e.target.value))}
+                        onChange={(price) => updateDraft(product.id, 'price', price)}
                         className="w-20 bg-black border border-zinc-700 rounded-lg px-2 py-1 text-sm text-white"
                       />
                     </label>
                     {stockTracked ? (
                       <label className="flex items-center gap-1.5 text-[11px] text-zinc-500">
                         Stock
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
+                        <AdminNumberInput
                           value={stock}
-                          onChange={(e) => updateDraft(product.id, 'inventory', Number(e.target.value))}
+                          onChange={(inventory) => updateDraft(product.id, 'inventory', inventory)}
+                          integer
                           className={`w-16 bg-black border rounded-lg px-2 py-1 text-sm text-white ${
                             stock === 0
                               ? 'border-red-700'
@@ -964,24 +960,18 @@ function ProductDetailPanel({
         </div>
         <div>
           <label className="text-xs text-zinc-500 block mb-1">Sell price ($)</label>
-          <input
-            type="number"
-            min={0}
-            step={0.01}
+          <AdminNumberInput
             value={draft.price}
-            onChange={(e) => onDraftChange('price', Number(e.target.value))}
+            onChange={(price) => onDraftChange('price', price)}
             className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
           />
           <p className="text-[11px] text-zinc-500 mt-1">Customer-facing shop price</p>
         </div>
         <div>
           <label className="text-xs text-zinc-500 block mb-1">Cost ($)</label>
-          <input
-            type="number"
-            min={0}
-            step={0.01}
+          <AdminNumberInput
             value={draft.cost}
-            onChange={(e) => onDraftChange('cost', Number(e.target.value))}
+            onChange={(cost) => onDraftChange('cost', cost)}
             className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
           />
           <p className="text-[11px] text-zinc-500 mt-1">Admin only — never shown on shop</p>
@@ -1000,12 +990,10 @@ function ProductDetailPanel({
             <div className="mt-3 flex flex-wrap items-end gap-4">
               <div>
                 <label className="text-xs text-zinc-500 block mb-1">Stock count</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1}
+                <AdminNumberInput
                   value={draft.inventory}
-                  onChange={(e) => onDraftChange('inventory', Number(e.target.value))}
+                  onChange={(inventory) => onDraftChange('inventory', inventory)}
+                  integer
                   className="w-32 bg-black border border-zinc-700 rounded-xl px-4 py-3"
                 />
               </div>
@@ -1146,12 +1134,9 @@ function ProductDetailPanel({
         <div className="md:col-span-2 grid md:grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-zinc-500 block mb-1">Compare-at price ($)</label>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
+            <AdminNumberInput
               value={draft.compareAtPrice}
-              onChange={(e) => onDraftChange('compareAtPrice', Number(e.target.value))}
+              onChange={(compareAtPrice) => onDraftChange('compareAtPrice', compareAtPrice)}
               className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
             />
             <p className="text-[11px] text-zinc-500 mt-1">Set higher than sell price to show as on sale</p>
