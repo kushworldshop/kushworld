@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   WHEEL_SEGMENTS,
-  getWheelRotation,
+  getWheelRotationDelta,
   type SpinPrize,
 } from '@/lib/spinWheelTypes';
 
@@ -18,6 +18,7 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [wonPrize, setWonPrize] = useState<SpinPrize | null>(null);
   const [error, setError] = useState('');
 
   const gradient = WHEEL_SEGMENTS.map((seg, i) => {
@@ -36,6 +37,7 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
     setSpinning(true);
     setError('');
     setResult(null);
+    setWonPrize(null);
 
     try {
       const res = await fetch('/api/loyalty/spin', { method: 'POST' });
@@ -47,11 +49,11 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
         return;
       }
 
-      const targetRotation = getWheelRotation(data.segmentId);
-      setRotation((prev) => prev + targetRotation);
+      setRotation((prev) => prev + getWheelRotationDelta(data.segmentId, prev));
 
       setTimeout(() => {
         setResult(data.message);
+        setWonPrize(data.prize ?? null);
         onSpinComplete(data.remainingPoints, data.prize ?? null);
         setSpinning(false);
       }, 4200);
@@ -71,6 +73,7 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
     const data = await res.json();
     if (data.success) {
       setResult('Prize forfeited — spin again!');
+      setWonPrize(null);
       onSpinComplete(points, null);
     } else {
       setError(data.error || 'Could not forfeit prize');
@@ -118,10 +121,17 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
 
       {activePrize ? (
         <div className="w-full max-w-md bg-black border border-[#00ff9d]/40 rounded-2xl p-5 mb-4 text-center">
-          <p className="text-sm text-zinc-400 mb-1">Active prize</p>
+          <p className="text-sm text-zinc-400 mb-1">Your wheel prize</p>
           <p className="text-xl font-bold text-[#00ff9d]">{activePrize.label}</p>
           <p className="text-xs text-zinc-500 mt-2">
-            Expires {new Date(activePrize.expiresAt).toLocaleDateString()} · Use at checkout
+            {activePrize.type === 'free_tshirt'
+              ? 'Free studio tee added to your order at checkout — not a promo code.'
+              : activePrize.type === 'free_shipping'
+                ? 'Free shipping on your next order at checkout.'
+                : 'Apply on the checkout page under Wheel Prize — separate from promo codes.'}
+          </p>
+          <p className="text-xs text-zinc-500 mt-1">
+            Expires {new Date(activePrize.expiresAt).toLocaleDateString()}
           </p>
           <button
             onClick={handleForfeit}
@@ -144,7 +154,16 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
         Balance: <span className="text-[#00ff9d] font-medium">{points.toLocaleString()} pts</span>
       </p>
 
-      {result && <p className="text-[#00ff9d] text-sm text-center max-w-sm">{result}</p>}
+      {result && (
+        <div className="text-center max-w-sm space-y-2">
+          <p className="text-[#00ff9d] text-sm">{result}</p>
+          {wonPrize && (
+            <p className="text-xs text-zinc-400">
+              Saved to your account — apply at checkout before it expires.
+            </p>
+          )}
+        </div>
+      )}
       {error && <p className="text-red-400 text-sm text-center max-w-sm">{error}</p>}
 
       <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-2 w-full max-w-lg">

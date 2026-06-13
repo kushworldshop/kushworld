@@ -45,12 +45,26 @@ export function getSegmentIndex(segmentId: string): number {
   return WHEEL_SEGMENTS.findIndex((s) => s.id === segmentId);
 }
 
-export function getWheelRotation(segmentId: string): number {
+/** Pointer is fixed at the top; segments are laid out clockwise from 12 o'clock. */
+export function getWheelRotationDelta(segmentId: string, currentRotation = 0): number {
   const index = getSegmentIndex(segmentId);
   if (index < 0) return 0;
+
   const segmentAngle = 360 / WHEEL_SEGMENTS.length;
-  const fullSpins = 6;
-  return fullSpins * 360 + index * segmentAngle + segmentAngle / 2;
+  const segmentCenter = index * segmentAngle + segmentAngle / 2;
+  const jitter = (Math.random() - 0.5) * segmentAngle * 0.55;
+  const targetCenter = segmentCenter + jitter;
+
+  const fullSpins = 5 + Math.floor(Math.random() * 4);
+  const currentMod = ((currentRotation % 360) + 360) % 360;
+  const align = (360 - targetCenter - currentMod + 360) % 360;
+
+  return fullSpins * 360 + align;
+}
+
+/** @deprecated Use getWheelRotationDelta — kept for compatibility */
+export function getWheelRotation(segmentId: string): number {
+  return getWheelRotationDelta(segmentId, 0);
 }
 
 export function computeSpinPrizeDiscount(prize: SpinPrize, subtotal: number): number {

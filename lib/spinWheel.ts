@@ -17,16 +17,25 @@ import {
   type UserProfile,
 } from '@/lib/users';
 
+function secureUnitRandom(): number {
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const buffer = new Uint32Array(1);
+    crypto.getRandomValues(buffer);
+    return buffer[0] / 0x1_0000_0000;
+  }
+  return Math.random();
+}
+
 function pickWeightedSegment(): WheelSegment {
-  const totalWeight = WHEEL_SEGMENTS.reduce((sum, s) => sum + s.weight, 0);
-  let roll = Math.random() * totalWeight;
+  const totalWeight = WHEEL_SEGMENTS.reduce((sum, segment) => sum + segment.weight, 0);
+  let roll = secureUnitRandom() * totalWeight;
 
   for (const segment of WHEEL_SEGMENTS) {
     roll -= segment.weight;
     if (roll <= 0) return segment;
   }
 
-  return WHEEL_SEGMENTS[0];
+  return WHEEL_SEGMENTS[WHEEL_SEGMENTS.length - 1];
 }
 
 function buildPrizeFromSegment(segment: WheelSegment): SpinPrize {
