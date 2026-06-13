@@ -1,8 +1,15 @@
 import { getSiteContent } from '@/lib/siteContent';
 import { CATEGORY_SEO } from '@/lib/seo';
 import { getMerchSubcategoryLabel } from '@/lib/merch';
+import {
+  getProductDescriptionToneInstructions,
+  normalizeProductDescriptionTone,
+  type ProductDescriptionTone,
+} from '@/lib/grokProductDescriptionTones';
 import { getProductCategoryLabel } from '@/lib/shopNavigation';
 import { isXaiConfigured, xaiChatCompletion } from '@/lib/xai';
+
+export type { ProductDescriptionTone } from '@/lib/grokProductDescriptionTones';
 
 export interface ProductDescriptionInput {
   productId: string;
@@ -12,6 +19,7 @@ export interface ProductDescriptionInput {
   merchSubcategory?: string;
   price: number;
   existingDescription?: string;
+  tone?: ProductDescriptionTone;
 }
 
 function stripGeneratedDescription(text: string): string {
@@ -23,6 +31,7 @@ function stripGeneratedDescription(text: string): string {
 }
 
 function buildProductDescriptionPrompt(input: ProductDescriptionInput): string {
+  const tone = normalizeProductDescriptionTone(input.tone);
   const content = CATEGORY_SEO[input.category];
   const categoryLabel =
     input.category === 'merch' && input.merchSubcategory
@@ -30,10 +39,14 @@ function buildProductDescriptionPrompt(input: ProductDescriptionInput): string {
       : input.category;
 
   const seoKeywords = content?.keywords?.join(', ') ?? 'Kush World, lab tested hemp';
+  const wordTarget =
+    tone === 'concise' ? '80–120 words' : '140–220 words';
 
   return `You write product descriptions for Kush World (kushworld.shop), a premium hemp and studio merch retailer.
 
-Write ONE product description for the item below. Match the tone of top compliant hemp retailers (professional, trustworthy, premium — similar to TVN Family and other lab-focused hemp brands).
+Write ONE product description for the item below.
+
+${getProductDescriptionToneInstructions(tone)}
 
 PRODUCT DATA:
 - ID: ${input.productId}
@@ -46,7 +59,7 @@ ${input.existingDescription ? `- Current description (improve/expand, do not cop
 
 SEO & STRUCTURE:
 - Open with a compelling sentence that includes the product name and a primary category keyword naturally.
-- Target 140–220 words. Use short paragraphs (2–3 sentences each) or a brief intro plus 3–4 bullet features.
+- Target ${wordTarget}. Use short paragraphs (2–3 sentences each) or a brief intro plus 3–4 bullet features.
 - Weave in relevant keywords naturally: ${seoKeywords}
 - Write for humans first; avoid keyword stuffing, ALL CAPS hype, or spammy repetition.
 

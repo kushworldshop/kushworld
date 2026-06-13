@@ -16,6 +16,11 @@ import {
   type AdminProductCategoryTabId,
 } from '@/lib/shopNavigation';
 import { formatCurrency, formatPercent, getProductMargin } from '@/lib/productEconomics';
+import {
+  DEFAULT_PRODUCT_DESCRIPTION_TONE,
+  PRODUCT_DESCRIPTION_TONES,
+  type ProductDescriptionTone,
+} from '@/lib/grokProductDescriptionTones';
 
 interface AdminProduct {
   id: string;
@@ -110,6 +115,16 @@ export default function ProductsTab() {
   const [uploadingImageId, setUploadingImageId] = useState<string | null>(null);
   const [siteContent, setSiteContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
   const [descriptionMessage, setDescriptionMessage] = useState('');
+  const [descriptionTone, setDescriptionTone] = useState<ProductDescriptionTone>(
+    DEFAULT_PRODUCT_DESCRIPTION_TONE
+  );
+  const [bulkGrokProgress, setBulkGrokProgress] = useState<{
+    current: number;
+    total: number;
+    name: string;
+  } | null>(null);
+
+  const grokEnabled = siteContent.features.grokAssistant.enabled;
 
   const loadProducts = async () => {
     setLoading(true);
@@ -376,6 +391,96 @@ export default function ProductsTab() {
     }
   };
 
+  const requestGrokDescription = async (
+    product: AdminProduct,
+    draft: ProductDraft,
+    tone: ProductDescriptionTone
+  ): Promise<{ success: true; description: string } | { success: false; error: string }> => {
+    const res = await adminFetch('/api/admin/products/description', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productId: product.id,
+        name: draft.name,
+        category: draft.category,
+        subcategory: draft.subcategory,
+        merchSubcategory: draft.merchSubcategory,
+        price: draft.price,
+        existingDescription: draft.description,
+        tone,
+      }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      return { success: false, error: data.error || 'Failed to generate description' };
+    }
+    return { success: true, description: data.description };
+  };
+
+  const grokAllFilteredDescriptions = async () => {
+    if (!grokEnabled) {
+      setMessage('Enable Grok in Admin → Features first.');
+      return;
+    }
+    if (filteredProducts.length === 0) {
+      setMessage('No products match your filters.');
+      return;
+    }
+
+    const toneLabel = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === descriptionTone)?.label ?? 'TVN-style';
+    const confirmed = window.confirm(
+      `Write SEO descriptions for ${filteredProducts.length} product${filteredProducts.length === 1 ? '' : 's'} (${bulkVisibilityLabel}) using ${toneLabel} tone?\n\nDescriptions load as drafts — review and use Save all when ready.`
+    );
+    if (!confirmed) return;
+
+    setBulkGrokProgress({ current: 0, total: filteredProducts.length, name: '' });
+    setMessage('');
+    setDescriptionMessage('');
+
+    let succeeded = 0;
+    let failed = 0;
+    let lastError = '';
+
+    for (let index = 0; index < filteredProducts.length; index += 1) {
+      const product = filteredProducts[index];
+      const draft = getDraft(product);
+      setBulkGrokProgress({
+        current: index + 1,
+        total: filteredProducts.length,
+        name: draft.name,
+      });
+
+      try {
+        const result = await requestGrokDescription(product, draft, descriptionTone);
+        if (result.success) {
+          updateDraft(product.id, 'description', result.description);
+          succeeded += 1;
+        } else {
+          failed += 1;
+          lastError = result.error;
+        }
+      } catch {
+        failed += 1;
+        lastError = 'Failed to reach Grok';
+      }
+
+      if (index < filteredProducts.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      }
+    }
+
+    setBulkGrokProgress(null);
+    if (failed === 0) {
+      setMessage(
+        `Grok wrote ${succeeded} description${succeeded === 1 ? '' : 's'} — review and save when ready.`
+      );
+    } else {
+      setMessage(
+        `Grok wrote ${succeeded}, failed ${failed}${lastError ? ` — last error: ${lastError}` : ''}`
+      );
+    }
+  };
+
   const uploadImage = async (product: AdminProduct, file: File) => {
     setUploadingImageId(product.id);
     setMessage('');
@@ -438,12 +543,36 @@ export default function ProductsTab() {
           </button>
           <button
             onClick={loadProducts}
-            disabled={loading || bulkVisibility !== null}
+            disabled={loading || bulkVisibility !== null || bulkGrokProgress !== null}
             className="bg-zinc-800 hover:bg-zinc-700 px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
           >
             {loading ? 'Refreshing...' : 'Refresh'}
           </button>
+          {grokEnabled && (
+            <>
+              <DescriptionToneSelect value={descriptionTone} onChange={setDescriptionTone} />
+              <button
+                onClick={grokAllFilteredDescriptions}
+                disabled={
+                  loading ||
+                  bulkVisibility !== null ||
+                  bulkGrokProgress !== null ||
+                  filteredProducts.length === 0
+                }
+                className="bg-[#00ff9d]/15 text-[#00ff9d] hover:bg-[#00ff9d]/25 border border-[#00ff9d]/40 px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {bulkGrokProgress
+                  ? `Grok ${bulkGrokProgress.current}/${bulkGrokProgress.total}…`
+                  : `✦ Grok all descriptions (${filteredProducts.length})`}
+              </button>
+            </>
+          )}
           {message && <p className="text-sm text-[#00ff9d]">{message}</p>}
+          {bulkGrokProgress && (
+            <p className="text-sm text-zinc-400 w-full">
+              Writing: {bulkGrokProgress.name}
+            </p>
+          )}
         </div>
       </div>
 
@@ -665,14 +794,49 @@ export default function ProductsTab() {
               onSave={() => saveProduct(selectedProduct)}
               onToggleVisibility={() => toggleVisibility(selectedProduct)}
               onUploadImage={(file) => uploadImage(selectedProduct, file)}
-              grokEnabled={siteContent.features.grokAssistant.enabled}
+              grokEnabled={grokEnabled}
+              descriptionTone={descriptionTone}
+              onDescriptionToneChange={setDescriptionTone}
               descriptionMessage={descriptionMessage}
               onDescriptionMessage={setDescriptionMessage}
+              onRequestGrokDescription={requestGrokDescription}
             />
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function DescriptionToneSelect({
+  value,
+  onChange,
+  compact,
+}: {
+  value: ProductDescriptionTone;
+  onChange: (tone: ProductDescriptionTone) => void;
+  compact?: boolean;
+}) {
+  const selected = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === value);
+
+  return (
+    <label className={`flex items-center gap-2 ${compact ? 'text-xs' : 'text-sm'}`}>
+      <span className="text-zinc-500 whitespace-nowrap">Tone</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as ProductDescriptionTone)}
+        title={selected?.hint}
+        className={`bg-black border border-zinc-700 rounded-xl text-white ${
+          compact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2.5 text-sm'
+        }`}
+      >
+        {PRODUCT_DESCRIPTION_TONES.map((tone) => (
+          <option key={tone.id} value={tone.id}>
+            {tone.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -689,8 +853,11 @@ function ProductDetailPanel({
   onToggleVisibility,
   onUploadImage,
   grokEnabled,
+  descriptionTone,
+  onDescriptionToneChange,
   descriptionMessage,
   onDescriptionMessage,
+  onRequestGrokDescription,
 }: {
   product: AdminProduct;
   draft: ProductDraft;
@@ -700,8 +867,15 @@ function ProductDetailPanel({
   uploadingImage: boolean;
   siteContent: SiteContent;
   grokEnabled: boolean;
+  descriptionTone: ProductDescriptionTone;
+  onDescriptionToneChange: (tone: ProductDescriptionTone) => void;
   descriptionMessage: string;
   onDescriptionMessage: Dispatch<SetStateAction<string>>;
+  onRequestGrokDescription: (
+    product: AdminProduct,
+    draft: ProductDraft,
+    tone: ProductDescriptionTone
+  ) => Promise<{ success: true; description: string } | { success: false; error: string }>;
   onDraftChange: (
     field: keyof AdminProduct | 'trackInventory',
     value: string | number | boolean | ProductOptionGroup[]
@@ -712,6 +886,7 @@ function ProductDetailPanel({
 }) {
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const margin = getProductMargin(draft.price, draft.cost > 0 ? draft.cost : undefined);
+  const selectedTone = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === descriptionTone);
 
   const generateDescription = async () => {
     if (!grokEnabled) {
@@ -722,25 +897,12 @@ function ProductDetailPanel({
     setGeneratingDescription(true);
     onDescriptionMessage('');
     try {
-      const res = await adminFetch('/api/admin/products/description', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          name: draft.name,
-          category: draft.category,
-          subcategory: draft.subcategory,
-          merchSubcategory: draft.merchSubcategory,
-          price: draft.price,
-          existingDescription: draft.description,
-        }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        onDescriptionMessage(data.error || 'Failed to generate description');
+      const result = await onRequestGrokDescription(product, draft, descriptionTone);
+      if (!result.success) {
+        onDescriptionMessage(result.error);
         return;
       }
-      onDraftChange('description', data.description);
+      onDraftChange('description', result.description);
       onDescriptionMessage('Grok wrote a new SEO description — review and save when ready.');
     } catch {
       onDescriptionMessage('Failed to reach Grok. Try again.');
@@ -928,6 +1090,13 @@ function ProductDetailPanel({
             className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
           />
           <div className="mt-3 flex flex-wrap items-center gap-3">
+            {grokEnabled && (
+              <DescriptionToneSelect
+                value={descriptionTone}
+                onChange={onDescriptionToneChange}
+                compact
+              />
+            )}
             <button
               type="button"
               onClick={generateDescription}
@@ -937,7 +1106,7 @@ function ProductDetailPanel({
               {generatingDescription ? 'Grok is writing...' : '✦ Write SEO description with Grok'}
             </button>
             <p className="text-xs text-zinc-500 max-w-md">
-              Compliant hemp copy + SEO keywords (TVN-style). Review before saving — Grok does not auto-publish.
+              {selectedTone?.hint ?? 'Compliant hemp copy + SEO keywords'}. Review before saving — Grok does not auto-publish.
             </p>
           </div>
           {descriptionMessage && (

@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       merchSubcategory: typeof body.merchSubcategory === 'string' ? body.merchSubcategory : undefined,
       price,
       existingDescription: typeof body.existingDescription === 'string' ? body.existingDescription : undefined,
+      tone: body.tone,
     });
 
     if ('error' in result) {
