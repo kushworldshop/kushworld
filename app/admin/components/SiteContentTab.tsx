@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import { invalidateSiteContentCache } from '@/lib/useSiteContent';
+import type { FeaturePatch, SiteFeatures } from '@/lib/featureTypes';
 import type { FaqItem, SiteContent } from '@/lib/siteContentTypes';
 import ShopNavigationEditor from '@/app/admin/components/ShopNavigationEditor';
 import GrokChat from '@/app/components/GrokChat';
@@ -14,6 +15,7 @@ type SectionKey =
   | 'footer'
   | 'contact'
   | 'homepage'
+  | 'homepage-sections'
   | 'ageGate'
   | 'shipping'
   | 'policies'
@@ -65,6 +67,18 @@ export default function SiteContentTab({
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
+  const features = content.features;
+
+  const patchFeatures = (patch: FeaturePatch) => {
+    const next = { ...features } as SiteFeatures;
+    (Object.keys(patch) as (keyof SiteFeatures)[]).forEach((key) => {
+      const value = patch[key];
+      if (value !== undefined) {
+        (next as unknown as Record<string, unknown>)[key as string] = { ...features[key], ...value };
+      }
+    });
+    onContentChange({ ...content, features: next });
+  };
 
   const save = async () => {
     setSaving(true);
@@ -126,9 +140,10 @@ export default function SiteContentTab({
     { key: 'brand', label: 'Brand & Logo' },
     { key: 'announcement', label: 'Top Banner' },
     { key: 'hero', label: 'Hero' },
+    { key: 'homepage-sections', label: 'Homepage Sections' },
+    { key: 'homepage', label: 'Merch, Loyalty & FAQ' },
     { key: 'footer', label: 'Footer' },
-    { key: 'contact', label: 'Contact' },
-    { key: 'homepage', label: 'Homepage' },
+    { key: 'contact', label: 'Contact & Social' },
     { key: 'ageGate', label: 'Age Gate' },
     { key: 'shipping', label: 'Shipping' },
     { key: 'policies', label: 'Policies' },
@@ -137,6 +152,14 @@ export default function SiteContentTab({
 
   return (
     <div className="mb-10">
+      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
+        <h2 className="text-2xl font-bold mb-2">Site Content</h2>
+        <p className="text-zinc-400 text-sm max-w-3xl">
+          All customer-facing copy lives here — hero text, homepage sections, policies, contact info, and shop
+          navigation. Turn sections on or off under the Features tab.
+        </p>
+      </div>
+
       <div className="flex flex-wrap gap-2 mb-6">
         {sections.map((item) => (
           <button
@@ -232,6 +255,125 @@ export default function SiteContentTab({
           </>
         )}
 
+        {section === 'homepage-sections' && (
+          <>
+            <p className="text-sm text-zinc-400">
+              Titles and body copy for homepage product sections. Enable or disable each block in Features.
+            </p>
+
+            <h3 className="font-bold text-[#00ff9d]">Best Sellers</h3>
+            <Field
+              label="Section title"
+              value={features.bestSellers.title}
+              onChange={(v) => patchFeatures({ bestSellers: { title: v } })}
+            />
+            <Field
+              label="Subtitle"
+              value={features.bestSellers.subtitle}
+              onChange={(v) => patchFeatures({ bestSellers: { subtitle: v } })}
+              multiline
+            />
+
+            <h3 className="font-bold text-[#00ff9d] pt-2">New Arrivals</h3>
+            <Field
+              label="Section title"
+              value={features.newArrivals.title}
+              onChange={(v) => patchFeatures({ newArrivals: { title: v } })}
+            />
+            <Field
+              label="Subtitle"
+              value={features.newArrivals.subtitle}
+              onChange={(v) => patchFeatures({ newArrivals: { subtitle: v } })}
+              multiline
+            />
+
+            <h3 className="font-bold text-[#00ff9d] pt-2">On Sale</h3>
+            <Field
+              label="Section title"
+              value={features.onSale.title}
+              onChange={(v) => patchFeatures({ onSale: { title: v } })}
+            />
+            <Field
+              label="Subtitle"
+              value={features.onSale.subtitle}
+              onChange={(v) => patchFeatures({ onSale: { subtitle: v } })}
+              multiline
+            />
+
+            <h3 className="font-bold text-[#00ff9d] pt-2">How It Works</h3>
+            <Field
+              label="Section title"
+              value={features.howItWorks.title}
+              onChange={(v) => patchFeatures({ howItWorks: { title: v } })}
+            />
+            {features.howItWorks.steps.map((step, index) => (
+              <div key={index} className="border border-zinc-800 rounded-2xl p-4 space-y-3">
+                <p className="text-sm font-medium text-[#00ff9d]">Step {index + 1}</p>
+                <Field
+                  label="Icon (emoji)"
+                  value={step.icon}
+                  onChange={(v) => {
+                    const steps = [...features.howItWorks.steps];
+                    steps[index] = { ...steps[index], icon: v };
+                    patchFeatures({ howItWorks: { steps } });
+                  }}
+                />
+                <Field
+                  label="Title"
+                  value={step.title}
+                  onChange={(v) => {
+                    const steps = [...features.howItWorks.steps];
+                    steps[index] = { ...steps[index], title: v };
+                    patchFeatures({ howItWorks: { steps } });
+                  }}
+                />
+                <Field
+                  label="Description"
+                  value={step.body}
+                  onChange={(v) => {
+                    const steps = [...features.howItWorks.steps];
+                    steps[index] = { ...steps[index], body: v };
+                    patchFeatures({ howItWorks: { steps } });
+                  }}
+                  multiline
+                />
+              </div>
+            ))}
+
+            <h3 className="font-bold text-[#00ff9d] pt-2">Community Block</h3>
+            <Field
+              label="Title"
+              value={features.communityBlock.title}
+              onChange={(v) => patchFeatures({ communityBlock: { title: v } })}
+            />
+            <Field
+              label="Body"
+              value={features.communityBlock.body}
+              onChange={(v) => patchFeatures({ communityBlock: { body: v } })}
+              multiline
+            />
+
+            <h3 className="font-bold text-[#00ff9d] pt-2">Reviews section CTAs</h3>
+            <Field
+              label="Reviews CTA button"
+              value={content.reviewsSection.ctaLabel}
+              onChange={(v) =>
+                onContentChange({ ...content, reviewsSection: { ...content.reviewsSection, ctaLabel: v } })
+              }
+            />
+            <Field
+              label="Social CTA button"
+              value={content.reviewsSection.socialCtaLabel}
+              onChange={(v) =>
+                onContentChange({
+                  ...content,
+                  reviewsSection: { ...content.reviewsSection, socialCtaLabel: v },
+                })
+              }
+            />
+          </>
+        )}
+
         {section === 'homepage' && (
           <>
             <h3 className="font-bold">Merch section</h3>
@@ -323,6 +465,12 @@ export default function SiteContentTab({
                   ? `${content.contact.pageTitle}\n${content.contact.pageSubtitle}`
                   : section === 'homepage'
                     ? content.faq.items.map((item) => `${item.question}\n${item.answer}`).join('\n\n')
+                    : section === 'homepage-sections'
+                      ? [
+                          features.bestSellers.title,
+                          features.howItWorks.title,
+                          features.communityBlock.body,
+                        ].join('\n')
                     : section === 'brand'
                       ? `${content.brand.name}\n${content.brand.tagline}`
                       : ''

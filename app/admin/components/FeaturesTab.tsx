@@ -153,25 +153,17 @@ export default function FeaturesTab({
       <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl max-w-4xl space-y-6">
         {section === 'homepage' && (
           <>
+            <p className="text-sm text-zinc-400">
+              Edit section titles and copy under Site Content → Homepage Sections.
+            </p>
             <Toggle
               label="Best Sellers section"
-              description="Shows top products on the homepage. Pin product IDs below or mark products as Best Seller in Products tab."
+              description="Shows top products on the homepage."
               checked={features.bestSellers.enabled}
               onChange={(enabled) => patchFeatures({ bestSellers: { enabled } })}
             />
             {features.bestSellers.enabled && (
               <div className="space-y-4 pl-2 border-l border-zinc-800">
-                <Field
-                  label="Section title"
-                  value={features.bestSellers.title}
-                  onChange={(v) => patchFeatures({ bestSellers: { title: v } })}
-                />
-                <Field
-                  label="Subtitle"
-                  value={features.bestSellers.subtitle}
-                  onChange={(v) => patchFeatures({ bestSellers: { subtitle: v } })}
-                  multiline
-                />
                 <Field
                   label="Max products"
                   value={features.bestSellers.limit}
@@ -202,25 +194,12 @@ export default function FeaturesTab({
               onChange={(enabled) => patchFeatures({ newArrivals: { enabled } })}
             />
             {features.newArrivals.enabled && (
-              <div className="space-y-4 pl-2 border-l border-zinc-800">
-                <Field
-                  label="Section title"
-                  value={features.newArrivals.title}
-                  onChange={(v) => patchFeatures({ newArrivals: { title: v } })}
-                />
-                <Field
-                  label="Subtitle"
-                  value={features.newArrivals.subtitle}
-                  onChange={(v) => patchFeatures({ newArrivals: { subtitle: v } })}
-                  multiline
-                />
-                <Field
-                  label="Max products"
-                  value={features.newArrivals.limit}
-                  type="number"
-                  onChange={(v) => patchFeatures({ newArrivals: { limit: Number(v) || 8 } })}
-                />
-              </div>
+              <Field
+                label="Max products"
+                value={features.newArrivals.limit}
+                type="number"
+                onChange={(v) => patchFeatures({ newArrivals: { limit: Number(v) || 8 } })}
+              />
             )}
 
             <Toggle
@@ -229,24 +208,11 @@ export default function FeaturesTab({
               onChange={(enabled) => patchFeatures({ onSale: { enabled } })}
             />
             {features.onSale.enabled && (
-              <div className="space-y-4 pl-2 border-l border-zinc-800">
-                <Field
-                  label="Section title"
-                  value={features.onSale.title}
-                  onChange={(v) => patchFeatures({ onSale: { title: v } })}
-                />
-                <Field
-                  label="Subtitle"
-                  value={features.onSale.subtitle}
-                  onChange={(v) => patchFeatures({ onSale: { subtitle: v } })}
-                  multiline
-                />
-                <Toggle
-                  label="Show SALE badge on product cards"
-                  checked={features.onSale.showBadge}
-                  onChange={(showBadge) => patchFeatures({ onSale: { showBadge } })}
-                />
-              </div>
+              <Toggle
+                label="Show SALE badge on product cards"
+                checked={features.onSale.showBadge}
+                onChange={(showBadge) => patchFeatures({ onSale: { showBadge } })}
+              />
             )}
 
             <Toggle
@@ -254,70 +220,11 @@ export default function FeaturesTab({
               checked={features.howItWorks.enabled}
               onChange={(enabled) => patchFeatures({ howItWorks: { enabled } })}
             />
-            {features.howItWorks.enabled && (
-              <div className="space-y-4 pl-2 border-l border-zinc-800">
-                <Field
-                  label="Section title"
-                  value={features.howItWorks.title}
-                  onChange={(v) => patchFeatures({ howItWorks: { title: v } })}
-                />
-                {features.howItWorks.steps.map((step, index) => (
-                  <div key={index} className="border border-zinc-800 rounded-2xl p-4 space-y-3">
-                    <p className="text-sm font-medium text-[#00ff9d]">Step {index + 1}</p>
-                    <Field
-                      label="Icon (emoji)"
-                      value={step.icon}
-                      onChange={(v) => {
-                        const steps = [...features.howItWorks.steps];
-                        steps[index] = { ...steps[index], icon: v };
-                        patchFeatures({ howItWorks: { steps } });
-                      }}
-                    />
-                    <Field
-                      label="Title"
-                      value={step.title}
-                      onChange={(v) => {
-                        const steps = [...features.howItWorks.steps];
-                        steps[index] = { ...steps[index], title: v };
-                        patchFeatures({ howItWorks: { steps } });
-                      }}
-                    />
-                    <Field
-                      label="Description"
-                      value={step.body}
-                      onChange={(v) => {
-                        const steps = [...features.howItWorks.steps];
-                        steps[index] = { ...steps[index], body: v };
-                        patchFeatures({ howItWorks: { steps } });
-                      }}
-                      multiline
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
             <Toggle
               label="Community links block"
               checked={features.communityBlock.enabled}
               onChange={(enabled) => patchFeatures({ communityBlock: { enabled } })}
             />
-            {features.communityBlock.enabled && (
-              <div className="space-y-4 pl-2 border-l border-zinc-800">
-                <Field
-                  label="Title"
-                  value={features.communityBlock.title}
-                  onChange={(v) => patchFeatures({ communityBlock: { title: v } })}
-                />
-                <Field
-                  label="Body"
-                  value={features.communityBlock.body}
-                  onChange={(v) => patchFeatures({ communityBlock: { body: v } })}
-                  multiline
-                />
-              </div>
-            )}
-
             <Toggle label="Merch section" checked={features.merchSection.enabled} onChange={(enabled) => patchFeatures({ merchSection: { enabled } })} />
             <Toggle label="Reviews section" checked={features.reviewsSection.enabled} onChange={(enabled) => patchFeatures({ reviewsSection: { enabled } })} />
             <Toggle label="Loyalty section" checked={features.loyaltySection.enabled} onChange={(enabled) => patchFeatures({ loyaltySection: { enabled } })} />
