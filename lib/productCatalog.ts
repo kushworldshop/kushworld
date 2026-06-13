@@ -6,7 +6,7 @@ import {
   getProductSlug,
   getProductDescription,
 } from '@/lib/products';
-import { getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
+import { clampProductOptionGroups, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
 
 const OVERRIDES_FILE = path.join(process.cwd(), 'data', 'product-overrides.json');
 
@@ -251,20 +251,7 @@ export async function setProductsHidden(ids: string[], hidden: boolean): Promise
 }
 
 function sanitizeOptionGroups(groups: ProductOptionGroup[]): ProductOptionGroup[] {
-  return groups
-    .map((group) => ({
-      name: group.name.trim(),
-      values: group.values
-        .map((value) => ({
-          label: value.label.trim(),
-          priceAdjustment:
-            value.priceAdjustment !== undefined && !Number.isNaN(Number(value.priceAdjustment))
-              ? Number(value.priceAdjustment)
-              : undefined,
-        }))
-        .filter((value) => value.label),
-    }))
-    .filter((group) => group.name && group.values.length > 0);
+  return clampProductOptionGroups(groups);
 }
 
 export async function setProductHidden(id: string, hidden: boolean): Promise<Product | null> {

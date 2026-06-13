@@ -1119,6 +1119,7 @@ function ProductDetailPanel({
         <ProductOptionsEditor
           value={draft.optionGroups}
           onChange={(groups) => onDraftChange('optionGroups', groups)}
+          productCategory={draft.category}
         />
         <div className="md:col-span-2 grid md:grid-cols-2 gap-4">
           <div>

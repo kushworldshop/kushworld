@@ -10,6 +10,41 @@ export interface ProductOptionGroup {
   values: ProductOptionValue[];
 }
 
+export const MAX_PRODUCT_OPTION_VALUES_PER_GROUP = 20;
+export const MAX_PRODUCT_OPTION_GROUPS = 6;
+/** Use a dropdown on the shop when a group has more than this many choices */
+export const PRODUCT_OPTION_DROPDOWN_THRESHOLD = 8;
+
+export const DEVICE_OPTION_GROUP_PRESETS = [
+  { name: 'Model', placeholder: 'e.g. Blue, Black, Limited Edition' },
+  { name: 'Color', placeholder: 'e.g. Midnight, Silver, Rose Gold' },
+  { name: 'Variant', placeholder: 'e.g. 1g Pod, 2g Pod, Starter Kit' },
+] as const;
+
+export function isDeviceStyleProductCategory(category?: string): boolean {
+  const normalized = category?.toLowerCase().trim();
+  return normalized === 'vapes' || normalized === 'vaporizers';
+}
+
+export function clampProductOptionGroups(groups: ProductOptionGroup[]): ProductOptionGroup[] {
+  return groups
+    .slice(0, MAX_PRODUCT_OPTION_GROUPS)
+    .map((group) => ({
+      name: group.name.trim(),
+      values: group.values
+        .map((value) => ({
+          label: value.label.trim(),
+          priceAdjustment:
+            value.priceAdjustment !== undefined && !Number.isNaN(Number(value.priceAdjustment))
+              ? Number(value.priceAdjustment)
+              : undefined,
+        }))
+        .filter((value) => value.label)
+        .slice(0, MAX_PRODUCT_OPTION_VALUES_PER_GROUP),
+    }))
+    .filter((group) => group.name && group.values.length > 0);
+}
+
 export type SelectedProductOptions = Record<string, string>;
 
 export function getProductOptionGroups(product: Product): ProductOptionGroup[] {

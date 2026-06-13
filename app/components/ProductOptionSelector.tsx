@@ -3,6 +3,7 @@
 import type { Product } from '@/lib/products';
 import {
   getProductOptionGroups,
+  PRODUCT_OPTION_DROPDOWN_THRESHOLD,
   type SelectedProductOptions,
 } from '@/lib/productOptions';
 
@@ -24,34 +25,67 @@ export default function ProductOptionSelector({
 
   const labelClass = size === 'sm' ? 'text-xs text-zinc-400 mb-2' : 'text-sm text-zinc-400 mb-3';
   const buttonClass = size === 'sm' ? 'px-3 py-1.5 text-xs rounded-xl' : 'px-4 py-2 rounded-xl text-sm';
+  const selectClass =
+    size === 'sm'
+      ? 'w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs'
+      : 'w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm';
 
   return (
     <>
-      {groups.map((group) => (
-        <div key={group.name} className={size === 'sm' ? 'mb-4' : 'mb-6'}>
-          <p className={labelClass}>{group.name}</p>
-          <div className="flex flex-wrap gap-2">
-            {group.values.map((value) => {
-              const isSelected = selected[group.name] === value.label;
-              return (
-                <button
-                  key={`${group.name}-${value.label}`}
-                  type="button"
-                  onClick={() => onChange({ ...selected, [group.name]: value.label })}
-                  className={`${buttonClass} transition ${
-                    isSelected
-                      ? 'bg-[#00ff9d] text-black font-medium'
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-white'
-                  }`}
-                >
-                  {value.label}
-                  {value.priceAdjustment ? ` (+$${value.priceAdjustment})` : ''}
-                </button>
-              );
-            })}
+      {groups.map((group) => {
+        const useDropdown = group.values.length > PRODUCT_OPTION_DROPDOWN_THRESHOLD;
+        const currentValue = selected[group.name] ?? '';
+
+        return (
+          <div key={group.name} className={size === 'sm' ? 'mb-4' : 'mb-6'}>
+            <p className={labelClass}>
+              {group.name}
+              {group.values.length > 1 && (
+                <span className="text-zinc-600 ml-2">({group.values.length} choices)</span>
+              )}
+            </p>
+
+            {useDropdown ? (
+              <select
+                value={currentValue}
+                onChange={(e) => onChange({ ...selected, [group.name]: e.target.value })}
+                className={selectClass}
+              >
+                <option value="" disabled>
+                  Select {group.name.toLowerCase()}...
+                </option>
+                {group.values.map((value) => (
+                  <option key={`${group.name}-${value.label}`} value={value.label}>
+                    {value.label}
+                    {value.priceAdjustment ? ` (+$${value.priceAdjustment})` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {group.values.map((value) => {
+                  const isSelected = currentValue === value.label;
+                  return (
+                    <button
+                      key={`${group.name}-${value.label}`}
+                      type="button"
+                      onClick={() => onChange({ ...selected, [group.name]: value.label })}
+                      className={`${buttonClass} transition ${
+                        isSelected
+                          ? 'bg-[#00ff9d] text-black font-medium'
+                          : 'bg-zinc-800 hover:bg-zinc-700 text-white'
+                      }`}
+                    >
+                      {value.label}
+                      {value.priceAdjustment ? ` (+$${value.priceAdjustment})` : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 }
