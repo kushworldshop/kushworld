@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   applicationName: 'Kush World',
   category: 'shopping',
   formatDetection: { email: false, address: false, telephone: false },
+  icons: {
+    icon: [{ url: '/logo.png', type: 'image/png' }],
+    apple: [{ url: '/logo.png', type: 'image/png' }],
+    shortcut: ['/logo.png'],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
