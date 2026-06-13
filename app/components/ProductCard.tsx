@@ -7,8 +7,11 @@ import { useWishlistStore } from '@/lib/wishlistStore';
 import Link from 'next/link';
 import { getCoaPdfPath, getProductSlug, isProductInStock, type Product } from '@/lib/products';
 import {
+  formatSelectedOptionSkus,
   formatSelectedOptionsLabel,
   getDefaultSelectedOptions,
+  getSelectedOptionsImage,
+  getSelectedOptionsSkus,
   getSelectedOptionsUnitPrice,
   productHasOptions,
   validateSelectedOptions,
@@ -47,14 +50,16 @@ export default function ProductCard({ product }: { product: Product }) {
     }
 
     const variantLabel = formatSelectedOptionsLabel(selectedOptions);
+    const optionImage = getSelectedOptionsImage(product, selectedOptions);
     addToCart({
       id: product.id,
       name: product.name,
       price: unitPrice,
-      image: product.image,
+      image: optionImage ?? product.image,
       category: product.category,
       selectedOptions: Object.keys(selectedOptions).length > 0 ? selectedOptions : undefined,
       selectedSize: variantLabel || undefined,
+      optionSkus: formatSelectedOptionSkus(getSelectedOptionsSkus(product, selectedOptions)),
       quantity: 1,
     });
 

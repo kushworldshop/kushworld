@@ -509,6 +509,24 @@ export default function ProductsTab() {
     }
   };
 
+  const uploadOptionImage = async (product: AdminProduct, file: File): Promise<string | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('productId', product.id);
+      formData.append('image', file);
+      formData.append('saveToProduct', 'false');
+
+      const res = await adminFetch('/api/admin/products/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      return data.success ? (data.image as string) : null;
+    } catch {
+      return null;
+    }
+  };
+
   return (
     <div className="mb-10">
       <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
@@ -794,6 +812,7 @@ export default function ProductsTab() {
               onSave={() => saveProduct(selectedProduct)}
               onToggleVisibility={() => toggleVisibility(selectedProduct)}
               onUploadImage={(file) => uploadImage(selectedProduct, file)}
+              onUploadOptionImage={(file) => uploadOptionImage(selectedProduct, file)}
               grokEnabled={grokEnabled}
               descriptionTone={descriptionTone}
               onDescriptionToneChange={setDescriptionTone}
@@ -852,6 +871,7 @@ function ProductDetailPanel({
   onSave,
   onToggleVisibility,
   onUploadImage,
+  onUploadOptionImage,
   grokEnabled,
   descriptionTone,
   onDescriptionToneChange,
@@ -883,6 +903,7 @@ function ProductDetailPanel({
   onSave: () => void;
   onToggleVisibility: () => void;
   onUploadImage: (file: File) => void;
+  onUploadOptionImage: (file: File) => Promise<string | null>;
 }) {
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const margin = getProductMargin(draft.price, draft.cost > 0 ? draft.cost : undefined);
@@ -1120,6 +1141,7 @@ function ProductDetailPanel({
           value={draft.optionGroups}
           onChange={(groups) => onDraftChange('optionGroups', groups)}
           productCategory={draft.category}
+          onUploadOptionImage={onUploadOptionImage}
         />
         <div className="md:col-span-2 grid md:grid-cols-2 gap-4">
           <div>

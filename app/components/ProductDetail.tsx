@@ -16,8 +16,11 @@ import GrokChat from '@/app/components/GrokChat';
 import { getMerchSubcategoryLabel, MERCH_FREE_SHIPPING } from '@/lib/merch';
 import { getTierPrice } from '@/lib/checkout';
 import {
+  formatSelectedOptionSkus,
   formatSelectedOptionsLabel,
   getDefaultSelectedOptions,
+  getSelectedOptionsImage,
+  getSelectedOptionsSkus,
   getSelectedOptionsUnitPrice,
   productHasOptions,
   validateSelectedOptions,
@@ -36,9 +39,15 @@ export default function ProductDetail({ product }: { product: Product }) {
   const { features } = content;
   const isMerch = product.category === 'merch';
   const blocked = ready && isMerchOnly && !isMerch;
-  const gallery = product.images?.length ? product.images : [product.image];
+  const baseGallery = product.images?.length ? product.images : [product.image];
   const [activeImage, setActiveImage] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState(() => getDefaultSelectedOptions(product));
+  const displayGallery = useMemo(() => {
+    const optionImage = getSelectedOptionsImage(product, selectedOptions);
+    return optionImage
+      ? [optionImage, ...baseGallery.filter((img) => img !== optionImage)]
+      : baseGallery;
+  }, [product, selectedOptions, baseGallery]);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const addToCart = useCartStore((s) => s.addToCart);
@@ -64,15 +73,17 @@ export default function ProductDetail({ product }: { product: Product }) {
     }
 
     const variantLabel = formatSelectedOptionsLabel(selectedOptions);
+    const cartOptionImage = getSelectedOptionsImage(product, selectedOptions);
 
     addToCart({
       id: product.id,
       name: product.name,
       price: unitPrice,
-      image: product.image,
+      image: cartOptionImage ?? product.image,
       category: product.category,
       selectedOptions: Object.keys(selectedOptions).length > 0 ? selectedOptions : undefined,
       selectedSize: variantLabel || undefined,
+      optionSkus: formatSelectedOptionSkus(getSelectedOptionsSkus(product, selectedOptions)),
       quantity,
     });
     setAdded(true);
@@ -129,16 +140,16 @@ export default function ProductDetail({ product }: { product: Product }) {
           <div>
             <div className={`relative aspect-square rounded-3xl overflow-hidden mb-4 ${isMerch ? 'bg-white/5 border border-zinc-800' : 'bg-zinc-900'}`}>
               <Image
-                src={gallery[activeImage]}
+                src={displayGallery[activeImage]}
                 alt={product.name}
                 fill
                 className={isMerch ? 'object-contain p-6' : 'object-cover'}
                 priority
               />
             </div>
-            {gallery.length > 1 && (
+            {displayGallery.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {gallery.map((src, i) => (
+                {displayGallery.map((src, i) => (
                   <button
                     key={src}
                     onClick={() => setActiveImage(i)}

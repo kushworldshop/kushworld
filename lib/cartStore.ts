@@ -10,6 +10,8 @@ export interface CartItem {
   quantity: number;
   selectedOptions?: SelectedProductOptions;
   selectedSize?: string;
+  /** Snapshot of option SKUs at add-to-cart time — shown in admin orders */
+  optionSkus?: string;
   category?: string;
 }
 

@@ -3,6 +3,10 @@ import type { Product } from '@/lib/products';
 export interface ProductOptionValue {
   label: string;
   priceAdjustment?: number;
+  /** Internal SKU for fulfillment — shown in admin orders */
+  sku?: string;
+  /** Optional swatch/variant image URL */
+  image?: string;
 }
 
 export interface ProductOptionGroup {
@@ -38,6 +42,8 @@ export function clampProductOptionGroups(groups: ProductOptionGroup[]): ProductO
             value.priceAdjustment !== undefined && !Number.isNaN(Number(value.priceAdjustment))
               ? Number(value.priceAdjustment)
               : undefined,
+          sku: value.sku?.trim() || undefined,
+          image: value.image?.trim() || undefined,
         }))
         .filter((value) => value.label)
         .slice(0, MAX_PRODUCT_OPTION_VALUES_PER_GROUP),
@@ -151,34 +157,121 @@ export function validateSelectedOptions(
   return { valid: true };
 }
 
+function splitSkuFromLine(line: string): { body: string; sku?: string } {
+  const bracket = line.match(/^(.+?)\s*\[([^\]]+)\]\s*$/);
+  if (bracket) {
+    return { body: bracket[1].trim(), sku: bracket[2].trim() };
+  }
+
+  const pipe = line.match(/^(.+?)\s*\|\s*(.+)$/);
+  if (pipe) {
+    return { body: pipe[1].trim(), sku: pipe[2].trim() };
+  }
+
+  return { body: line };
+}
+
 export function parseOptionValueLine(line: string): ProductOptionValue | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
 
-  const priced = trimmed.match(/^(.+?)\s*\(\+\$?(\d+(?:\.\d+)?)\)\s*$/);
+  const { body, sku } = splitSkuFromLine(trimmed);
+
+  const priced = body.match(/^(.+?)\s*\(\+\$?(\d+(?:\.\d+)?)\)\s*$/);
   if (priced) {
     return {
       label: priced[1].trim(),
       priceAdjustment: Number(priced[2]),
+      sku,
     };
   }
 
-  const inlinePriced = trimmed.match(/^(.+?)\s+\+\$?(\d+(?:\.\d+)?)\s*$/);
+  const inlinePriced = body.match(/^(.+?)\s+\+\$?(\d+(?:\.\d+)?)\s*$/);
   if (inlinePriced) {
     return {
       label: inlinePriced[1].trim(),
       priceAdjustment: Number(inlinePriced[2]),
+      sku,
     };
   }
 
-  return { label: trimmed };
+  return { label: body, sku };
 }
 
 export function serializeOptionValue(value: ProductOptionValue): string {
+  let line = value.label;
   if (value.priceAdjustment && value.priceAdjustment !== 0) {
-    return `${value.label} (+$${value.priceAdjustment})`;
+    line += ` (+$${value.priceAdjustment})`;
   }
-  return value.label;
+  if (value.sku) {
+    line += ` [${value.sku}]`;
+  }
+  return line;
+}
+
+export interface OptionImportResult {
+  values: ProductOptionValue[];
+  imported: number;
+  truncated: number;
+  duplicateSkipped: number;
+}
+
+export function importOptionValuesIntoGroup(
+  existing: ProductOptionValue[],
+  text: string,
+  mode: 'append' | 'replace' = 'append'
+): OptionImportResult {
+  const parsed = parseOptionGroupValuesText(text);
+  const base = mode === 'replace' ? [] : existing.filter((item) => item.label.trim());
+  const seen = new Set(base.map((item) => item.label.toLowerCase()));
+  const merged = [...base];
+  let imported = 0;
+  let truncated = 0;
+  let duplicateSkipped = 0;
+
+  for (const value of parsed) {
+    const key = value.label.toLowerCase();
+    if (seen.has(key)) {
+      duplicateSkipped += 1;
+      continue;
+    }
+    if (merged.length >= MAX_PRODUCT_OPTION_VALUES_PER_GROUP) {
+      truncated += 1;
+      continue;
+    }
+    seen.add(key);
+    merged.push(value);
+    imported += 1;
+  }
+
+  return { values: merged, imported, truncated, duplicateSkipped };
+}
+
+export function getSelectedOptionsImage(
+  product: Product,
+  selected: SelectedProductOptions
+): string | undefined {
+  for (const group of getProductOptionGroups(product)) {
+    const label = selected[group.name];
+    if (!label) continue;
+    const value = getOptionValue(product, group.name, label);
+    if (value?.image) return value.image;
+  }
+  return undefined;
+}
+
+export function getSelectedOptionsSkus(
+  product: Product,
+  selected: SelectedProductOptions
+): string[] {
+  const skus: string[] = [];
+  for (const group of getProductOptionGroups(product)) {
+    const label = selected[group.name];
+    if (!label) continue;
+    const value = getOptionValue(product, group.name, label);
+    if (value?.sku) skus.push(value.sku);
+  }
+  return skus;
 }
 
 export function parseOptionGroupValuesText(text: string): ProductOptionValue[] {
@@ -192,15 +285,41 @@ export function serializeOptionGroupValues(values: ProductOptionValue[]): string
   return values.map(serializeOptionValue).join('\n');
 }
 
-export function formatCartItemOptions(item: {
-  selectedOptions?: SelectedProductOptions;
-  selectedSize?: string;
-}): string | null {
+export function formatCartItemOptions(
+  item: {
+    selectedOptions?: SelectedProductOptions;
+    selectedSize?: string;
+    optionSkus?: string;
+  },
+  product?: Product,
+  options?: { includeSku?: boolean }
+): string | null {
+  const includeSku = options?.includeSku ?? false;
+
   if (item.selectedOptions && Object.keys(item.selectedOptions).length > 0) {
-    return Object.entries(item.selectedOptions)
-      .map(([group, value]) => `${group}: ${value}`)
-      .join(' · ');
+    const parts = Object.entries(item.selectedOptions).map(([group, value]) => {
+      let part = `${group}: ${value}`;
+      if (includeSku && product) {
+        const sku = getOptionValue(product, group, value)?.sku;
+        if (sku) part += ` (${sku})`;
+      }
+      return part;
+    });
+    let line = parts.join(' · ');
+    if (includeSku && item.optionSkus) {
+      line += ` · SKU: ${item.optionSkus}`;
+    }
+    return line;
   }
-  if (item.selectedSize) return item.selectedSize;
+  if (item.selectedSize) {
+    return includeSku && item.optionSkus
+      ? `${item.selectedSize} · SKU: ${item.optionSkus}`
+      : item.selectedSize;
+  }
   return null;
+}
+
+export function formatSelectedOptionSkus(skus: string[]): string | undefined {
+  const cleaned = skus.map((sku) => sku.trim()).filter(Boolean);
+  return cleaned.length > 0 ? cleaned.join(' · ') : undefined;
 }

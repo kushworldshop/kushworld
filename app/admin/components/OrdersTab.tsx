@@ -485,8 +485,10 @@ function OrderDetailPanel({
               />
               <div className="flex-1 min-w-0">
                 <p className="font-medium leading-tight">{item.name}</p>
-                {formatCartItemOptions(item) && (
-                  <p className="text-xs text-zinc-400 mt-1">{formatCartItemOptions(item)}</p>
+                {formatCartItemOptions(item, undefined, { includeSku: true }) && (
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {formatCartItemOptions(item, undefined, { includeSku: true })}
+                  </p>
                 )}
                 <p className="text-xs text-zinc-400">Qty: {item.quantity}</p>
               </div>

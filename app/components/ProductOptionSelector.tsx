@@ -2,6 +2,7 @@
 
 import type { Product } from '@/lib/products';
 import {
+  getOptionValue,
   getProductOptionGroups,
   PRODUCT_OPTION_DROPDOWN_THRESHOLD,
   type SelectedProductOptions,
@@ -65,19 +66,29 @@ export default function ProductOptionSelector({
               <div className="flex flex-wrap gap-2">
                 {group.values.map((value) => {
                   const isSelected = currentValue === value.label;
+                  const option = getOptionValue(product, group.name, value.label);
                   return (
                     <button
                       key={`${group.name}-${value.label}`}
                       type="button"
                       onClick={() => onChange({ ...selected, [group.name]: value.label })}
-                      className={`${buttonClass} transition ${
+                      className={`${buttonClass} transition inline-flex items-center gap-2 ${
                         isSelected
                           ? 'bg-[#00ff9d] text-black font-medium'
                           : 'bg-zinc-800 hover:bg-zinc-700 text-white'
                       }`}
                     >
-                      {value.label}
-                      {value.priceAdjustment ? ` (+$${value.priceAdjustment})` : ''}
+                      {option?.image && (
+                        <img
+                          src={option.image}
+                          alt=""
+                          className="w-5 h-5 rounded-md object-cover"
+                        />
+                      )}
+                      <span>
+                        {value.label}
+                        {value.priceAdjustment ? ` (+$${value.priceAdjustment})` : ''}
+                      </span>
                     </button>
                   );
                 })}
