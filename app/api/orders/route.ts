@@ -18,6 +18,7 @@ import {
   InventoryError,
   restoreInventoryForOrder,
 } from '@/lib/inventory';
+import { normalizeTrackingCarrier } from '@/lib/orderShipping';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -49,7 +50,16 @@ export async function PATCH(request: NextRequest) {
   try {
     await ensureOrdersFile();
     const body = await request.json();
-    const { id, status, idVerificationStatus, paymentStatus, approveCancel, approveRefund } = body;
+    const {
+      id,
+      status,
+      idVerificationStatus,
+      paymentStatus,
+      approveCancel,
+      approveRefund,
+      trackingNumber,
+      trackingCarrier,
+    } = body;
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'Order id required' }, { status: 400 });
@@ -76,6 +86,18 @@ export async function PATCH(request: NextRequest) {
       }
     } else if (status) {
       orders[index].status = status;
+      if (status === 'shipped' && !orders[index].shippedAt) {
+        orders[index].shippedAt = new Date().toISOString();
+      }
+    }
+
+    if (trackingNumber !== undefined) {
+      const trimmed = String(trackingNumber).trim();
+      orders[index].trackingNumber = trimmed || undefined;
+    }
+
+    if (trackingCarrier !== undefined) {
+      orders[index].trackingCarrier = normalizeTrackingCarrier(String(trackingCarrier));
     }
 
     if (paymentStatus) {

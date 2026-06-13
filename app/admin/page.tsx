@@ -6,6 +6,7 @@ import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import SiteContentTab from '@/app/admin/components/SiteContentTab';
 import FeaturesTab from '@/app/admin/components/FeaturesTab';
+import OrderShippingControls from '@/app/admin/components/OrderShippingControls';
 import CustomersTab from '@/app/admin/components/CustomersTab';
 import ProductOptionsEditor from '@/app/admin/components/ProductOptionsEditor';
 import { formatCartItemOptions, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
@@ -955,12 +956,7 @@ export default function AdminOrders() {
                   >
                     Mark as Processing
                   </button>
-                  <button 
-                    onClick={() => updateStatus(order.id, 'shipped')}
-                    className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 rounded-2xl text-sm font-medium transition"
-                  >
-                    Mark as Shipped
-                  </button>
+
                   {order.inventoryDeducted && !order.inventoryRestored && order.status !== 'cancelled' && order.status !== 'refunded' && (
                     <>
                       <button
@@ -985,6 +981,8 @@ export default function AdminOrders() {
                   )}
                 </div>
 
+                <OrderShippingControls order={order} onUpdated={loadOrders} />
+
                 <div className="space-y-6">
                   <div>
                     <p className="font-medium">{order.customer?.name || order.name}</p>
@@ -996,6 +994,15 @@ export default function AdminOrders() {
                     <p className="text-sm mt-2">
                       Status: <span className="text-[#00ff9d] uppercase">{order.status || 'pending'}</span>
                     </p>
+                    {order.trackingNumber && (
+                      <p className="text-sm mt-1 text-zinc-400">
+                        Tracking:{' '}
+                        <span className="font-mono text-white">{order.trackingNumber}</span>
+                        {order.trackingCarrier && (
+                          <span className="text-zinc-500"> ({order.trackingCarrier})</span>
+                        )}
+                      </p>
+                    )}
                     {order.shippingMethod && (
                       <p className="text-sm mt-1 text-zinc-400">
                         Shipping: <span className="text-white">{order.shippingMethod}</span>

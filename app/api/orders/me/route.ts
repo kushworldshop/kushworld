@@ -20,10 +20,15 @@ export async function GET() {
   try {
     const data = await fs.readFile(ORDERS_FILE, 'utf8');
     const orders = JSON.parse(data);
-    const myOrders = orders.filter((order: { email?: string; customer?: { email?: string } }) => {
-      const orderEmail = order.customer?.email || order.email;
-      return orderEmail?.toLowerCase() === user.email.toLowerCase();
-    });
+    const myOrders = orders
+      .filter((order: { email?: string; customer?: { email?: string } }) => {
+        const orderEmail = order.customer?.email || order.email;
+        return orderEmail?.toLowerCase() === user.email.toLowerCase();
+      })
+      .sort(
+        (a: { createdAt?: string }, b: { createdAt?: string }) =>
+          new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
 
     return NextResponse.json({ success: true, orders: myOrders });
   } catch {

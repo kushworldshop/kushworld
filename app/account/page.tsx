@@ -8,6 +8,7 @@ import type { PublicUserProfile, UserSocials } from '@/lib/users';
 import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { useSiteContent } from '@/lib/useSiteContent';
 import IdVerificationUpload from '@/app/components/IdVerificationUpload';
+import OrderShippingStatus from '@/app/components/OrderShippingStatus';
 
 interface PromoTerms {
   customerDiscount: number;
@@ -716,6 +717,7 @@ export default function Account() {
                         </span>
                       ))}
                     </div>
+                    <OrderShippingStatus order={order} />
                   </div>
                 ))}
               </div>
