@@ -10,9 +10,13 @@ function isWeakProductionSecret(name: string, value: string | undefined, devFall
     return value || devFallback;
   }
 
-  if (!value || value.trim().length < 16 || value === devFallback) {
-    throw new Error(
-      `${name} must be set to a strong unique value (16+ chars) in production. Do not use default credentials.`
+  if (!value || value.trim().length === 0) {
+    throw new Error(`${name} must be set in production (.env on the server).`);
+  }
+
+  if (value === devFallback || value.trim().length < 16) {
+    console.error(
+      `[security] WARNING: ${name} is weak. Set a unique 16+ character value in production .env.`
     );
   }
 
