@@ -18,15 +18,15 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
       <video
         src="/mascot-smoking-loop.mp4"
         className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ objectPosition: 'center 5%', transform: 'scale(1.2)', backgroundColor: '#000' }}
+        style={{ objectPosition: 'center 0%', transform: 'scale(1.25)', backgroundColor: '#000' }}
         autoPlay
         loop
         muted
         playsInline
       />
 
-      {/* Sleek gradient overlay — even lighter at top to raise the mascot higher and eliminate any white at the top of the hero. Black fills everywhere. Mascot centered and prominent at top like the original static logo but animated. Fresh/sleek hot drop feel. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/85 z-10" />
+      {/* Sleek gradient overlay — very light at top so mascot is raised high and visible at the very top of the hero (cropping the white top of the video frame). Black background fill on video and section to cover any possible white. Mascot centered. Looks fresh and sleek like the original static but animated and prominent at top. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/90 z-10" />
 
       <BrandLogoLink overlay />
       <div className="relative z-20 max-w-4xl mx-auto px-6 text-center py-20">
