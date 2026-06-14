@@ -53,10 +53,27 @@ export default function CartPage() {
                         <span className="text-xs text-zinc-500">Added automatically at checkout for new customers</span>
                       ) : (
                         <>
-                          <button onClick={() => updateQuantity(index, item.quantity - 1)} className="w-8 h-8 bg-zinc-800 rounded-lg">−</button>
-                          <span>{item.quantity}</span>
-                          <button onClick={() => updateQuantity(index, item.quantity + 1)} className="w-8 h-8 bg-zinc-800 rounded-lg">+</button>
-                          <button onClick={() => removeItem(index)} className="ml-auto text-red-400 text-sm">Remove</button>
+                          <button 
+                            onClick={() => updateQuantity(index, item.quantity - 1)} 
+                            className="w-11 h-11 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 rounded-2xl text-2xl text-white transition"
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+                          <span className="font-mono text-xl w-8 text-center font-medium">{item.quantity}</span>
+                          <button 
+                            onClick={() => updateQuantity(index, item.quantity + 1)} 
+                            className="w-11 h-11 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 rounded-2xl text-2xl text-white transition"
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                          <button 
+                            onClick={() => removeItem(index)} 
+                            className="ml-auto text-red-400 hover:text-red-500 text-sm flex items-center gap-1.5 transition px-3 py-2"
+                          >
+                            Remove
+                          </button>
                         </>
                       )}
                     </div>

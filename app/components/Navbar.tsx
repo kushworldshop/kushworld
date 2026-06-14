@@ -46,6 +46,8 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
     setIsMobileMenuOpen(false);
   };
 
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
   return (
     <>
       {content.announcementBar.enabled && (
@@ -146,8 +148,13 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                 )}
               </button>
 
-              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden text-xl">
-                <i className="fa-solid fa-bars" />
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+                className="md:hidden text-xl w-11 h-11 flex items-center justify-center -mr-2 active:bg-zinc-900 rounded-2xl transition"
+                aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isMobileMenuOpen}
+              >
+                <i className={`fa-solid ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'}`} />
               </button>
             </div>
           </div>
@@ -165,21 +172,21 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                   />
                 </form>
               )}
-              <Link href="/shop" className="block hover:text-[#00ff9d]">Shop — All Products</Link>
+              <Link href="/shop" onClick={closeMobileMenu} className="block hover:text-[#00ff9d]">Shop — All Products</Link>
               {shopCategories.map((category) => (
-                <Link key={category.id} href={`/shop/${category.id}`} className="block pl-4 hover:text-[#00ff9d]">
+                <Link key={category.id} href={`/shop/${category.id}`} onClick={closeMobileMenu} className="block pl-4 hover:text-[#00ff9d]">
                   {category.label}
                 </Link>
               ))}
-              <Link href={`/shop/${MERCH_SHOP_ID}`} className="block hover:text-[#00ff9d]">Merch</Link>
+              <Link href={`/shop/${MERCH_SHOP_ID}`} onClick={closeMobileMenu} className="block hover:text-[#00ff9d]">Merch</Link>
               {!isMerchOnly && content.features.coaLinks.enabled && (
-                <Link href="/coa" className="block hover:text-[#00ff9d]">COAs</Link>
+                <Link href="/coa" onClick={closeMobileMenu} className="block hover:text-[#00ff9d]">COAs</Link>
               )}
               {content.features.customerReviews.enabled && (
-                <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
+                <Link href="/reviews" onClick={closeMobileMenu} className="block hover:text-[#00ff9d]">Reviews</Link>
               )}
               {content.features.faqSection.enabled && (
-                <Link href="/faq" className="block hover:text-[#00ff9d]">FAQ</Link>
+                <Link href="/faq" onClick={closeMobileMenu} className="block hover:text-[#00ff9d]">FAQ</Link>
               )}
             </div>
           )}

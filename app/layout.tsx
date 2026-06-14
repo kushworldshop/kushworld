@@ -28,6 +28,16 @@ export const metadata: Metadata = {
   },
 };
 
+// Mobile + PWA viewport polish (for future app readiness)
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5, // allow some zoom for accessibility
+  viewportFit: 'cover',
+  themeColor: '#000000',
+  colorScheme: 'dark',
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`bg-black text-white ${inter.variable}`}>
@@ -39,6 +49,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           crossOrigin="anonymous"
           referrerPolicy="no-referrer"
         />
+        {/* Mobile web app / PWA polish for future app */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="format-detection" content="telephone=no" />
       </head>
       <body className="font-sans antialiased">
         <JsonLd data={organizationJsonLd()} />

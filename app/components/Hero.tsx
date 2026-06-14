@@ -34,14 +34,14 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             href="/shop/merch"
-            className="px-10 py-5 bg-[#00ff9d] text-black text-lg font-semibold rounded-2xl hover:scale-[1.02] transition"
+            className="w-full sm:w-auto px-10 py-5 bg-[#00ff9d] text-black text-lg font-semibold rounded-2xl hover:scale-[1.02] active:scale-[0.985] transition text-center"
           >
             {variant.primaryCtaLabel}
           </Link>
           {!merchOnly && variant.secondaryCtaLabel && (
             <Link
               href="/shop"
-              className="px-10 py-5 border border-zinc-600 text-zinc-200 text-lg font-semibold rounded-2xl hover:border-[#00ff9d] hover:text-[#00ff9d] transition"
+              className="w-full sm:w-auto px-10 py-5 border border-zinc-600 text-zinc-200 text-lg font-semibold rounded-2xl hover:border-[#00ff9d] hover:text-[#00ff9d] active:bg-zinc-900 transition text-center"
             >
               {variant.secondaryCtaLabel}
             </Link>

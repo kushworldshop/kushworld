@@ -112,7 +112,7 @@ export default function OrderTracker({ order: initialOrder, showHeader = true, c
     const stemH = 18 + grow * 22;
 
     return (
-      <svg width="92" height="78" viewBox="0 0 92 78" className="kush-growing-leaf" aria-hidden>
+      <svg width="100%" height="auto" viewBox="0 0 92 78" className="kush-growing-leaf" aria-hidden style={{ maxWidth: '92px' }}>
         {/* Stem */}
         <rect
           x="44" y={52 - stemH} width="4" height={stemH}
@@ -231,7 +231,9 @@ export default function OrderTracker({ order: initialOrder, showHeader = true, c
           {/* Animated Growing Leaf - progress driven */}
           <div className="bg-black/40 border border-zinc-800 rounded-2xl p-4 flex flex-col items-center">
             <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1 self-start">FROM OUR GARDEN</div>
-            <GrowingLeaf progressPercent={progressPercent} currentStep={currentIndex} />
+            <div className="w-20 sm:w-[92px]">
+              <GrowingLeaf progressPercent={progressPercent} currentStep={currentIndex} />
+            </div>
             <div className="text-xs text-zinc-400 mt-1">Your order is taking root</div>
           </div>
 

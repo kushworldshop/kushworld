@@ -688,7 +688,7 @@ export default function Account() {
           <StatCard label="Link Clicks" value={String(stats?.clicks ?? 0)} />
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-8 border-b border-zinc-800 pb-4">
+        <div className="flex gap-2 mb-8 border-b border-zinc-800 pb-4 overflow-x-auto whitespace-nowrap scrollbar-thin scrollbar-thumb-zinc-700 -mx-1 px-1">
           {(
             [
               'profile',
