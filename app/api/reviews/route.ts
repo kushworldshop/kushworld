@@ -8,7 +8,6 @@ import {
 import {
   addReview,
   getAllReviews,
-  getFeaturedAndRecent,
   getReviewStats,
   getReviewsForProduct,
   validateReviewInput,
@@ -36,29 +35,48 @@ export async function GET(request: NextRequest) {
   const limit = Number(searchParams.get('limit') || 0);
   const statsOnly = searchParams.get('stats') === 'true';
 
+  // Always do a single getAllReviews() (or filtered) to avoid duplicate FS reads that were causing lag
   if (productId) {
-    const reviews = enrichReviews(await getReviewsForProduct(productId));
+    const allForProd = await getReviewsForProduct(productId);
+    const reviews = enrichReviews(allForProd);
+    const prodStats = getReviewStats(allForProd);
     if (statsOnly) {
-      return NextResponse.json({ stats: getReviewStats(reviews) });
+      return NextResponse.json({ stats: prodStats });
     }
-    return NextResponse.json({ reviews, stats: getReviewStats(reviews) });
+    return NextResponse.json({ reviews, stats: prodStats });
   }
 
-  let reviews = featured
-    ? enrichReviews(await getFeaturedAndRecent(limit || 6))
-    : enrichReviews(await getAllReviews());
-
-  if (limit > 0 && !featured) {
-    reviews = reviews.slice(0, limit);
-  }
-
-  const stats = getReviewStats(enrichReviews(await getAllReviews()));
+  const all = await getAllReviews();
+  const fullStats = getReviewStats(all);
 
   if (statsOnly) {
-    return NextResponse.json({ stats });
+    return NextResponse.json({ stats: fullStats });
   }
 
-  return NextResponse.json({ reviews, stats });
+  let reviews: ReturnType<typeof enrichReviews>;
+  if (featured) {
+    // Prioritize featured/X, then recent, up to limit, deduped (improved from helper)
+    const featuredOnes = all.filter((r) => r.featured || r.source === 'x');
+    const recentOnes = all.filter((r) => !(r.featured || r.source === 'x'));
+    const combined = [...featuredOnes, ...recentOnes];
+    const seen = new Set<string>();
+    const unique: Awaited<ReturnType<typeof getAllReviews>> = [];
+    for (const review of combined) {
+      if (!seen.has(review.id)) {
+        seen.add(review.id);
+        unique.push(review);
+      }
+      if (unique.length >= (limit || 6)) break;
+    }
+    reviews = enrichReviews(unique);
+  } else {
+    reviews = enrichReviews(all);
+    if (limit > 0) {
+      reviews = reviews.slice(0, limit);
+    }
+  }
+
+  return NextResponse.json({ reviews, stats: fullStats });
 }
 
 export async function POST(request: NextRequest) {

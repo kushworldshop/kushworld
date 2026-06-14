@@ -76,7 +76,7 @@ export async function getReviewsForProduct(productId: string): Promise<Review[]>
 export async function getFeaturedAndRecent(limit = 6): Promise<Review[]> {
   const all = await getAllReviews();
   const featured = all.filter((r) => r.featured || r.source === 'x');
-  const recent = all.filter((r) => !featured.includes(r));
+  const recent = all.filter((r) => !(r.featured || r.source === 'x'));
   const combined = [...featured, ...recent];
   const seen = new Set<string>();
   const unique: Review[] = [];

@@ -19,14 +19,23 @@ export default function ReviewsPage() {
   const { features } = content;
   const [reviews, setReviews] = useState<ReviewCardData[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  const loadReviews = () => {
-    fetch('/api/reviews')
-      .then((r) => r.json())
-      .then((data) => {
-        setReviews(data.reviews || []);
-        setStats(data.stats || null);
-      });
+  const loadReviews = async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const r = await fetch('/api/reviews');
+      if (!r.ok) throw new Error('Failed');
+      const data = await r.json();
+      setReviews(data.reviews || []);
+      setStats(data.stats || null);
+    } catch {
+      setLoadError('Could not load reviews right now. Please refresh the page.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadReviews(); }, []);
@@ -67,7 +76,14 @@ export default function ReviewsPage() {
               .
             </p>
 
-            {stats && stats.count > 0 && (
+            {loading ? (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 border-4 border-[#00ff9d] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-zinc-400">Loading review stats…</p>
+                </div>
+              </div>
+            ) : stats && stats.count > 0 && (
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-10 flex flex-wrap items-center gap-8">
                 <div>
                   {features.starRatings.enabled && (
@@ -99,7 +115,17 @@ export default function ReviewsPage() {
               </div>
             )}
 
-            {reviews.length > 0 ? (
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="w-8 h-8 border-4 border-[#00ff9d] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-zinc-400">Loading reviews…</p>
+              </div>
+            ) : loadError ? (
+              <div className="text-center py-12 bg-zinc-900 rounded-3xl border border-zinc-800">
+                <p className="text-red-400">{loadError}</p>
+                <button onClick={loadReviews} className="mt-4 text-[#00ff9d] hover:underline">Try again</button>
+              </div>
+            ) : reviews.length > 0 ? (
               <div className="grid md:grid-cols-2 gap-6">
                 {reviews.map((review) => (
                   <ReviewCard key={review.id} review={review} />

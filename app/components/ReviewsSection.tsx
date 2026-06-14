@@ -15,14 +15,27 @@ export default function ReviewsSection() {
   const { content } = useSiteContent();
   const [reviews, setReviews] = useState<ReviewCardData[]>([]);
   const [stats, setStats] = useState<ReviewStats>({ count: 0, average: 0 });
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const loadReviews = async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const r = await fetch('/api/reviews?featured=true&limit=3');
+      if (!r.ok) throw new Error('Failed');
+      const data = await r.json();
+      setReviews(data.reviews || []);
+      setStats(data.stats || { count: 0, average: 0 });
+    } catch {
+      setLoadError('Could not load reviews.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetch('/api/reviews?featured=true&limit=3')
-      .then((r) => r.json())
-      .then((data) => {
-        setReviews(data.reviews || []);
-        setStats(data.stats || { count: 0, average: 0 });
-      });
+    loadReviews();
   }, []);
 
   return (
@@ -34,7 +47,9 @@ export default function ReviewsSection() {
               {content.reviewsSection.eyebrow}
             </p>
             <h2 className="text-4xl md:text-5xl font-bold mb-4">{content.reviewsSection.title}</h2>
-            {stats.count > 0 && (
+            {loading ? (
+              <p className="text-zinc-400 text-sm">Loading reviews…</p>
+            ) : stats.count > 0 && (
               <div className="flex items-center gap-3">
                 <StarDisplay rating={stats.average} />
                 <p className="text-zinc-400">
@@ -61,7 +76,14 @@ export default function ReviewsSection() {
           </div>
         </div>
 
-        {reviews.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="w-8 h-8 border-4 border-[#00ff9d] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-zinc-400 text-sm">Loading reviews…</p>
+          </div>
+        ) : loadError ? (
+          <p className="text-center text-red-400 text-sm py-8">{loadError} <button onClick={loadReviews} className="underline text-[#00ff9d]">Retry</button></p>
+        ) : reviews.length > 0 ? (
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {reviews.map((review) => (
               <ReviewCard key={review.id} review={review} />

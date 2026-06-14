@@ -11,14 +11,23 @@ export default function ProductReviews({ productId, productName }: { productId: 
   const { features } = content;
   const [reviews, setReviews] = useState<ReviewCardData[]>([]);
   const [avg, setAvg] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  const loadReviews = () => {
-    fetch(`/api/reviews?productId=${productId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setReviews(data.reviews || []);
-        setAvg(data.stats?.average || 0);
-      });
+  const loadReviews = async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const r = await fetch(`/api/reviews?productId=${productId}`);
+      if (!r.ok) throw new Error('Failed');
+      const data = await r.json();
+      setReviews(data.reviews || []);
+      setAvg(data.stats?.average || 0);
+    } catch {
+      setLoadError('Could not load reviews.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { loadReviews(); }, [productId]);
@@ -27,7 +36,14 @@ export default function ProductReviews({ productId, productName }: { productId: 
     <section className="mt-20 border-t border-zinc-800 pt-16">
       <h2 className="text-3xl font-bold mb-2">Customer Reviews</h2>
       <div className="flex items-center gap-3 mb-8">
-        {reviews.length > 0 ? (
+        {loading ? (
+          <div className="flex items-center gap-3 text-zinc-400">
+            <div className="w-5 h-5 border-2 border-[#00ff9d] border-t-transparent rounded-full animate-spin" />
+            <span>Loading reviews…</span>
+          </div>
+        ) : loadError ? (
+          <p className="text-red-400">{loadError} <button onClick={loadReviews} className="underline text-[#00ff9d]">Retry</button></p>
+        ) : reviews.length > 0 ? (
           features.starRatings.enabled ? (
             <>
               <StarDisplay rating={avg} />
@@ -45,7 +61,7 @@ export default function ProductReviews({ productId, productName }: { productId: 
         )}
       </div>
 
-      {reviews.length > 0 && (
+      {loading ? null : reviews.length > 0 && (
         <div className="grid md:grid-cols-2 gap-4 mb-12">
           {reviews.map((r) => (
             <ReviewCard key={r.id} review={r} />
