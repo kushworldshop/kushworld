@@ -34,7 +34,7 @@ const emptySocials: UserSocials = {
 export default function Account() {
   const { content } = useSiteContent();
   const { features } = content;
-  const spinCost = features.spinWheel.spinCost;
+  const spinCost = features.spinWheel?.spinCost ?? 150;
   const [user, setUser] = useState<PublicUserProfile | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,17 +80,18 @@ export default function Account() {
   const [promoTerms, setPromoTerms] = useState<PromoTerms | null>(null);
   const [markingNotificationsRead, setMarkingNotificationsRead] = useState(false);
 
-  // Force exit loading to prevent infinite loading / crash
+  // Force exit loading to prevent infinite loading / crash - run once on mount
   useEffect(() => {
-    if (!loading) return;
     const timeout = setTimeout(() => {
-      console.warn('Account load timeout - forcing end of loading state');
-      setError('Loading account timed out. This may be a temporary network issue. Please refresh the page or try signing in again.');
-      setUser(null);
-      setLoading(false);
+      if (loading) {
+        console.warn('Account load timeout - forcing end of loading state');
+        setError('Loading account timed out. This may be a temporary network issue. Please refresh the page or try signing in again.');
+        setUser(null);
+        setLoading(false);
+      }
     }, 15000);
     return () => clearTimeout(timeout);
-  }, [loading]);
+  }, []);
   const loadProfile = async () => {
     try {
       const res = await fetch('/api/users/me');
@@ -691,11 +692,11 @@ export default function Account() {
 
         {(user.lockedLoyaltyPoints ?? 0) > 0 && (
           <div className="bg-yellow-400/10 border border-yellow-400/30 rounded-2xl px-5 py-3 mb-6 text-sm text-yellow-200">
-            {user.lockedLoyaltyPoints.toLocaleString()} signup bonus points are locked until you complete your first purchase.
+            {(user.lockedLoyaltyPoints ?? 0).toLocaleString()} signup bonus points are locked until you complete your first purchase.
           </div>
         )}
 
-        {unreadReferralNotifications > 0 && tab !== 'referrals' && features.referrals.enabled && (
+        {unreadReferralNotifications > 0 && tab !== 'referrals' && features.referrals?.enabled && (
           <button
             type="button"
             onClick={() => setTab('referrals')}
@@ -724,9 +725,9 @@ export default function Account() {
           {(
             [
               'profile',
-              ...(features.loyaltyProgram.enabled ? (['loyalty'] as Tab[]) : []),
-              ...(features.spinWheel.enabled ? (['wheel'] as Tab[]) : []),
-              ...(features.referrals.enabled ? (['referrals'] as Tab[]) : []),
+              ...(features.loyaltyProgram?.enabled ? (['loyalty'] as Tab[]) : []),
+              ...(features.spinWheel?.enabled ? (['wheel'] as Tab[]) : []),
+              ...(features.referrals?.enabled ? (['referrals'] as Tab[]) : []),
               'orders',
             ] as Tab[]
           ).map((t) => (
@@ -853,7 +854,7 @@ export default function Account() {
                   <div key={coupon.id} className="bg-black border border-[#00ff9d]/30 rounded-2xl p-5">
                     <p className="text-xl font-bold text-[#00ff9d]">{coupon.label}</p>
                     <p className="text-sm text-zinc-500 mt-2">
-                      Expires {new Date(coupon.expiresAt!).toLocaleDateString()}
+                      Expires {coupon.expiresAt ? new Date(coupon.expiresAt).toLocaleDateString() : 'N/A'}
                       {getSpinPrizeDaysRemaining(coupon) !== null && (
                         <> · {getSpinPrizeDaysRemaining(coupon)} day{getSpinPrizeDaysRemaining(coupon) === 1 ? '' : 's'} left</>
                       )}
@@ -907,7 +908,7 @@ export default function Account() {
               <Field label="Website" value={profileForm.socials.website || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, website: v } })} placeholder="https://yoursite.com" />
             </div>
 
-            {features.idVerification.enabled && (
+            {features.idVerification?.enabled && (
               <IdVerificationUpload user={user} onUpdated={loadProfile} />
             )}
 
@@ -938,7 +939,7 @@ export default function Account() {
             </p>
             {(user.lockedLoyaltyPoints ?? 0) > 0 && (
               <p className="text-yellow-400 text-sm mb-8">
-                {user.lockedLoyaltyPoints.toLocaleString()} pts locked until your first purchase
+                {(user.lockedLoyaltyPoints ?? 0).toLocaleString()} pts locked until your first purchase
               </p>
             )}
             {(user.lockedLoyaltyPoints ?? 0) === 0 && <div className="mb-8" />}
@@ -1076,11 +1077,11 @@ export default function Account() {
                       <div>
                         <span className="font-mono text-[#00ff9d]">#{order.id}</span>
                         <p className="text-sm text-zinc-400">
-                          {new Date(order.createdAt).toLocaleDateString()}
+                          {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">${order.total?.toFixed(2) ?? order.subtotal?.toFixed(2)}</p>
+                        <p className="font-bold">${(order.total ?? order.subtotal ?? 0).toFixed(2)}</p>
                         <span className="text-xs uppercase px-3 py-1 rounded-full bg-zinc-800">
                           {order.status || 'pending'}
                         </span>
