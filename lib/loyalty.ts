@@ -1,7 +1,5 @@
 import { PURCHASE_POINTS_PER_DOLLAR } from '@/lib/referralConstants';
 import {
-  MIN_REDEMPTION_POINTS,
-  POINTS_PER_DOLLAR,
   pointsToDollarDiscount,
   validateLoyaltyRedemption,
 } from '@/lib/loyaltyUtils';

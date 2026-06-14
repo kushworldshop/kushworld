@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import BrandLogoLink from '@/app/components/BrandLogoLink';
 import { splitHeadline } from '@/lib/siteContentTypes';
 import { useSiteContent } from '@/lib/useSiteContent';
@@ -31,19 +32,19 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a
+          <Link
             href="/shop/merch"
             className="px-10 py-5 bg-[#00ff9d] text-black text-lg font-semibold rounded-2xl hover:scale-[1.02] transition"
           >
             {variant.primaryCtaLabel}
-          </a>
+          </Link>
           {!merchOnly && variant.secondaryCtaLabel && (
-            <a
+            <Link
               href="/shop"
               className="px-10 py-5 border border-zinc-600 text-zinc-200 text-lg font-semibold rounded-2xl hover:border-[#00ff9d] hover:text-[#00ff9d] transition"
             >
               {variant.secondaryCtaLabel}
-            </a>
+            </Link>
           )}
         </div>
 

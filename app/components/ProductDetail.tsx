@@ -141,7 +141,7 @@ export default function ProductDetail({ product }: { product: Product }) {
             <div className={`relative aspect-square rounded-3xl overflow-hidden mb-4 ${isMerch ? 'bg-white/5 border border-zinc-800' : 'bg-zinc-900'}`}>
               <Image
                 src={displayGallery[activeImage]}
-                alt={product.name}
+                alt={`${product.name} — ${isMerch ? 'official Kush World Studio apparel' : 'premium lab-tested ' + product.category + ' with COA'} | Kush World`}
                 fill
                 className={isMerch ? 'object-contain p-6' : 'object-cover'}
                 priority
@@ -157,7 +157,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                       activeImage === i ? 'border-[#00ff9d]' : 'border-zinc-700'
                     }`}
                   >
-                    <Image src={src} alt="" fill className="object-contain p-1 bg-white/5" />
+                    <Image src={src} alt={`${product.name} view ${i + 1}`} fill className="object-contain p-1 bg-white/5" />
                   </button>
                 ))}
               </div>

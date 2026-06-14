@@ -32,6 +32,7 @@ export type ProductOverride = Partial<
 >;
 
 function toStorefrontProduct(product: Product): Product {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { cost: _cost, inventory, ...storefrontProduct } = product;
   if (inventory !== undefined) {
     storefrontProduct.inStock = inventory > 0;

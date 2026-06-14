@@ -14,8 +14,7 @@ import { getProductSlug, type Product } from '@/lib/products';
 import { getProductBySlug, getProducts } from '@/lib/productCatalog';
 import { getSiteContent } from '@/lib/siteContent';
 import { getShopCategoryLabel, getShopPathForProduct } from '@/lib/shopNavigation';
-
-export const dynamic = 'force-dynamic';
+import { getReviewsForProduct, getReviewStats } from '@/lib/reviews';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -65,11 +64,19 @@ export default async function ProductPage({ params }: Props) {
   const content = await getSiteContent();
   const categoryPath = getShopPathForProduct(content.shopNavigation, product);
 
+  // Server-fetch reviews for rich schema (aggregateRating + sample reviews)
+  const productReviews = await getReviewsForProduct(product.id);
+  const reviewStats = getReviewStats(productReviews);
+  const reviewData =
+    reviewStats.count > 0
+      ? { average: reviewStats.average, count: reviewStats.count, reviews: productReviews }
+      : undefined;
+
   return (
     <SiteLayout>
       <JsonLd
         data={[
-          productJsonLd(product),
+          productJsonLd(product, reviewData),
           breadcrumbJsonLd([
             { name: 'Home', path: '/' },
             { name: 'Shop', path: '/shop' },

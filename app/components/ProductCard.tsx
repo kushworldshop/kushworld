@@ -104,7 +104,7 @@ export default function ProductCard({ product }: { product: Product }) {
       <Link href={`/products/${getProductSlug(product)}`} className={`relative aspect-square block ${isMerch ? 'bg-white/5' : ''}`}>
         <Image
           src={product.image}
-          alt={product.name}
+          alt={`${product.name} — ${isMerch ? 'Kush World Studio merch' : 'lab-tested ' + product.category + ' with COA'} | Kush World`}
           fill
           className={`${isMerch ? 'object-contain p-4' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
         />

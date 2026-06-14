@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useWishlistStore } from '@/lib/wishlistStore';
 import { useSiteContent } from '@/lib/useSiteContent';
 import SocialButtons from '@/app/components/SocialButtons';
@@ -18,7 +19,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div>
             <BrandLogoLink className="flex items-center gap-3 mb-6 hover:opacity-90 transition w-fit">
-              <img src={content.brand.logoUrl} alt={content.brand.name} className="h-10 w-auto" />
+              <Image src={content.brand.logoUrl} alt={content.brand.name} width={40} height={40} className="h-10 w-auto" />
               <span className="text-2xl font-bold tracking-tight">{content.brand.name.toUpperCase()}</span>
             </BrandLogoLink>
             <p className="text-zinc-400 text-sm leading-relaxed max-w-xs mb-6">{content.footer.tagline}</p>

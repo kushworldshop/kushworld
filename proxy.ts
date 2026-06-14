@@ -14,7 +14,7 @@ function applySecurityHeaders(response: NextResponse) {
   }
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   let routeLimit = pathname.startsWith('/api/') ? getRouteRateLimit(pathname) : null;

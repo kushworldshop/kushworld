@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import SiteLayout from '@/app/components/SiteLayout';
+import JsonLd from '@/app/components/JsonLd';
+import { faqJsonLd } from '@/lib/seo';
 import { products, getCoaPdfPath, getProductSlug } from '@/lib/products';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 
@@ -41,8 +43,24 @@ export default function CoaPage() {
     );
   }
 
+  const COA_FAQS = [
+    {
+      question: 'What is a Certificate of Analysis (COA)?',
+      answer: 'A COA is a third-party lab report that verifies the potency, purity, and safety of our hemp products, including cannabinoid levels and absence of contaminants.',
+    },
+    {
+      question: 'How do I download a COA?',
+      answer: 'On this page, click "View COA" next to any product. If the PDF is not yet available it will say "COA coming soon". COAs are batch-specific.',
+    },
+    {
+      question: 'Are COAs available for merch?',
+      answer: 'No, COAs apply only to our hemp-derived products (vapes, concentrates, flower, etc.). Studio merch is apparel and does not require lab testing.',
+    },
+  ];
+
   return (
     <SiteLayout>
+      <JsonLd data={faqJsonLd(COA_FAQS)} />
       <div className="max-w-7xl mx-auto px-6 py-16">
         <h1 className="text-5xl font-bold mb-4">Certificates of Analysis</h1>
         <p className="text-zinc-400 mb-12 max-w-2xl">
@@ -57,7 +75,7 @@ export default function CoaPage() {
             return (
               <div key={product.id} className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 flex gap-4">
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                  <Image src={product.image} alt={product.name} fill className="object-cover" />
+                  <Image src={product.image} alt={`${product.name} — ${product.category} lab tested product`} fill className="object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link href={`/products/${getProductSlug(product)}`} className="font-semibold hover:text-[#00ff9d] transition">

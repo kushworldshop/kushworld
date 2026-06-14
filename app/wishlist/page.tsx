@@ -9,7 +9,7 @@ export default function Wishlist() {
   const { items, removeFromWishlist } = useWishlistStore();
   const addToCart = useCartStore((state) => state.addToCart);
 
-  const handleAddToCart = (item: any) => {
+  const handleAddToCart = (item: { id: string; name: string; price: number; image: string }) => {
     addToCart({
       id: item.id,
       name: item.name,

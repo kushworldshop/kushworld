@@ -67,20 +67,26 @@ export default function ShopSection({
 
   useEffect(() => {
     const q = searchParams.get('q');
-    if (q) setSearchQuery(q);
+    if (q) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchQuery(q);
+    }
   }, [searchParams]);
 
   useEffect(() => {
     if (merchOnly) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveFilter(MERCH_SHOP_ID);
       return;
     }
     if (categoryParam && categoryParam !== 'all') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveFilter(categoryParam);
     }
   }, [merchOnly, categoryParam, initialCategory]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveSubsection(null);
   }, [activeFilter]);
 

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { Product } from '@/lib/products';
 import { getProductSlug, getProductDescription } from '@/lib/products';
+import type { Review } from '@/lib/reviews';
 
 export const SITE_URL = 'https://kushworld.shop';
 export const SITE_NAME = 'Kush World';
@@ -199,14 +200,17 @@ export function onlineStoreJsonLd() {
   };
 }
 
-export function productJsonLd(product: Product) {
+export function productJsonLd(
+  product: Product,
+  reviewData?: { average: number; count: number; reviews?: Review[] }
+) {
   const slug = getProductSlug(product);
   const url = absoluteUrl(`/products/${slug}`);
   const image = product.image.startsWith('http') ? product.image : absoluteUrl(product.image);
   const categoryName =
     CATEGORY_SEO[product.category]?.title.split('—')[0].trim() || product.category;
 
-  return {
+  const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
@@ -225,6 +229,30 @@ export function productJsonLd(product: Product) {
       seller: { '@type': 'Organization', name: SITE_NAME },
     },
   };
+
+  if (reviewData && reviewData.count > 0) {
+    jsonLd.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: reviewData.average,
+      reviewCount: reviewData.count,
+    };
+    if (reviewData.reviews && reviewData.reviews.length > 0) {
+      jsonLd.review = reviewData.reviews.slice(0, 3).map((r) => ({
+        '@type': 'Review',
+        reviewRating: {
+          '@type': 'Rating',
+          ratingValue: r.rating,
+        },
+        author: {
+          '@type': 'Person',
+          name: r.author || 'Customer',
+        },
+        reviewBody: (r.comment || '').slice(0, 200),
+      }));
+    }
+  }
+
+  return jsonLd;
 }
 
 export function breadcrumbJsonLd(items: { name: string; path: string }[]) {

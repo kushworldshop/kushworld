@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useState, useEffect } from 'react';
@@ -57,7 +58,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-20 gap-4">
             <BrandLogoLink className="flex items-center gap-3 flex-shrink-0 hover:opacity-90 transition">
-              <img src={content.brand.logoUrl} alt={content.brand.name} className="h-12 w-auto" />
+              <Image src={content.brand.logoUrl} alt={content.brand.name} width={48} height={48} className="h-12 w-auto" />
               <span className="text-xl md:text-2xl font-bold text-white tracking-tight hidden sm:inline">
                 {content.brand.name.toUpperCase()}
               </span>

@@ -6,18 +6,22 @@ import { AGE_ACCESS_EVENT, shouldShowAgeModal } from '@/lib/ageAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function AgeGateProvider({ children }: { children: React.ReactNode }) {
-  const [showModal, setShowModal] = useState(false);
   const { content } = useSiteContent();
   const ageGateEnabled = content.features.ageGate.enabled;
 
+  const [showModal, setShowModal] = useState(() => {
+    if (!ageGateEnabled || typeof window === 'undefined') return false;
+    return shouldShowAgeModal();
+  });
+
   useEffect(() => {
     if (!ageGateEnabled) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowModal(false);
       return;
     }
-    setShowModal(shouldShowAgeModal());
 
-    const sync = () => setShowModal(ageGateEnabled && shouldShowAgeModal());
+    const sync = () => setShowModal(shouldShowAgeModal());
     window.addEventListener(AGE_ACCESS_EVENT, sync);
     return () => window.removeEventListener(AGE_ACCESS_EVENT, sync);
   }, [ageGateEnabled]);

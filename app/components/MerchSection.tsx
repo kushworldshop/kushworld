@@ -46,7 +46,7 @@ export default function MerchSection() {
               <div className="relative aspect-square bg-white/5">
                 <Image
                   src={product.image}
-                  alt={product.name}
+                  alt={`${product.name} — official Kush World Studio merch | Kush World`}
                   fill
                   className="object-contain p-4 group-hover:scale-105 transition-transform duration-500"
                   sizes="(max-width: 768px) 50vw, 25vw"

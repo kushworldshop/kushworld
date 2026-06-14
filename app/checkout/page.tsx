@@ -41,7 +41,7 @@ export default function Checkout() {
   const { items, subtotal, clearCart, addFirstOrderBonus, removeFirstOrderBonus } = useCartStore();
   const { isMerchOnly } = useAgeAccess();
   const { content } = useSiteContent();
-  const { features } = content;
+  const features = (content && content.features) || {};
   const { addPoints } = useLoyaltyStore();
   const { code: storedReferralCode, referrerName, clearReferral } = useReferralStore();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
@@ -76,6 +76,12 @@ export default function Checkout() {
   const [savedSpinCoupons, setSavedSpinCoupons] = useState<SpinPrize[]>([]);
   const [selectedSpinPrizeId, setSelectedSpinPrizeId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const getFirstOrderStatus = (email: string) => {
+    if (!email) return true;
+    if (typeof window === 'undefined') return true;
+    return !localStorage.getItem(`ordered_${email}`);
+  };
 
   const [cardNumber, setCardNumber] = useState('');
   const [expMonth, setExpMonth] = useState('');
@@ -261,9 +267,7 @@ export default function Checkout() {
   );
   const loyaltyDiscount = useLoyalty ? pointsToDollarDiscount(loyaltyPointsToUse) : 0;
   const discount = Math.min(sub, promoDiscount + loyaltyDiscount + spinDiscount);
-  const isFirstOrder = customerInfo.email
-    ? !localStorage.getItem(`ordered_${customerInfo.email}`)
-    : true;
+  const isFirstOrder = getFirstOrderStatus(customerInfo.email);
   const shippingOptions = getShippingOptions(sub);
   const selectedShipping = shippingOptions.find((option) => option.id === shippingMethod) ?? shippingOptions[0];
   const baseTotals = calculateTotals(sub, discount, shippingMethod);
@@ -282,9 +286,7 @@ export default function Checkout() {
     if (!storedReferralCode || sub <= 0) return;
 
     setCouponCode(storedReferralCode);
-    const firstOrder = customerInfo.email
-      ? !localStorage.getItem(`ordered_${customerInfo.email}`)
-      : true;
+    const firstOrder = getFirstOrderStatus(customerInfo.email);
 
     fetch('/api/promo/validate', {
       method: 'POST',
@@ -340,9 +342,7 @@ export default function Checkout() {
       setCouponMessage('Remove your wheel coupon first — promo codes cannot be combined with wheel prizes.');
       return;
     }
-    const firstOrder = customerInfo.email
-      ? !localStorage.getItem(`ordered_${customerInfo.email}`)
-      : true;
+    const firstOrder = getFirstOrderStatus(customerInfo.email);
     const res = await fetch('/api/promo/validate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -608,7 +608,7 @@ export default function Checkout() {
         <BtcPaymentScreen
           orderId={btcPayment.orderId}
           orderAccessToken={btcPayment.orderAccessToken}
-          guideYoutubeUrl={features.paymentBitcoin.guideYoutubeUrl}
+          guideYoutubeUrl={features.paymentBitcoin?.guideYoutubeUrl}
           payment={btcPayment}
           onPaid={() => setBtcPaymentComplete(true)}
         />
@@ -645,6 +645,7 @@ export default function Checkout() {
 
           {idPreview && (
             <div className="mb-4 relative aspect-[3/2] rounded-2xl overflow-hidden border border-zinc-700">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={idPreview} alt="ID preview" className="w-full h-full object-cover" />
             </div>
           )}
@@ -688,13 +689,13 @@ export default function Checkout() {
     );
   }
 
-  const cardConfigured = (paymentConfig?.configured ?? false) && features.paymentCard.enabled;
-  const showBitcoin = btcEnabled && features.paymentBitcoin.enabled;
+  const cardConfigured = (paymentConfig?.configured ?? false) && (features.paymentCard?.enabled ?? false);
+  const showBitcoin = btcEnabled && (features.paymentBitcoin?.enabled ?? false);
   const manualPaymentOptions = (
     [
-      { id: 'zelle' as const, config: features.paymentZelle },
-      { id: 'paypal' as const, config: features.paymentPaypal },
-      { id: 'chime' as const, config: features.paymentChime },
+      { id: 'zelle' as const, config: features.paymentZelle ?? { enabled: false } },
+      { id: 'paypal' as const, config: features.paymentPaypal ?? { enabled: false } },
+      { id: 'chime' as const, config: features.paymentChime ?? { enabled: false } },
     ] as const
   ).filter((option) => option.config.enabled);
 
@@ -947,7 +948,7 @@ export default function Checkout() {
               )}
             </div>
 
-            {features.idVerification.enabled && orderRequiresIdVerification(items) && (
+            {(features.idVerification?.enabled ?? false) && orderRequiresIdVerification(items) && (
               <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mb-6 text-sm text-zinc-400">
                 <span className="text-[#00ff9d] font-medium">New customers:</span> ID upload required after checkout for 21+ verification.
               </div>
@@ -961,9 +962,9 @@ export default function Checkout() {
                     onClick={() => setPaymentMethod('card')}
                     className={`p-6 rounded-3xl border transition col-span-2 ${paymentMethod === 'card' ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
                   >
-                    <p className="font-semibold">{features.paymentCard.label}</p>
-                    {features.paymentCard.subtitle && (
-                      <p className="text-xs text-zinc-400 mt-1">{features.paymentCard.subtitle}</p>
+                    <p className="font-semibold">{features.paymentCard?.label}</p>
+                    {features.paymentCard?.subtitle && (
+                      <p className="text-xs text-zinc-400 mt-1">{features.paymentCard?.subtitle}</p>
                     )}
                   </button>
                 )}
@@ -972,9 +973,9 @@ export default function Checkout() {
                     onClick={() => setPaymentMethod('btc')}
                     className={`p-6 rounded-3xl border transition col-span-2 ${paymentMethod === 'btc' ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
                   >
-                    <p className="font-semibold">{features.paymentBitcoin.label}</p>
-                    {features.paymentBitcoin.subtitle && (
-                      <p className="text-xs text-zinc-400 mt-1">{features.paymentBitcoin.subtitle}</p>
+                    <p className="font-semibold">{features.paymentBitcoin?.label}</p>
+                    {features.paymentBitcoin?.subtitle && (
+                      <p className="text-xs text-zinc-400 mt-1">{features.paymentBitcoin?.subtitle}</p>
                     )}
                   </button>
                 )}
@@ -1007,44 +1008,44 @@ export default function Checkout() {
               </div>
             )}
 
-            {paymentMethod === 'zelle' && features.paymentZelle.enabled && (
+            {paymentMethod === 'zelle' && (features.paymentZelle?.enabled ?? false) && (
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-                {features.paymentZelle.payToLabel && (
-                  <p className="font-semibold mb-2">{features.paymentZelle.payToLabel}</p>
+                {features.paymentZelle?.payToLabel && (
+                  <p className="font-semibold mb-2">{features.paymentZelle?.payToLabel}</p>
                 )}
-                {features.paymentZelle.payToValue && (
-                  <p className="text-[#00ff9d]">{features.paymentZelle.payToValue}</p>
+                {features.paymentZelle?.payToValue && (
+                  <p className="text-[#00ff9d]">{features.paymentZelle?.payToValue}</p>
                 )}
-                {features.paymentZelle.instructions && (
-                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentZelle.instructions}</p>
+                {features.paymentZelle?.instructions && (
+                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentZelle?.instructions}</p>
                 )}
               </div>
             )}
 
-            {paymentMethod === 'paypal' && features.paymentPaypal.enabled && (
+            {paymentMethod === 'paypal' && (features.paymentPaypal?.enabled ?? false) && (
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-                {features.paymentPaypal.payToLabel && (
-                  <p className="font-semibold mb-2">{features.paymentPaypal.payToLabel}</p>
+                {features.paymentPaypal?.payToLabel && (
+                  <p className="font-semibold mb-2">{features.paymentPaypal?.payToLabel}</p>
                 )}
-                {features.paymentPaypal.payToValue && (
-                  <p className="text-[#00ff9d]">{features.paymentPaypal.payToValue}</p>
+                {features.paymentPaypal?.payToValue && (
+                  <p className="text-[#00ff9d]">{features.paymentPaypal?.payToValue}</p>
                 )}
-                {features.paymentPaypal.instructions && (
-                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentPaypal.instructions}</p>
+                {features.paymentPaypal?.instructions && (
+                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentPaypal?.instructions}</p>
                 )}
               </div>
             )}
 
-            {paymentMethod === 'chime' && features.paymentChime.enabled && (
+            {paymentMethod === 'chime' && (features.paymentChime?.enabled ?? false) && (
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-                {features.paymentChime.payToLabel && (
-                  <p className="font-semibold mb-2">{features.paymentChime.payToLabel}</p>
+                {features.paymentChime?.payToLabel && (
+                  <p className="font-semibold mb-2">{features.paymentChime?.payToLabel}</p>
                 )}
-                {features.paymentChime.payToValue && (
-                  <p className="text-[#00ff9d]">{features.paymentChime.payToValue}</p>
+                {features.paymentChime?.payToValue && (
+                  <p className="text-[#00ff9d]">{features.paymentChime?.payToValue}</p>
                 )}
-                {features.paymentChime.instructions && (
-                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentChime.instructions}</p>
+                {features.paymentChime?.instructions && (
+                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentChime?.instructions}</p>
                 )}
               </div>
             )}
@@ -1052,11 +1053,11 @@ export default function Checkout() {
             {paymentMethod === 'btc' && (
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30 text-sm text-zinc-400 space-y-4">
                 <div>
-                  {features.paymentBitcoin.detailTitle && (
-                    <p className="font-semibold text-white mb-2">{features.paymentBitcoin.detailTitle}</p>
+                  {features.paymentBitcoin?.detailTitle && (
+                    <p className="font-semibold text-white mb-2">{features.paymentBitcoin?.detailTitle}</p>
                   )}
-                  {features.paymentBitcoin.detailBody && (
-                    <p className="whitespace-pre-line">{features.paymentBitcoin.detailBody}</p>
+                  {features.paymentBitcoin?.detailBody && (
+                    <p className="whitespace-pre-line">{features.paymentBitcoin?.detailBody}</p>
                   )}
                 </div>
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-1">
@@ -1072,9 +1073,9 @@ export default function Checkout() {
                   >
                     Print / Save guide as PDF
                   </Link>
-                  {features.paymentBitcoin.guideYoutubeUrl && (
+                  {features.paymentBitcoin?.guideYoutubeUrl && (
                     <a
-                      href={features.paymentBitcoin.guideYoutubeUrl}
+                      href={features.paymentBitcoin?.guideYoutubeUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm"

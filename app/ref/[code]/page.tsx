@@ -13,12 +13,13 @@ export default function ReferralLanding() {
   const code = (params.code as string)?.toUpperCase();
   const setReferral = useReferralStore((s) => s.setReferral);
 
-  const [status, setStatus] = useState<'loading' | 'valid' | 'invalid'>('loading');
+  const [status, setStatus] = useState<'loading' | 'valid' | 'invalid'>(
+    code ? 'loading' : 'invalid'
+  );
   const [referrerName, setReferrerName] = useState('');
 
   useEffect(() => {
     if (!code) {
-      setStatus('invalid');
       return;
     }
 
