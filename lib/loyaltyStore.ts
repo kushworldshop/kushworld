@@ -30,6 +30,6 @@ export const useLoyaltyStore = create<LoyaltyStore>()(
 
       reset: () => set({ points: 0 }),
     }),
-    { name: 'kushworld-loyalty' }
+    { name: 'kushworld-loyalty', skipHydration: true }
   )
 );

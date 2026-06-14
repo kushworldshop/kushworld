@@ -106,6 +106,6 @@ export const useCartStore = create<CartStore>()(
           .items.filter(isPaidCartItem)
           .reduce((sum, item) => sum + item.quantity, 0),
     }),
-    { name: 'kushworld-cart' }
+    { name: 'kushworld-cart', skipHydration: true }
   )
 );

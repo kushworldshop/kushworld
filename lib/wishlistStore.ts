@@ -59,6 +59,7 @@ export const useWishlistStore = create<WishlistStore>()(
     }),
     {
       name: 'kushworld-wishlist',
+      skipHydration: true,
     }
   )
 );

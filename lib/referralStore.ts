@@ -20,6 +20,6 @@ export const useReferralStore = create<ReferralStore>()(
 
       clearReferral: () => set({ code: null, referrerName: null }),
     }),
-    { name: 'kushworld-referral' }
+    { name: 'kushworld-referral', skipHydration: true }
   )
 );
