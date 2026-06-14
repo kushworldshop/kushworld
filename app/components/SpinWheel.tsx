@@ -1,21 +1,43 @@
 'use client';
 
 import { useState } from 'react';
-import { WHEEL_SEGMENTS, getWheelRotationDelta, type SpinPrize } from '@/lib/spinWheelTypes';
+import {
+  WHEEL_SEGMENTS,
+  getSpinPrizeDaysRemaining,
+  getWheelRotationDelta,
+  isSpinPrizeActive,
+  type SpinPrize,
+} from '@/lib/spinWheelTypes';
 
 interface SpinWheelProps {
   points: number;
   spinCost: number;
+  pendingPrize: SpinPrize | null | undefined;
   activePrize: SpinPrize | null | undefined;
-  onSpinComplete: (remainingPoints: number, prize: SpinPrize | null) => void;
+  onPrizeChange: (update: {
+    remainingPoints?: number;
+    pendingPrize?: SpinPrize | null;
+    activePrize?: SpinPrize | null;
+  }) => void;
 }
 
-export default function SpinWheel({ points, spinCost, activePrize, onSpinComplete }: SpinWheelProps) {
+export default function SpinWheel({
+  points,
+  spinCost,
+  pendingPrize,
+  activePrize,
+  onPrizeChange,
+}: SpinWheelProps) {
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [wonPrize, setWonPrize] = useState<SpinPrize | null>(null);
   const [error, setError] = useState('');
+  const [acting, setActing] = useState(false);
+
+  const displayPending = pendingPrize ?? wonPrize;
+  const displayActive = isSpinPrizeActive(activePrize) ? activePrize : null;
+  const blocked = !!displayPending || !!displayActive;
 
   const gradient = WHEEL_SEGMENTS.map((seg, i) => {
     const start = (i / WHEEL_SEGMENTS.length) * 100;
@@ -24,7 +46,7 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
   }).join(', ');
 
   const handleSpin = async () => {
-    if (spinning || activePrize) return;
+    if (spinning || blocked) return;
     if (points < spinCost) {
       setError(`You need ${spinCost} points to spin`);
       return;
@@ -50,7 +72,10 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
       setTimeout(() => {
         setResult(data.message);
         setWonPrize(data.prize ?? null);
-        onSpinComplete(data.remainingPoints, data.prize ?? null);
+        onPrizeChange({
+          remainingPoints: data.remainingPoints,
+          pendingPrize: data.prize ?? null,
+        });
         setSpinning(false);
       }, 4200);
     } catch {
@@ -59,21 +84,68 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
     }
   };
 
-  const handleForfeit = async () => {
+  const handleAccept = async () => {
+    setActing(true);
     setError('');
-    const res = await fetch('/api/loyalty/spin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'forfeit' }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      setResult('Prize forfeited — spin again!');
-      setWonPrize(null);
-      onSpinComplete(points, null);
-    } else {
-      setError(data.error || 'Could not forfeit prize');
+    try {
+      const res = await fetch('/api/loyalty/spin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResult(data.message);
+        setWonPrize(null);
+        onPrizeChange({
+          pendingPrize: null,
+          activePrize: data.prize ?? null,
+        });
+      } else {
+        setError(data.error || 'Could not save coupon');
+      }
+    } catch {
+      setError('Network error. Try again.');
+    } finally {
+      setActing(false);
     }
+  };
+
+  const handleForfeit = async () => {
+    setActing(true);
+    setError('');
+    try {
+      const res = await fetch('/api/loyalty/spin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'forfeit' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResult('Prize forfeited — spin again!');
+        setWonPrize(null);
+        onPrizeChange({
+          pendingPrize: null,
+          activePrize: null,
+        });
+      } else {
+        setError(data.error || 'Could not forfeit prize');
+      }
+    } catch {
+      setError('Network error. Try again.');
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const prizeDescription = (prize: SpinPrize) => {
+    if (prize.type === 'free_tshirt') {
+      return 'Free studio tee added to your order at checkout — not a promo code.';
+    }
+    if (prize.type === 'free_shipping') {
+      return 'Free shipping on your next order at checkout.';
+    }
+    return 'Saved to your profile — apply at checkout. Cannot combine with promo codes.';
   };
 
   return (
@@ -116,23 +188,46 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
         </div>
       </div>
 
-      {activePrize ? (
-        <div className="w-full max-w-md bg-black border border-[#00ff9d]/40 rounded-2xl p-5 mb-4 text-center">
-          <p className="text-sm text-zinc-400 mb-1">Your wheel prize</p>
-          <p className="text-xl font-bold text-[#00ff9d]">{activePrize.label}</p>
-          <p className="text-xs text-zinc-500 mt-2">
-            {activePrize.type === 'free_tshirt'
-              ? 'Free studio tee added to your order at checkout — not a promo code.'
-              : activePrize.type === 'free_shipping'
-                ? 'Free shipping on your next order at checkout.'
-                : 'Apply on the checkout page under Wheel Prize — separate from promo codes.'}
-          </p>
+      {displayPending ? (
+        <div className="w-full max-w-md bg-black border border-amber-400/40 rounded-2xl p-5 mb-4 text-center">
+          <p className="text-sm text-zinc-400 mb-1">You won — keep it?</p>
+          <p className="text-xl font-bold text-amber-300">{displayPending.label}</p>
+          <p className="text-xs text-zinc-500 mt-2">{prizeDescription(displayPending)}</p>
           <p className="text-xs text-zinc-500 mt-1">
-            Expires {new Date(activePrize.expiresAt).toLocaleDateString()}
+            Accept to save for 7 days on your profile, or forfeit to spin again.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+            <button
+              onClick={handleAccept}
+              disabled={acting}
+              className="bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black px-6 py-3 rounded-xl font-bold text-sm disabled:opacity-50"
+            >
+              {acting ? 'Saving...' : 'Accept & save 7 days'}
+            </button>
+            <button
+              onClick={handleForfeit}
+              disabled={acting}
+              className="text-sm text-zinc-400 hover:text-white underline px-4 py-3"
+            >
+              Forfeit & spin again
+            </button>
+          </div>
+        </div>
+      ) : displayActive ? (
+        <div className="w-full max-w-md bg-black border border-[#00ff9d]/40 rounded-2xl p-5 mb-4 text-center">
+          <p className="text-sm text-zinc-400 mb-1">Your saved coupon</p>
+          <p className="text-xl font-bold text-[#00ff9d]">{displayActive.label}</p>
+          <p className="text-xs text-zinc-500 mt-2">{prizeDescription(displayActive)}</p>
+          <p className="text-xs text-zinc-500 mt-1">
+            Expires {new Date(displayActive.expiresAt!).toLocaleDateString()}
+            {getSpinPrizeDaysRemaining(displayActive) !== null && (
+              <> · {getSpinPrizeDaysRemaining(displayActive)} day{getSpinPrizeDaysRemaining(displayActive) === 1 ? '' : 's'} left</>
+            )}
           </p>
           <button
             onClick={handleForfeit}
-            className="mt-4 text-sm text-zinc-400 hover:text-white underline"
+            disabled={acting}
+            className="mt-4 text-sm text-zinc-400 hover:text-white underline disabled:opacity-50"
           >
             Forfeit & spin again
           </button>
@@ -151,14 +246,9 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
         Balance: <span className="text-[#00ff9d] font-medium">{points.toLocaleString()} pts</span>
       </p>
 
-      {result && (
+      {result && !displayPending && (
         <div className="text-center max-w-sm space-y-2">
           <p className="text-[#00ff9d] text-sm">{result}</p>
-          {wonPrize && (
-            <p className="text-xs text-zinc-400">
-              Saved to your account — apply at checkout before it expires.
-            </p>
-          )}
         </div>
       )}
       {error && <p className="text-red-400 text-sm text-center max-w-sm">{error}</p>}

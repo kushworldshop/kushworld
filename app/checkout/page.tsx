@@ -275,6 +275,10 @@ export default function Checkout() {
   };
 
   const applyCoupon = async () => {
+    if (useSpinPrize) {
+      setCouponMessage('Remove your wheel coupon first — promo codes cannot be combined with wheel prizes.');
+      return;
+    }
     const firstOrder = customerInfo.email
       ? !localStorage.getItem(`ordered_${customerInfo.email}`)
       : true;
@@ -285,6 +289,10 @@ export default function Checkout() {
     });
     const data = await res.json();
     if (data.valid) {
+      if (useSpinPrize) {
+        setUseSpinPrize(false);
+        setCouponMessage('Wheel coupon removed — promo codes cannot stack with wheel prizes.');
+      }
       setAppliedPromo({
         code: data.code,
         discount: data.discount,
@@ -292,11 +300,13 @@ export default function Checkout() {
         referrerName: data.referrerName,
         referrerCode: data.referrerCode,
       });
-      setCouponMessage(
-        data.source === 'loyalty' && data.referrerName
-          ? `Promo from ${data.referrerName}: -$${data.discount.toFixed(2)}`
-          : `Promo applied: -$${data.discount.toFixed(2)}`
-      );
+      if (!useSpinPrize) {
+        setCouponMessage(
+          data.source === 'loyalty' && data.referrerName
+            ? `Promo from ${data.referrerName}: -$${data.discount.toFixed(2)}`
+            : `Promo applied: -$${data.discount.toFixed(2)}`
+        );
+      }
     } else {
       setAppliedPromo(null);
       setCouponMessage(data.error || 'Invalid promo code');
@@ -327,7 +337,18 @@ export default function Checkout() {
     if (useSpinPrize && !isSpinPrizeActive(activeSpinPrize)) {
       return 'Your wheel prize is invalid or expired.';
     }
+    if (useSpinPrize && promoDiscount > 0) {
+      return 'Wheel coupons cannot be combined with promo codes.';
+    }
     return null;
+  };
+
+  const toggleSpinPrize = (checked: boolean) => {
+    setUseSpinPrize(checked);
+    if (checked && appliedPromo) {
+      setAppliedPromo(null);
+      setCouponMessage('Promo removed — wheel coupons cannot stack with promo codes.');
+    }
   };
 
   const completeOrder = async (
@@ -714,17 +735,28 @@ export default function Checkout() {
               ))}
             </div>
 
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-2">
               <input
                 placeholder="Promo code (try FIRST20 or a friend's code)"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm"
+                disabled={useSpinPrize}
+                className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm disabled:opacity-50"
               />
-              <button onClick={applyCoupon} type="button" className="bg-zinc-800 hover:bg-zinc-700 px-5 rounded-xl text-sm font-medium">
+              <button
+                onClick={applyCoupon}
+                type="button"
+                disabled={useSpinPrize}
+                className="bg-zinc-800 hover:bg-zinc-700 px-5 rounded-xl text-sm font-medium disabled:opacity-50"
+              >
                 Apply
               </button>
             </div>
+            {useSpinPrize && (
+              <p className="text-xs text-zinc-500 mb-4">
+                Promo codes are disabled while a wheel coupon is applied.
+              </p>
+            )}
             {couponMessage && <p className="text-sm text-[#00ff9d] mb-4">{couponMessage}</p>}
 
             {isLoggedIn && activeSpinPrize && (
@@ -737,17 +769,17 @@ export default function Checkout() {
                 </div>
                 <p className="text-sm text-[#00ff9d] mb-3">{activeSpinPrize.label}</p>
                 <p className="text-xs text-zinc-500 mb-3">
-                  Expires {new Date(activeSpinPrize.expiresAt).toLocaleDateString()}
+                  Expires {new Date(activeSpinPrize.expiresAt!).toLocaleDateString()}
                   {spinPreview.freeTshirt && ' · Free t-shirt will be added to your shipment'}
                 </p>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={useSpinPrize}
-                    onChange={(e) => setUseSpinPrize(e.target.checked)}
+                    onChange={(e) => toggleSpinPrize(e.target.checked)}
                     className="w-4 h-4 accent-[#00ff9d]"
                   />
-                  <span className="text-sm">Apply wheel prize to this order</span>
+                  <span className="text-sm">Apply wheel coupon (cannot combine with promo codes)</span>
                 </label>
               </div>
             )}

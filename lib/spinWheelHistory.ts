@@ -9,6 +9,7 @@ const HISTORY_FILE = path.join(process.cwd(), 'data', 'spin-history.json');
 export type SpinHistoryStatus =
   | 'no_prize'
   | 'instant_points'
+  | 'awaiting_accept'
   | 'pending'
   | 'used'
   | 'forfeited'
@@ -37,6 +38,7 @@ export interface SpinHistoryEntry {
 export interface SpinHistoryStats {
   totalSpins: number;
   prizesWon: number;
+  awaitingAccept: number;
   pending: number;
   used: number;
   forfeited: number;
@@ -104,9 +106,17 @@ export async function recordSpinHistory(input: {
   return entry;
 }
 
+function findOpenPrizeEntry(history: SpinHistoryEntry[], prizeId: string): number {
+  return history.findIndex(
+    (entry) =>
+      entry.prizeId === prizeId &&
+      (entry.status === 'awaiting_accept' || entry.status === 'pending')
+  );
+}
+
 export async function markSpinHistoryForfeited(prizeId: string): Promise<void> {
   const history = await readSpinHistory();
-  const index = history.findIndex((entry) => entry.prizeId === prizeId && entry.status === 'pending');
+  const index = findOpenPrizeEntry(history, prizeId);
   if (index === -1) return;
 
   history[index] = {
@@ -115,6 +125,44 @@ export async function markSpinHistoryForfeited(prizeId: string): Promise<void> {
     statusAt: new Date().toISOString(),
   };
   await writeSpinHistory(history);
+}
+
+export async function markSpinHistoryAccepted(
+  prizeId: string,
+  expiresAt: string
+): Promise<void> {
+  const history = await readSpinHistory();
+  const index = history.findIndex(
+    (entry) => entry.prizeId === prizeId && entry.status === 'awaiting_accept'
+  );
+  if (index === -1) return;
+
+  history[index] = {
+    ...history[index],
+    status: 'pending',
+    expiresAt,
+    statusAt: new Date().toISOString(),
+  };
+  await writeSpinHistory(history);
+}
+
+export async function extendSpinHistoryExpiry(
+  prizeId: string,
+  expiresAt: string
+): Promise<boolean> {
+  const history = await readSpinHistory();
+  const index = history.findIndex(
+    (entry) => entry.prizeId === prizeId && entry.status === 'pending'
+  );
+  if (index === -1) return false;
+
+  history[index] = {
+    ...history[index],
+    expiresAt,
+    statusAt: new Date().toISOString(),
+  };
+  await writeSpinHistory(history);
+  return true;
 }
 
 export async function markSpinHistoryUsed(
@@ -160,14 +208,37 @@ export async function reconcileSpinHistory(): Promise<number> {
 
   const users = await readUsers();
   for (const user of users) {
+    const pending = user.pendingSpinPrize;
+    if (pending && !knownPrizeIds.has(pending.id)) {
+      history.unshift({
+        id: `spin_pending_${pending.id}`,
+        userId: user.id,
+        userEmail: user.email,
+        userName: user.name,
+        spunAt: pending.wonAt,
+        pointsSpent: 0,
+        segmentId: pending.segmentId,
+        segmentLabel: pending.label,
+        prizeType: pending.type,
+        prizeId: pending.id,
+        prizeLabel: pending.label,
+        status: 'awaiting_accept',
+        statusAt: pending.wonAt,
+      });
+      knownPrizeIds.add(pending.id);
+      added += 1;
+    }
+
     const prize = user.activeSpinPrize;
     if (!prize || knownPrizeIds.has(prize.id)) continue;
 
     const status: SpinHistoryStatus = prize.usedAt
       ? 'used'
-      : new Date(prize.expiresAt).getTime() <= Date.now()
-        ? 'expired'
-        : 'pending';
+      : !prize.expiresAt
+        ? 'awaiting_accept'
+        : new Date(prize.expiresAt).getTime() <= Date.now()
+          ? 'expired'
+          : 'pending';
 
     history.unshift({
       id: `spin_legacy_${prize.id}`,
@@ -238,6 +309,7 @@ function buildStats(entries: SpinHistoryEntry[]): SpinHistoryStats {
   const stats: SpinHistoryStats = {
     totalSpins: entries.length,
     prizesWon: 0,
+    awaitingAccept: 0,
     pending: 0,
     used: 0,
     forfeited: 0,
@@ -257,6 +329,7 @@ function buildStats(entries: SpinHistoryEntry[]): SpinHistoryStats {
 
     if (status === 'no_prize') stats.noPrize += 1;
     if (status === 'instant_points') stats.instantPoints += 1;
+    if (status === 'awaiting_accept') stats.awaitingAccept += 1;
     if (status === 'pending') stats.pending += 1;
     if (status === 'used') stats.used += 1;
     if (status === 'forfeited') stats.forfeited += 1;

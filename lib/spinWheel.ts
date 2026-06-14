@@ -1,20 +1,27 @@
 import { getSiteContent } from '@/lib/siteContent';
 import {
-  PRIZE_EXPIRY_DAYS,
   SPIN_COST,
   WHEEL_SEGMENTS,
+  buildPrizeExpiryDate,
   computeSpinPrizeDiscount,
+  isSpinPrizeActive,
   type SpinPrize,
   type WheelSegment,
 } from '@/lib/spinWheelTypes';
-import { markSpinHistoryForfeited, recordSpinHistory } from '@/lib/spinWheelHistory';
+import {
+  markSpinHistoryAccepted,
+  markSpinHistoryForfeited,
+  recordSpinHistory,
+} from '@/lib/spinWheelHistory';
 import {
   addLoyaltyPoints,
   clearActiveSpinPrize,
+  clearPendingSpinPrize,
   getRedeemableLoyaltyPoints,
   getUserById,
   redeemLoyaltyPoints,
   setActiveSpinPrize,
+  setPendingSpinPrize,
   type UserProfile,
 } from '@/lib/users';
 
@@ -39,10 +46,8 @@ function pickWeightedSegment(): WheelSegment {
   return WHEEL_SEGMENTS[WHEEL_SEGMENTS.length - 1];
 }
 
-function buildPrizeFromSegment(segment: WheelSegment): SpinPrize {
+function buildPendingPrizeFromSegment(segment: WheelSegment): SpinPrize {
   const now = new Date();
-  const expires = new Date(now);
-  expires.setDate(expires.getDate() + PRIZE_EXPIRY_DAYS);
 
   return {
     id: `prize_${Date.now()}`,
@@ -51,21 +56,63 @@ function buildPrizeFromSegment(segment: WheelSegment): SpinPrize {
     label: segment.label,
     value: segment.value,
     wonAt: now.toISOString(),
-    expiresAt: expires.toISOString(),
   };
+}
+
+export function getPendingSpinPrize(user: UserProfile): SpinPrize | null {
+  return user.pendingSpinPrize ?? null;
 }
 
 export function getActiveSpinPrize(user: UserProfile): SpinPrize | null {
   const prize = user.activeSpinPrize;
-  if (!prize || prize.usedAt) return null;
-  if (new Date(prize.expiresAt).getTime() <= Date.now()) return null;
-  return prize;
+  return isSpinPrizeActive(prize) ? prize! : null;
+}
+
+export function hasOpenWheelPrize(user: UserProfile): boolean {
+  return !!getPendingSpinPrize(user) || !!getActiveSpinPrize(user);
+}
+
+export async function acceptSpinPrize(userId: string): Promise<SpinPrize> {
+  const user = await getUserById(userId);
+  if (!user) throw new Error('User not found');
+
+  const pending = getPendingSpinPrize(user);
+  if (!pending) throw new Error('No prize waiting to accept');
+
+  if (getActiveSpinPrize(user)) {
+    throw new Error('You already have an active wheel coupon. Use or forfeit it first.');
+  }
+
+  const acceptedAt = new Date().toISOString();
+  const expiresAt = buildPrizeExpiryDate();
+  const accepted: SpinPrize = {
+    ...pending,
+    acceptedAt,
+    expiresAt,
+  };
+
+  await setActiveSpinPrize(userId, accepted);
+  await clearPendingSpinPrize(userId);
+  await markSpinHistoryAccepted(pending.id, expiresAt);
+
+  return accepted;
 }
 
 export async function forfeitSpinPrize(userId: string): Promise<void> {
   const user = await getUserById(userId);
-  const prizeId = user?.activeSpinPrize?.id;
-  await clearActiveSpinPrize(userId);
+  if (!user) throw new Error('User not found');
+
+  const pending = getPendingSpinPrize(user);
+  const active = getActiveSpinPrize(user);
+  const prizeId = pending?.id ?? active?.id;
+
+  if (pending) {
+    await clearPendingSpinPrize(userId);
+  }
+  if (active) {
+    await clearActiveSpinPrize(userId);
+  }
+
   if (prizeId) {
     await markSpinHistoryForfeited(prizeId);
   }
@@ -90,8 +137,8 @@ export async function spinWheel(userId: string): Promise<{
   const user = await getUserById(userId);
   if (!user) throw new Error('User not found');
 
-  if (getActiveSpinPrize(user)) {
-    throw new Error('Use or forfeit your current wheel prize before spinning again');
+  if (hasOpenWheelPrize(user)) {
+    throw new Error('Accept or forfeit your current wheel prize before spinning again');
   }
 
   const spinCost = await getSpinCost();
@@ -122,9 +169,9 @@ export async function spinWheel(userId: string): Promise<{
     await addLoyaltyPoints(userId, segment.value);
     message = `You won ${segment.value} bonus points!`;
   } else {
-    prize = buildPrizeFromSegment(segment);
-    await setActiveSpinPrize(userId, prize);
-    message = `You won: ${segment.label}! Use it on your next order.`;
+    prize = buildPendingPrizeFromSegment(segment);
+    await setPendingSpinPrize(userId, prize);
+    message = `You won: ${segment.label}! Accept to save it for 7 days, or forfeit to spin again.`;
   }
 
   if (segment.type === 'try_again') {
@@ -161,8 +208,7 @@ export async function spinWheel(userId: string): Promise<{
       prizeType: segment.type,
       prizeId: prize.id,
       prizeLabel: prize.label,
-      expiresAt: prize.expiresAt,
-      status: 'pending',
+      status: 'awaiting_accept',
     });
   }
 

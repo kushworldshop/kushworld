@@ -5,6 +5,7 @@ import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
+import { getSpinPrizeDaysRemaining, isSpinPrizeActive } from '@/lib/spinWheelTypes';
 import type { ReferralNotification } from '@/lib/referralNotifications';
 import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { useSiteContent } from '@/lib/useSiteContent';
@@ -801,6 +802,42 @@ export default function Account() {
               />
             </div>
 
+            <h3 className="text-lg font-semibold pt-2">Wheel Coupons</h3>
+            <p className="text-sm text-zinc-500 mb-4">
+              Prizes you accept from the spin wheel are saved here for 7 days. Only one wheel coupon can be active at a time and they cannot stack with promo codes.
+            </p>
+            {user.pendingSpinPrize ? (
+              <div className="bg-black border border-amber-400/30 rounded-2xl p-5 mb-4">
+                <p className="text-xs text-amber-300 uppercase tracking-wider mb-2">Awaiting your decision</p>
+                <p className="text-xl font-bold text-amber-300">{user.pendingSpinPrize.label}</p>
+                <p className="text-sm text-zinc-500 mt-2">
+                  Go to the <button type="button" onClick={() => setTab('wheel')} className="text-[#00ff9d] hover:underline">Spin & Win</button> tab to accept or forfeit.
+                </p>
+              </div>
+            ) : isSpinPrizeActive(user.activeSpinPrize) ? (
+              <div className="bg-black border border-[#00ff9d]/30 rounded-2xl p-5 mb-4">
+                <p className="text-xs text-[#00ff9d] uppercase tracking-wider mb-2">Active coupon</p>
+                <p className="text-xl font-bold text-[#00ff9d]">{user.activeSpinPrize!.label}</p>
+                <p className="text-sm text-zinc-500 mt-2">
+                  Expires {new Date(user.activeSpinPrize!.expiresAt!).toLocaleDateString()}
+                  {getSpinPrizeDaysRemaining(user.activeSpinPrize) !== null && (
+                    <> · {getSpinPrizeDaysRemaining(user.activeSpinPrize)} day{getSpinPrizeDaysRemaining(user.activeSpinPrize) === 1 ? '' : 's'} left</>
+                  )}
+                </p>
+                <Link href="/checkout" className="inline-block mt-4 text-sm text-[#00ff9d] hover:underline">
+                  Use at checkout →
+                </Link>
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-500 mb-4">
+                No saved coupons.{' '}
+                <button type="button" onClick={() => setTab('wheel')} className="text-[#00ff9d] hover:underline">
+                  Spin the wheel
+                </button>{' '}
+                to win one.
+              </p>
+            )}
+
             <h3 className="text-lg font-semibold pt-2">Your Promo Code</h3>
             <p className="text-sm text-zinc-500 mb-4">
               Create a custom code friends enter at checkout. You earn commission and loyalty points on each use.
@@ -900,15 +937,21 @@ export default function Account() {
             <SpinWheel
               points={user.redeemableLoyaltyPoints}
               spinCost={spinCost}
+              pendingPrize={user.pendingSpinPrize}
               activePrize={user.activeSpinPrize}
-              onSpinComplete={(remainingPoints, prize) => {
+              onPrizeChange={({ remainingPoints, pendingPrize, activePrize }) => {
                 setUser((prev) =>
                   prev
                     ? {
                         ...prev,
-                        loyaltyPoints: remainingPoints + (prev.lockedLoyaltyPoints ?? 0),
-                        redeemableLoyaltyPoints: remainingPoints,
-                        activeSpinPrize: prize,
+                        ...(remainingPoints !== undefined
+                          ? {
+                              loyaltyPoints: remainingPoints + (prev.lockedLoyaltyPoints ?? 0),
+                              redeemableLoyaltyPoints: remainingPoints,
+                            }
+                          : {}),
+                        ...(pendingPrize !== undefined ? { pendingSpinPrize: pendingPrize } : {}),
+                        ...(activePrize !== undefined ? { activeSpinPrize: activePrize } : {}),
                       }
                     : prev
                 );

@@ -13,6 +13,7 @@ interface SpinHistoryRow {
   pointsSpent: number;
   segmentLabel: string;
   prizeLabel?: string;
+  prizeId?: string;
   prizeType: string;
   instantBonusPoints?: number;
   expiresAt?: string;
@@ -25,7 +26,8 @@ interface SpinHistoryRow {
 const STATUS_LABELS: Record<SpinHistoryStatus, string> = {
   no_prize: 'Try again',
   instant_points: 'Instant points',
-  pending: 'Holding — not used yet',
+  awaiting_accept: 'Awaiting accept',
+  pending: 'Saved — not used yet',
   used: 'Used at checkout',
   forfeited: 'Forfeited',
   expired: 'Expired unused',
@@ -34,6 +36,7 @@ const STATUS_LABELS: Record<SpinHistoryStatus, string> = {
 const STATUS_COLORS: Record<SpinHistoryStatus, string> = {
   no_prize: 'text-zinc-400',
   instant_points: 'text-blue-300',
+  awaiting_accept: 'text-yellow-300',
   pending: 'text-amber-300',
   used: 'text-[#00ff9d]',
   forfeited: 'text-zinc-500',
@@ -47,6 +50,7 @@ export default function SpinWheelTab() {
   const [status, setStatus] = useState<SpinHistoryStatus | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [extendingId, setExtendingId] = useState<string | null>(null);
 
   const loadHistory = async (query = search, statusFilter = status, reconcile = false) => {
     setLoading(true);
@@ -78,6 +82,26 @@ export default function SpinWheelTab() {
   useEffect(() => {
     loadHistory('', 'all', true);
   }, []);
+
+  const extendCoupon = async (prizeId: string, days: number) => {
+    setExtendingId(prizeId);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/spin-history', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prizeId, extendDays: days }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to extend');
+      setMessage(data.message || `Extended ${days} days`);
+      await loadHistory(search, status);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to extend coupon');
+    } finally {
+      setExtendingId(null);
+    }
+  };
 
   return (
     <div className="mb-10">
@@ -111,7 +135,8 @@ export default function SpinWheelTab() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard label="Total spins" value={stats.totalSpins} />
             <StatCard label="Checkout prizes used" value={stats.used} accent />
-            <StatCard label="Still holding" value={stats.pending} />
+            <StatCard label="Awaiting accept" value={stats.awaitingAccept} />
+            <StatCard label="Saved coupons" value={stats.pending} />
             <StatCard label="Jackpots won" value={stats.jackpotsWon} highlight={stats.jackpotsWon > 0} />
             <StatCard label="Forfeited" value={stats.forfeited} />
             <StatCard label="Expired unused" value={stats.expired} />
@@ -137,7 +162,8 @@ export default function SpinWheelTab() {
           >
             <option value="all">All outcomes</option>
             <option value="used">Used at checkout</option>
-            <option value="pending">Holding</option>
+            <option value="awaiting_accept">Awaiting accept</option>
+            <option value="pending">Saved coupons</option>
             <option value="forfeited">Forfeited</option>
             <option value="expired">Expired</option>
             <option value="instant_points">Instant points</option>
@@ -167,6 +193,7 @@ export default function SpinWheelTab() {
                   <th className="pb-3 pr-4">Result</th>
                   <th className="pb-3 pr-4">Status</th>
                   <th className="pb-3 pr-4">Claimed</th>
+                  <th className="pb-3 pr-4">Extend</th>
                   <th className="pb-3">Cost</th>
                 </tr>
               </thead>
@@ -213,6 +240,28 @@ export default function SpinWheelTab() {
                         </div>
                       ) : entry.displayStatus === 'pending' ? (
                         <span className="text-amber-300 text-xs">Not claimed yet</span>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}
+                    </td>
+                    <td className="py-4 pr-4">
+                      {entry.prizeId && entry.displayStatus === 'pending' ? (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => extendCoupon(entry.prizeId!, 7)}
+                            disabled={extendingId === entry.prizeId}
+                            className="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                          >
+                            +7 days
+                          </button>
+                          <button
+                            onClick={() => extendCoupon(entry.prizeId!, 14)}
+                            disabled={extendingId === entry.prizeId}
+                            className="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                          >
+                            +14 days
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-zinc-600">—</span>
                       )}

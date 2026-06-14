@@ -37,6 +37,10 @@ export async function resolveOrderTotals(input: {
   let freeShippingFromPrize = false;
   let freeTshirt = false;
 
+  if (input.spinPrizeId && promoDiscount > 0) {
+    throw new Error('Wheel coupons cannot be combined with promo codes. Remove one to continue.');
+  }
+
   if (input.spinPrizeId) {
     const spin = await validateSpinPrizeForCheckout(userId, input.spinPrizeId, subtotal);
     spinDiscount = spin.spinDiscount;

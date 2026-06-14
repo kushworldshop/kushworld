@@ -59,6 +59,7 @@ export interface UserProfile {
   blocked?: boolean;
   blockedAt?: string;
   blockReason?: string;
+  pendingSpinPrize?: SpinPrize;
   activeSpinPrize?: SpinPrize;
   shippingAddress?: {
     address: string;
@@ -89,6 +90,7 @@ export interface PublicUserProfile {
   lockedLoyaltyPoints: number;
   referralCode?: string;
   referralLink?: string;
+  pendingSpinPrize?: SpinPrize | null;
   activeSpinPrize?: SpinPrize | null;
   shippingAddress?: UserProfile['shippingAddress'];
   referralStats?: {
@@ -349,6 +351,7 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     lockedLoyaltyPoints: user.lockedLoyaltyPoints ?? 0,
     referralCode: user.referralCode,
     referralLink: user.referralCode ? `${base}/ref/${user.referralCode}` : undefined,
+    pendingSpinPrize: user.pendingSpinPrize ?? null,
     activeSpinPrize: getActiveSpinPrizeForUser(user),
     shippingAddress: user.shippingAddress,
     referralStats,
@@ -357,9 +360,25 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
 
 function getActiveSpinPrizeForUser(user: UserProfile): SpinPrize | null {
   const prize = user.activeSpinPrize;
-  if (!prize || prize.usedAt) return null;
+  if (!prize || prize.usedAt || !prize.expiresAt) return null;
   if (new Date(prize.expiresAt).getTime() <= Date.now()) return null;
   return prize;
+}
+
+export async function setPendingSpinPrize(userId: string, prize: SpinPrize): Promise<void> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) throw new Error('User not found');
+  users[index].pendingSpinPrize = prize;
+  await writeUsers(users);
+}
+
+export async function clearPendingSpinPrize(userId: string): Promise<void> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) throw new Error('User not found');
+  users[index].pendingSpinPrize = undefined;
+  await writeUsers(users);
 }
 
 export async function setActiveSpinPrize(userId: string, prize: SpinPrize): Promise<void> {
@@ -376,6 +395,26 @@ export async function clearActiveSpinPrize(userId: string): Promise<void> {
   if (index === -1) throw new Error('User not found');
   users[index].activeSpinPrize = undefined;
   await writeUsers(users);
+}
+
+export async function extendUserSpinPrizeExpiry(
+  userId: string,
+  prizeId: string,
+  expiresAt: string
+): Promise<boolean> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) return false;
+
+  const prize = users[index].activeSpinPrize;
+  if (!prize || prize.id !== prizeId || prize.usedAt) return false;
+
+  users[index].activeSpinPrize = {
+    ...prize,
+    expiresAt,
+  };
+  await writeUsers(users);
+  return true;
 }
 
 export async function markUserSpinPrizeUsed(

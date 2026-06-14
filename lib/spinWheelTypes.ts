@@ -1,5 +1,15 @@
 export const SPIN_COST = 150;
-export const PRIZE_EXPIRY_DAYS = 14;
+export const PRIZE_EXPIRY_DAYS = 7;
+
+export function buildPrizeExpiryDate(from = new Date()): string {
+  const expires = new Date(from);
+  expires.setDate(expires.getDate() + PRIZE_EXPIRY_DAYS);
+  return expires.toISOString();
+}
+
+export function isCouponPrizeType(type: SpinPrizeType): boolean {
+  return type !== 'try_again' && type !== 'bonus_points';
+}
 
 export type SpinPrizeType =
   | 'try_again'
@@ -26,7 +36,8 @@ export interface SpinPrize {
   label: string;
   value?: number;
   wonAt: string;
-  expiresAt: string;
+  acceptedAt?: string;
+  expiresAt?: string;
   usedAt?: string;
 }
 
@@ -105,8 +116,14 @@ export function computeSpinPrizeDiscount(prize: SpinPrize, subtotal: number): nu
 }
 
 export function isSpinPrizeActive(prize: SpinPrize | null | undefined): boolean {
-  if (!prize || prize.usedAt) return false;
+  if (!prize || prize.usedAt || !prize.expiresAt) return false;
   return new Date(prize.expiresAt).getTime() > Date.now();
+}
+
+export function getSpinPrizeDaysRemaining(prize: SpinPrize | null | undefined): number | null {
+  if (!isSpinPrizeActive(prize) || !prize?.expiresAt) return null;
+  const ms = new Date(prize.expiresAt).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
 
 export function computeSpinPrizePreview(
