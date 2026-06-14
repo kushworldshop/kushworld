@@ -6,6 +6,7 @@
 #   .\deploy.ps1
 # Get token: Cloudflare dash > My Profile > API Tokens > Create Token > "Purge Cache - All zones" or custom "Zone:Cache Purge" for kushworld.shop only.
 # Get Zone ID: dash > kushworld.shop > Overview (right sidebar, click to copy Zone ID). Never commit tokens.
+# NOTE: If you pasted a token into chat previously for one-time purge, DELETE/rotate that token in CF dashboard immediately for security. Only set tokens in your local PowerShell session.
 
 $ErrorActionPreference = "Stop"
 
