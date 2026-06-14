@@ -68,3 +68,36 @@ OPTIONAL — Under Attack mode (during a DDoS)
 --------------------------------------------
 Cloudflare → Overview → Quick Actions → "I'm Under Attack"
 Turn off when the attack subsides.
+
+STEP 7 — Purge cache on every code/content update (IMPORTANT)
+-----------------------------------------------------------
+Cloudflare edge caches the homepage, shop, JS bundles, and /api/site-content responses.
+
+After you run .\deploy.ps1 (which you should do for EVERY update):
+1. Go to https://dash.cloudflare.com/
+2. Select kushworld.shop
+3. Caching → Purge Everything  (or "Purge by URLs" + enter the changed paths)
+   Recommended URLs to purge specifically:
+     https://kushworld.shop/
+     https://kushworld.shop/api/site-content
+     https://kushworld.shop/shop
+   (Purge Everything is fastest for small site.)
+
+To make purge automatic on deploy:
+- In PowerShell (before running .\deploy.ps1), set:
+    $env:CF_API_TOKEN = "paste-your-token"
+    $env:CF_ZONE_ID   = "paste-your-zone-id"
+  .\deploy.ps1
+- The script will call the CF API to purge everything for you at the end of deploy.
+- How to create the token (least privilege):
+  Dash → My Profile (top right) → API Tokens → Create Token
+  Use "Create Custom Token"
+  Permissions: Zone → Cache Purge → (select "kushworld.shop" zone, or All zones for simplicity)
+  TTL: as long as you want (or 1 year)
+  Create. Copy the token (shown only once).
+- Zone ID: On the zone Overview page, right sidebar "Zone ID" → click to copy.
+- Do NOT put the token in code, .env files, or git. Only set in your local shell session or a private local script.
+
+ALWAYS run full deploy + purge after changes so visitors see updates instantly (no waiting for TTLs).
+
+Also do a hard browser refresh (Ctrl/Cmd + Shift + R) or test in incognito after purge.
