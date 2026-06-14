@@ -11,6 +11,7 @@ export async function sendOrderConfirmation(
     discount: number;
     paymentMethod: string;
     items: { name: string; quantity: number; price: number }[];
+    note?: string; // for manual/admin created
   }
 ) {
   const itemsList = order.items
@@ -21,6 +22,7 @@ export async function sendOrderConfirmation(
 
 Order ID: ${order.id}
 Payment: ${order.paymentMethod}
+${order.note ? '\n' + order.note + '\n' : ''}
 
 Items:
 ${itemsList}
@@ -32,7 +34,7 @@ Total: $${order.total.toFixed(2)}
 
 We'll notify you when your order ships.
 
-Track the full journey live (garden → discreet delivery) at:
+Track the full journey live (Kush Tracker) at:
 https://kushworld.shop/track/${order.id}
 
 — Kush World Team`;

@@ -251,6 +251,7 @@ export async function POST(request: NextRequest) {
           discount: 0,
           paymentMethod,
           items: items.map((i: any) => ({ name: i.name, quantity: i.quantity || 1, price: i.price || 0 })),
+          note: 'This order was manually created and added to your Kush World account by our team. Track it in your account or with the secure link.',
         });
       }
 
