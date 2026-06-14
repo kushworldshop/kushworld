@@ -16,7 +16,9 @@ import {
   MIN_ORDER_AMOUNT,
   RESTRICTED_STATES,
   FREE_SHIPPING_THRESHOLD,
-  type ShippingCarrier,
+  SHIPPING_DIMENSION_NOTE,
+  FEDEX_ALTERNATIVE_NOTE,
+  type ShippingMethod,
 } from '@/lib/checkout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { useAgeAccess } from '@/lib/useAgeAccess';
@@ -99,7 +101,7 @@ export default function Checkout() {
   } | null>(null);
   const [btcPaymentComplete, setBtcPaymentComplete] = useState(false);
 
-  const [shippingCarrier, setShippingCarrier] = useState<ShippingCarrier>('usps');
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('usps_ground');
 
   const [customerInfo, setCustomerInfo] = useState({
     name: '', email: '', address: '', city: '', state: '', zip: '', phone: ''
@@ -209,16 +211,16 @@ export default function Checkout() {
     ? !localStorage.getItem(`ordered_${customerInfo.email}`)
     : true;
   const shippingOptions = getShippingOptions(sub);
-  const selectedShipping = shippingOptions.find((option) => option.id === shippingCarrier) ?? shippingOptions[0];
-  const baseTotals = calculateTotals(sub, discount, shippingCarrier);
-  const shipping = spinPreview.freeShipping ? 0 : calculateShipping(sub, shippingCarrier);
+  const selectedShipping = shippingOptions.find((option) => option.id === shippingMethod) ?? shippingOptions[0];
+  const baseTotals = calculateTotals(sub, discount, shippingMethod);
+  const shipping = spinPreview.freeShipping ? 0 : calculateShipping(sub, shippingMethod);
   const total = Math.max(0, sub - discount + shipping);
   const totals = {
     ...baseTotals,
     shipping,
     total,
     freeShipping: shipping === 0 && sub > 0,
-    shippingCarrier,
+    shippingCarrier: shippingMethod,
     shippingLabel: selectedShipping.label,
   };
 
@@ -417,7 +419,7 @@ export default function Checkout() {
           isFirstOrder,
           discount,
           shipping: totals.shipping,
-          shippingCarrier,
+          shippingCarrier: shippingMethod,
           total: totals.total,
           opaqueData,
         }),
@@ -456,7 +458,7 @@ export default function Checkout() {
           isFirstOrder,
           discount,
           shipping: totals.shipping,
-          shippingCarrier,
+          shippingCarrier: shippingMethod,
           total: totals.total,
         }),
       });
@@ -506,7 +508,7 @@ export default function Checkout() {
       isFirstOrder,
       discount,
       shipping: totals.shipping,
-      shippingCarrier,
+      shippingCarrier: shippingMethod,
       total: totals.total,
       paymentMethod,
     };
@@ -696,7 +698,9 @@ export default function Checkout() {
                 <span>{totals.freeShipping ? 'FREE' : `$${totals.shipping.toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between font-bold text-xl pt-2"><span>Total</span><span className="text-[#00ff9d]">${totals.total.toFixed(2)}</span></div>
-              {sub < FREE_SHIPPING_THRESHOLD && <p className="text-xs text-zinc-500">Free shipping at ${FREE_SHIPPING_THRESHOLD}+ on either carrier</p>}
+              {sub < FREE_SHIPPING_THRESHOLD && (
+                <p className="text-xs text-zinc-500">Free shipping at ${FREE_SHIPPING_THRESHOLD}+</p>
+              )}
             </div>
           </div>
 
@@ -712,13 +716,14 @@ export default function Checkout() {
             </div>
             <input type="text" name="zip" placeholder="ZIP Code" value={customerInfo.zip} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-6" required />
 
-            <h3 className="text-lg font-semibold mb-3">Shipping Method</h3>
+            <h3 className="text-lg font-semibold mb-1">Shipping Method</h3>
+            <p className="text-xs text-zinc-500 mb-3">{SHIPPING_DIMENSION_NOTE}</p>
             <div className="space-y-3 mb-6">
               {shippingOptions.map((option) => (
                 <label
                   key={option.id}
                   className={`flex items-center justify-between gap-4 p-4 rounded-2xl border cursor-pointer transition ${
-                    shippingCarrier === option.id
+                    shippingMethod === option.id
                       ? 'border-[#00ff9d] bg-[#00ff9d]/10'
                       : 'border-zinc-700 bg-zinc-900 hover:border-zinc-600'
                   }`}
@@ -726,9 +731,9 @@ export default function Checkout() {
                   <div className="flex items-start gap-3">
                     <input
                       type="radio"
-                      name="shippingCarrier"
-                      checked={shippingCarrier === option.id}
-                      onChange={() => setShippingCarrier(option.id)}
+                      name="shippingMethod"
+                      checked={shippingMethod === option.id}
+                      onChange={() => setShippingMethod(option.id)}
                       className="mt-1 accent-[#00ff9d]"
                     />
                     <div>
@@ -742,6 +747,7 @@ export default function Checkout() {
                 </label>
               ))}
             </div>
+            <p className="text-xs text-zinc-500 -mt-3 mb-6">{FEDEX_ALTERNATIVE_NOTE}</p>
 
             <div className="flex gap-2 mb-2">
               <input

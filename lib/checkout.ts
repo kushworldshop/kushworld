@@ -2,17 +2,23 @@ export const MIN_ORDER_AMOUNT = 25;
 export const FIRST_ORDER_DISCOUNT = 20;
 export const FIRST_ORDER_CODE = 'FIRST20';
 export const FREE_SHIPPING_THRESHOLD = 200;
-export const FLAT_SHIPPING_RATE = 9.99;
+export const FLAT_SHIPPING_RATE = 10;
 
 export const RESTRICTED_STATES = ['ID', 'KS', 'NE', 'SD', 'WY'];
 
-export type ShippingCarrier = 'usps' | 'fedex';
+export type ShippingMethod = 'usps_ground' | 'usps_priority';
+
+/** @deprecated Legacy checkout value — treated as USPS General Ground */
+export type LegacyShippingCarrier = 'usps';
+
+export type ShippingCarrier = ShippingMethod | LegacyShippingCarrier;
 
 export interface ShippingOption {
-  id: ShippingCarrier;
+  id: ShippingMethod;
   label: string;
   rate: number;
   eta: string;
+  carrier: 'usps' | 'fedex';
 }
 
 export interface CheckoutTotals {
@@ -21,49 +27,75 @@ export interface CheckoutTotals {
   shipping: number;
   total: number;
   freeShipping: boolean;
-  shippingCarrier?: ShippingCarrier;
+  shippingCarrier?: ShippingMethod;
   shippingLabel?: string;
 }
 
-const SHIPPING_RATES: Record<ShippingCarrier, number> = {
-  usps: 9.99,
-  fedex: 14.99,
+const SHIPPING_RATES: Record<ShippingMethod, number> = {
+  usps_ground: 10,
+  usps_priority: 25,
 };
+
+const SHIPPING_OPTIONS: Omit<ShippingOption, 'rate'>[] = [
+  {
+    id: 'usps_ground',
+    label: 'USPS General Ground',
+    eta: '5–7 business days via USPS',
+    carrier: 'usps',
+  },
+  {
+    id: 'usps_priority',
+    label: 'USPS Priority',
+    eta: '2–3 business days via USPS',
+    carrier: 'usps',
+  },
+];
+
+export const SHIPPING_DIMENSION_NOTE =
+  'Rates are based on package dimensions and weight.';
+
+export const FEDEX_ALTERNATIVE_NOTE =
+  'FedEx is also available as an alternative carrier — ask us after checkout if you prefer FedEx.';
+
+export function normalizeShippingMethod(method?: string): ShippingMethod {
+  if (method === 'usps' || method === 'usps_ground') return 'usps_ground';
+  if (method === 'usps_priority') return 'usps_priority';
+  if (method === 'fedex') return 'usps_ground';
+  return 'usps_ground';
+}
 
 export function getShippingOptions(subtotal: number): ShippingOption[] {
   const free = subtotal >= FREE_SHIPPING_THRESHOLD;
-  return [
-    {
-      id: 'usps',
-      label: 'USPS Priority Mail',
-      rate: free ? 0 : SHIPPING_RATES.usps,
-      eta: '3–5 business days',
-    },
-    {
-      id: 'fedex',
-      label: 'FedEx Ground',
-      rate: free ? 0 : SHIPPING_RATES.fedex,
-      eta: '2–4 business days',
-    },
-  ];
+  return SHIPPING_OPTIONS.map((option) => ({
+    ...option,
+    rate: free ? 0 : SHIPPING_RATES[option.id],
+  }));
 }
 
-export function getShippingLabel(carrier: ShippingCarrier): string {
-  return carrier === 'fedex' ? 'FedEx Ground' : 'USPS Priority Mail';
+export function getShippingLabel(method: ShippingCarrier): string {
+  const normalized = normalizeShippingMethod(method);
+  return SHIPPING_OPTIONS.find((option) => option.id === normalized)?.label ?? 'USPS General Ground';
 }
 
-export function calculateShipping(subtotal: number, carrier: ShippingCarrier = 'usps'): number {
+export function getShippingCarrier(method: ShippingCarrier): 'usps' | 'fedex' {
+  const normalized = normalizeShippingMethod(method);
+  return SHIPPING_OPTIONS.find((option) => option.id === normalized)?.carrier ?? 'usps';
+}
+
+export function calculateShipping(subtotal: number, method: ShippingCarrier = 'usps_ground'): number {
   if (subtotal <= 0) return 0;
-  const option = getShippingOptions(subtotal).find((item) => item.id === carrier);
+  const normalized = normalizeShippingMethod(method);
+  const option = getShippingOptions(subtotal).find((item) => item.id === normalized);
   return option?.rate ?? 0;
 }
 
 export function calculateTotals(
   subtotal: number,
   discount = 0,
-  carrier: ShippingCarrier = 'usps'
+  method: ShippingCarrier = 'usps_ground'
 ): CheckoutTotals {
-  const shipping = calculateShipping(subtotal, carrier);
+  const normalized = normalizeShippingMethod(method);
+  const shipping = calculateShipping(subtotal, normalized);
   const total = Math.max(0, subtotal - discount + shipping);
 
   return {
@@ -72,8 +104,8 @@ export function calculateTotals(
     shipping,
     total,
     freeShipping: shipping === 0 && subtotal > 0,
-    shippingCarrier: carrier,
-    shippingLabel: getShippingLabel(carrier),
+    shippingCarrier: normalized,
+    shippingLabel: getShippingLabel(normalized),
   };
 }
 

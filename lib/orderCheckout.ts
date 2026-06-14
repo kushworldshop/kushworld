@@ -1,4 +1,11 @@
-import { calculateShipping, getShippingLabel, type ShippingCarrier } from '@/lib/checkout';
+import {
+  calculateShipping,
+  getShippingCarrier,
+  getShippingLabel,
+  normalizeShippingMethod,
+  type ShippingCarrier,
+  type ShippingMethod,
+} from '@/lib/checkout';
 import { computeLoyaltyDiscount } from '@/lib/loyalty';
 import { getSessionUserId } from '@/lib/auth';
 import { validateSpinPrizeForCheckout } from '@/lib/spinWheel';
@@ -13,8 +20,9 @@ export interface ResolvedOrderTotals {
   freeTshirt: boolean;
   discount: number;
   shipping: number;
-  shippingCarrier: ShippingCarrier;
+  shippingCarrier: 'usps' | 'fedex';
   shippingMethod: string;
+  shippingMethodId: ShippingMethod;
   total: number;
 }
 
@@ -58,8 +66,8 @@ export async function resolveOrderTotals(input: {
   );
 
   const discount = Math.min(subtotal, promoDiscount + loyaltyDiscount + spinDiscount);
-  const shippingCarrier = input.shippingCarrier ?? 'usps';
-  let shipping = calculateShipping(subtotal, shippingCarrier);
+  const shippingMethodId = normalizeShippingMethod(input.shippingCarrier);
+  let shipping = calculateShipping(subtotal, shippingMethodId);
   if (freeShippingFromPrize) {
     shipping = 0;
   }
@@ -75,8 +83,9 @@ export async function resolveOrderTotals(input: {
     freeTshirt,
     discount,
     shipping,
-    shippingCarrier,
-    shippingMethod: getShippingLabel(shippingCarrier),
+    shippingCarrier: getShippingCarrier(shippingMethodId),
+    shippingMethod: getShippingLabel(shippingMethodId),
+    shippingMethodId,
     total,
   };
 }

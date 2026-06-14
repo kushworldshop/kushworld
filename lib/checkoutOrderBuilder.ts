@@ -1,4 +1,4 @@
-import { RESTRICTED_STATES, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import { RESTRICTED_STATES, MIN_ORDER_AMOUNT, type ShippingCarrier } from '@/lib/checkout';
 import { resolveOrderTotals } from '@/lib/orderCheckout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { resolvePromoForOrder } from '@/lib/orderPromo';
@@ -50,7 +50,7 @@ export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: stri
     subtotal,
     promoDiscount: promoMeta.promoDiscount,
     loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
-    shippingCarrier: body.shippingCarrier as 'usps' | 'fedex' | undefined,
+    shippingCarrier: body.shippingCarrier as ShippingCarrier | undefined,
     spinPrizeId: body.spinPrizeId,
   });
 
