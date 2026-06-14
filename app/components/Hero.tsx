@@ -13,20 +13,20 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
   return (
     <section className="min-h-[75vh] flex items-center relative overflow-hidden">
       {/* Sleek animated video as the homepage hero background — exactly replacing the old static logo.png.
-          Recreated the video tightly framed on the mascot (no white sides or bars), positioned higher (center 15%) so the guy smoking is visible right at the top of the site for everyone.
-          Subtle sleek gradient overlay to blend perfectly with the dark site, fresh and high-end like a hot drop. */}
+          Rerendered with perfect tight framing (no white borders/sides whatsoever), smoke only from the joint hand and mouth as it should be, subtle premium animation that doesn't look fake and fits the site's dark sleek modern vibe like a fresh hot drop.
+          Positioned higher (center 10%) with minimal gradient at top so the full mascot is clearly visible and dominant right at the top of the site for everyone. */}
       <video
         src="/mascot-smoking-loop.mp4"
         className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ objectPosition: 'center 15%' }}
+        style={{ objectPosition: 'center 10%' }}
         autoPlay
         loop
         muted
         playsInline
       />
 
-      {/* Sleek gradient overlay for integration: darker at edges for the site aesthetic and text pop, transparent in middle so the animated mascot remains prominent. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/25 to-black/70 z-10" />
+      {/* Sleek, subtle gradient overlay — very light at the top so the full mascot (smoking joint) is clearly visible and prominent right at the top of the site for everyone. Darker toward the bottom for text/CTAs readability and to blend seamlessly with the dark site. Designed to look premium, fresh and like a hot drop — no heavy overlays, no borders, perfect cover fit. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/75 z-10" />
 
       <BrandLogoLink overlay />
       <div className="relative z-20 max-w-4xl mx-auto px-6 text-center py-20">
