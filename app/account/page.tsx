@@ -5,7 +5,7 @@ import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
-import { getSpinPrizeDaysRemaining, isSpinPrizeActive } from '@/lib/spinWheelTypes';
+import { getSpinPrizeDaysRemaining } from '@/lib/spinWheelTypes';
 import type { ReferralNotification } from '@/lib/referralNotifications';
 import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { useSiteContent } from '@/lib/useSiteContent';
@@ -804,7 +804,7 @@ export default function Account() {
 
             <h3 className="text-lg font-semibold pt-2">Wheel Coupons</h3>
             <p className="text-sm text-zinc-500 mb-4">
-              Prizes you accept are saved here for 7 days. You can keep spinning — accepting a new prize replaces your previous coupon. Wheel coupons cannot stack with promo codes at checkout.
+              Accepted prizes save here for 7 days. Different types can stack (e.g. % off + free shipping) — pick one per checkout. A better % off coupon automatically replaces a lower one.
             </p>
             {user.pendingSpinPrize ? (
               <div className="bg-black border border-amber-400/30 rounded-2xl p-5 mb-4">
@@ -814,21 +814,25 @@ export default function Account() {
                   Go to the <button type="button" onClick={() => setTab('wheel')} className="text-[#00ff9d] hover:underline">Spin & Win</button> tab to accept or forfeit.
                 </p>
               </div>
-            ) : isSpinPrizeActive(user.activeSpinPrize) ? (
-              <div className="bg-black border border-[#00ff9d]/30 rounded-2xl p-5 mb-4">
-                <p className="text-xs text-[#00ff9d] uppercase tracking-wider mb-2">Active coupon</p>
-                <p className="text-xl font-bold text-[#00ff9d]">{user.activeSpinPrize!.label}</p>
-                <p className="text-sm text-zinc-500 mt-2">
-                  Expires {new Date(user.activeSpinPrize!.expiresAt!).toLocaleDateString()}
-                  {getSpinPrizeDaysRemaining(user.activeSpinPrize) !== null && (
-                    <> · {getSpinPrizeDaysRemaining(user.activeSpinPrize)} day{getSpinPrizeDaysRemaining(user.activeSpinPrize) === 1 ? '' : 's'} left</>
-                  )}
-                </p>
-                <Link href="/checkout" className="inline-block mt-4 text-sm text-[#00ff9d] hover:underline">
-                  Use at checkout →
+            ) : null}
+            {user.savedSpinCoupons.length > 0 ? (
+              <div className="space-y-3 mb-4">
+                {user.savedSpinCoupons.map((coupon) => (
+                  <div key={coupon.id} className="bg-black border border-[#00ff9d]/30 rounded-2xl p-5">
+                    <p className="text-xl font-bold text-[#00ff9d]">{coupon.label}</p>
+                    <p className="text-sm text-zinc-500 mt-2">
+                      Expires {new Date(coupon.expiresAt!).toLocaleDateString()}
+                      {getSpinPrizeDaysRemaining(coupon) !== null && (
+                        <> · {getSpinPrizeDaysRemaining(coupon)} day{getSpinPrizeDaysRemaining(coupon) === 1 ? '' : 's'} left</>
+                      )}
+                    </p>
+                  </div>
+                ))}
+                <Link href="/checkout" className="inline-block text-sm text-[#00ff9d] hover:underline">
+                  Choose one at checkout →
                 </Link>
               </div>
-            ) : (
+            ) : !user.pendingSpinPrize ? (
               <p className="text-sm text-zinc-500 mb-4">
                 No saved coupons.{' '}
                 <button type="button" onClick={() => setTab('wheel')} className="text-[#00ff9d] hover:underline">
@@ -836,7 +840,7 @@ export default function Account() {
                 </button>{' '}
                 to win one.
               </p>
-            )}
+            ) : null}
 
             <h3 className="text-lg font-semibold pt-2">Your Promo Code</h3>
             <p className="text-sm text-zinc-500 mb-4">
@@ -938,8 +942,8 @@ export default function Account() {
               points={user.redeemableLoyaltyPoints}
               spinCost={spinCost}
               pendingPrize={user.pendingSpinPrize}
-              activePrize={user.activeSpinPrize}
-              onPrizeChange={({ remainingPoints, pendingPrize, activePrize }) => {
+              savedCoupons={user.savedSpinCoupons}
+              onPrizeChange={({ remainingPoints, pendingPrize, savedCoupons }) => {
                 setUser((prev) =>
                   prev
                     ? {
@@ -951,7 +955,7 @@ export default function Account() {
                             }
                           : {}),
                         ...(pendingPrize !== undefined ? { pendingSpinPrize: pendingPrize } : {}),
-                        ...(activePrize !== undefined ? { activeSpinPrize: activePrize } : {}),
+                        ...(savedCoupons !== undefined ? { savedSpinCoupons: savedCoupons } : {}),
                       }
                     : prev
                 );

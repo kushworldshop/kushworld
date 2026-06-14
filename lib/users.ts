@@ -18,7 +18,12 @@ import {
 } from '@/lib/referralNotifications';
 import { getSettings } from '@/lib/settings';
 import { markSpinHistoryUsed } from '@/lib/spinWheelHistory';
-import type { SpinPrize } from '@/lib/spinWheelTypes';
+import {
+  getActiveSavedSpinCoupons,
+  getSpinCouponSlot,
+  isSpinPrizeActive,
+  type SpinPrize,
+} from '@/lib/spinWheelTypes';
 import type { UserIdVerification } from '@/lib/verification';
 
 const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
@@ -60,7 +65,9 @@ export interface UserProfile {
   blockedAt?: string;
   blockReason?: string;
   pendingSpinPrize?: SpinPrize;
+  /** @deprecated Migrated into savedSpinCoupons */
   activeSpinPrize?: SpinPrize;
+  savedSpinCoupons?: SpinPrize[];
   shippingAddress?: {
     address: string;
     city: string;
@@ -91,6 +98,8 @@ export interface PublicUserProfile {
   referralCode?: string;
   referralLink?: string;
   pendingSpinPrize?: SpinPrize | null;
+  savedSpinCoupons: SpinPrize[];
+  /** @deprecated Use savedSpinCoupons */
   activeSpinPrize?: SpinPrize | null;
   shippingAddress?: UserProfile['shippingAddress'];
   referralStats?: {
@@ -116,16 +125,37 @@ async function ensureUsersFile() {
   }
 }
 
+function normalizeUserSpinCoupons(user: UserProfile): UserProfile {
+  const coupons = [...(user.savedSpinCoupons ?? [])];
+  if (user.activeSpinPrize) {
+    const legacy = user.activeSpinPrize;
+    if (!coupons.some((coupon) => coupon.id === legacy.id)) {
+      coupons.push(legacy);
+    }
+  }
+  return {
+    ...user,
+    savedSpinCoupons: coupons.length > 0 ? coupons : undefined,
+  };
+}
+
+export function resolveSavedSpinCoupons(user: UserProfile): SpinPrize[] {
+  const normalized = normalizeUserSpinCoupons(user);
+  return getActiveSavedSpinCoupons(normalized.savedSpinCoupons);
+}
+
 export async function readUsers(): Promise<UserProfile[]> {
   await ensureUsersFile();
   const data = await fs.readFile(USERS_FILE, 'utf8');
   const users = JSON.parse(data) as UserProfile[];
-  return users.map((user) => ({
-    ...user,
-    loyaltyPoints: user.loyaltyPoints ?? 0,
-    lockedLoyaltyPoints: user.lockedLoyaltyPoints ?? 0,
-    socials: user.socials ?? {},
-  }));
+  return users.map((user) =>
+    normalizeUserSpinCoupons({
+      ...user,
+      loyaltyPoints: user.loyaltyPoints ?? 0,
+      lockedLoyaltyPoints: user.lockedLoyaltyPoints ?? 0,
+      socials: user.socials ?? {},
+    })
+  );
 }
 
 export function getRedeemableLoyaltyPoints(user: Pick<UserProfile, 'loyaltyPoints' | 'lockedLoyaltyPoints'>): number {
@@ -352,17 +382,11 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     referralCode: user.referralCode,
     referralLink: user.referralCode ? `${base}/ref/${user.referralCode}` : undefined,
     pendingSpinPrize: user.pendingSpinPrize ?? null,
-    activeSpinPrize: getActiveSpinPrizeForUser(user),
+    savedSpinCoupons: resolveSavedSpinCoupons(user),
+    activeSpinPrize: resolveSavedSpinCoupons(user)[0] ?? null,
     shippingAddress: user.shippingAddress,
     referralStats,
   };
-}
-
-function getActiveSpinPrizeForUser(user: UserProfile): SpinPrize | null {
-  const prize = user.activeSpinPrize;
-  if (!prize || prize.usedAt || !prize.expiresAt) return null;
-  if (new Date(prize.expiresAt).getTime() <= Date.now()) return null;
-  return prize;
 }
 
 export async function setPendingSpinPrize(userId: string, prize: SpinPrize): Promise<void> {
@@ -381,20 +405,44 @@ export async function clearPendingSpinPrize(userId: string): Promise<void> {
   await writeUsers(users);
 }
 
-export async function setActiveSpinPrize(userId: string, prize: SpinPrize): Promise<void> {
-  const users = await readUsers();
-  const index = users.findIndex((u) => u.id === userId);
-  if (index === -1) throw new Error('User not found');
-  users[index].activeSpinPrize = prize;
-  await writeUsers(users);
+function getAllStoredCoupons(user: UserProfile): SpinPrize[] {
+  return [...(user.savedSpinCoupons ?? [])];
 }
 
-export async function clearActiveSpinPrize(userId: string): Promise<void> {
+export async function upsertSavedSpinCoupon(userId: string, coupon: SpinPrize): Promise<SpinPrize[]> {
   const users = await readUsers();
   const index = users.findIndex((u) => u.id === userId);
   if (index === -1) throw new Error('User not found');
+
+  const slot = getSpinCouponSlot(coupon.type);
+  const stored = getAllStoredCoupons(users[index]);
+  const active = stored.filter(isSpinPrizeActive);
+  const inactive = stored.filter((item) => !isSpinPrizeActive(item));
+
+  const withoutSlot =
+    slot === null
+      ? active
+      : active.filter((item) => getSpinCouponSlot(item.type) !== slot);
+
+  users[index].savedSpinCoupons = [...inactive, ...withoutSlot, coupon];
   users[index].activeSpinPrize = undefined;
   await writeUsers(users);
+  return getActiveSavedSpinCoupons(users[index].savedSpinCoupons);
+}
+
+export async function removeSavedSpinCoupon(userId: string, prizeId: string): Promise<boolean> {
+  const users = await readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) return false;
+
+  const stored = getAllStoredCoupons(users[index]);
+  const next = stored.filter((coupon) => coupon.id !== prizeId);
+  if (next.length === stored.length) return false;
+
+  users[index].savedSpinCoupons = next.length > 0 ? next : undefined;
+  users[index].activeSpinPrize = undefined;
+  await writeUsers(users);
+  return true;
 }
 
 export async function extendUserSpinPrizeExpiry(
@@ -406,13 +454,13 @@ export async function extendUserSpinPrizeExpiry(
   const index = users.findIndex((u) => u.id === userId);
   if (index === -1) return false;
 
-  const prize = users[index].activeSpinPrize;
-  if (!prize || prize.id !== prizeId || prize.usedAt) return false;
+  const stored = getAllStoredCoupons(users[index]);
+  const couponIndex = stored.findIndex((coupon) => coupon.id === prizeId && !coupon.usedAt);
+  if (couponIndex === -1) return false;
 
-  users[index].activeSpinPrize = {
-    ...prize,
-    expiresAt,
-  };
+  stored[couponIndex] = { ...stored[couponIndex], expiresAt };
+  users[index].savedSpinCoupons = stored;
+  users[index].activeSpinPrize = undefined;
   await writeUsers(users);
   return true;
 }
@@ -426,14 +474,14 @@ export async function markUserSpinPrizeUsed(
   const index = users.findIndex((u) => u.id === userId);
   if (index === -1) return;
 
-  const prize = users[index].activeSpinPrize;
-  if (!prize || prize.id !== prizeId) return;
+  const stored = getAllStoredCoupons(users[index]);
+  const couponIndex = stored.findIndex((coupon) => coupon.id === prizeId);
+  if (couponIndex === -1) return;
 
   const usedAt = new Date().toISOString();
-  users[index].activeSpinPrize = {
-    ...prize,
-    usedAt,
-  };
+  stored[couponIndex] = { ...stored[couponIndex], usedAt };
+  users[index].savedSpinCoupons = stored;
+  users[index].activeSpinPrize = undefined;
   await writeUsers(users);
   await markSpinHistoryUsed(prizeId, meta);
 }

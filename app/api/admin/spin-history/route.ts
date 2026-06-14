@@ -50,15 +50,18 @@ export async function PATCH(request: NextRequest) {
     }
 
     const users = await readUsers();
-    const owner = users.find((user) => user.activeSpinPrize?.id === prizeId);
-    if (!owner?.activeSpinPrize?.expiresAt) {
+    const owner = users.find((user) =>
+      (user.savedSpinCoupons ?? []).some((coupon) => coupon.id === prizeId)
+    );
+    const coupon = owner?.savedSpinCoupons?.find((item) => item.id === prizeId);
+    if (!owner || !coupon?.expiresAt) {
       return NextResponse.json(
         { success: false, error: 'Active coupon not found for this prize' },
         { status: 404 }
       );
     }
 
-    const currentExpiry = new Date(owner.activeSpinPrize.expiresAt);
+    const currentExpiry = new Date(coupon.expiresAt);
     const base = currentExpiry.getTime() > Date.now() ? currentExpiry : new Date();
     const nextExpiry = new Date(base);
     nextExpiry.setDate(nextExpiry.getDate() + extendDays);

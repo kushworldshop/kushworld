@@ -229,35 +229,40 @@ export async function reconcileSpinHistory(): Promise<number> {
       added += 1;
     }
 
-    const prize = user.activeSpinPrize;
-    if (!prize || knownPrizeIds.has(prize.id)) continue;
+    const storedCoupons = user.savedSpinCoupons ?? [];
+    const legacyCoupons = user.activeSpinPrize ? [user.activeSpinPrize] : [];
+    const allCoupons = storedCoupons.length > 0 ? storedCoupons : legacyCoupons;
 
-    const status: SpinHistoryStatus = prize.usedAt
-      ? 'used'
-      : !prize.expiresAt
-        ? 'awaiting_accept'
-        : new Date(prize.expiresAt).getTime() <= Date.now()
-          ? 'expired'
-          : 'pending';
+    for (const prize of allCoupons) {
+      if (!prize || knownPrizeIds.has(prize.id)) continue;
 
-    history.unshift({
-      id: `spin_legacy_${prize.id}`,
-      userId: user.id,
-      userEmail: user.email,
-      userName: user.name,
-      spunAt: prize.wonAt,
-      pointsSpent: 0,
-      segmentId: prize.segmentId,
-      segmentLabel: prize.label,
-      prizeType: prize.type,
-      prizeId: prize.id,
-      prizeLabel: prize.label,
-      expiresAt: prize.expiresAt,
-      status,
-      statusAt: prize.usedAt ?? prize.wonAt,
-    });
-    knownPrizeIds.add(prize.id);
-    added += 1;
+      const status: SpinHistoryStatus = prize.usedAt
+        ? 'used'
+        : !prize.expiresAt
+          ? 'awaiting_accept'
+          : new Date(prize.expiresAt).getTime() <= Date.now()
+            ? 'expired'
+            : 'pending';
+
+      history.unshift({
+        id: `spin_legacy_${prize.id}`,
+        userId: user.id,
+        userEmail: user.email,
+        userName: user.name,
+        spunAt: prize.wonAt,
+        pointsSpent: 0,
+        segmentId: prize.segmentId,
+        segmentLabel: prize.label,
+        prizeType: prize.type,
+        prizeId: prize.id,
+        prizeLabel: prize.label,
+        expiresAt: prize.expiresAt,
+        status,
+        statusAt: prize.usedAt ?? prize.wonAt,
+      });
+      knownPrizeIds.add(prize.id);
+      added += 1;
+    }
   }
 
   const orders = await readOrders<{

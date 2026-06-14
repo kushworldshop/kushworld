@@ -70,8 +70,8 @@ export default function Checkout() {
   const [useLoyalty, setUseLoyalty] = useState(false);
   const [loyaltyPointsToUse, setLoyaltyPointsToUse] = useState(0);
   const [loyaltyMessage, setLoyaltyMessage] = useState('');
-  const [activeSpinPrize, setActiveSpinPrize] = useState<SpinPrize | null>(null);
-  const [useSpinPrize, setUseSpinPrize] = useState(false);
+  const [savedSpinCoupons, setSavedSpinCoupons] = useState<SpinPrize[]>([]);
+  const [selectedSpinPrizeId, setSelectedSpinPrizeId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cardNumber, setCardNumber] = useState('');
@@ -133,15 +133,17 @@ export default function Checkout() {
           setIsLoggedIn(true);
           setAvailablePoints(data.user.redeemableLoyaltyPoints ?? data.user.loyaltyPoints ?? 0);
           setLockedPoints(data.user.lockedLoyaltyPoints ?? 0);
-          const prize = data.user.activeSpinPrize ?? null;
-          setActiveSpinPrize(isSpinPrizeActive(prize) ? prize : null);
-          setUseSpinPrize(isSpinPrizeActive(prize));
+          const coupons = (data.user.savedSpinCoupons ?? []).filter((coupon: SpinPrize) =>
+            isSpinPrizeActive(coupon)
+          );
+          setSavedSpinCoupons(coupons);
+          setSelectedSpinPrizeId(coupons.length === 1 ? coupons[0].id : null);
         } else {
           setIsLoggedIn(false);
           setAvailablePoints(0);
           setLockedPoints(0);
-          setActiveSpinPrize(null);
-          setUseSpinPrize(false);
+          setSavedSpinCoupons([]);
+          setSelectedSpinPrizeId(null);
         }
       })
       .catch(() => {
@@ -191,7 +193,10 @@ export default function Checkout() {
   const sub = subtotal();
   const promoDiscount = appliedPromo?.discount ?? 0;
   const usingLoyaltyPromo = appliedPromo?.source === 'loyalty';
-  const spinPreview = computeSpinPrizePreview(activeSpinPrize, sub, useSpinPrize);
+  const selectedSpinPrize =
+    savedSpinCoupons.find((coupon) => coupon.id === selectedSpinPrizeId) ?? null;
+  const useSpinPrize = !!selectedSpinPrizeId && isSpinPrizeActive(selectedSpinPrize);
+  const spinPreview = computeSpinPrizePreview(selectedSpinPrize, sub, useSpinPrize);
   const spinDiscount = spinPreview.spinDiscount;
   const maxRedeemablePoints = calculateMaxRedeemablePoints(
     availablePoints,
@@ -289,8 +294,8 @@ export default function Checkout() {
     });
     const data = await res.json();
     if (data.valid) {
-      if (useSpinPrize) {
-        setUseSpinPrize(false);
+      if (selectedSpinPrizeId) {
+        setSelectedSpinPrizeId(null);
         setCouponMessage('Wheel coupon removed — promo codes cannot stack with wheel prizes.');
       }
       setAppliedPromo({
@@ -300,7 +305,7 @@ export default function Checkout() {
         referrerName: data.referrerName,
         referrerCode: data.referrerCode,
       });
-      if (!useSpinPrize) {
+      if (!selectedSpinPrizeId) {
         setCouponMessage(
           data.source === 'loyalty' && data.referrerName
             ? `Promo from ${data.referrerName}: -$${data.discount.toFixed(2)}`
@@ -334,7 +339,7 @@ export default function Checkout() {
     if (useLoyalty && loyaltyPointsToUse > maxRedeemablePoints) {
       return 'Loyalty points exceed the allowed amount for this order.';
     }
-    if (useSpinPrize && !isSpinPrizeActive(activeSpinPrize)) {
+    if (useSpinPrize && !isSpinPrizeActive(selectedSpinPrize)) {
       return 'Your wheel prize is invalid or expired.';
     }
     if (useSpinPrize && promoDiscount > 0) {
@@ -343,9 +348,9 @@ export default function Checkout() {
     return null;
   };
 
-  const toggleSpinPrize = (checked: boolean) => {
-    setUseSpinPrize(checked);
-    if (checked && appliedPromo) {
+  const selectSpinPrize = (prizeId: string | null) => {
+    setSelectedSpinPrizeId(prizeId);
+    if (prizeId && appliedPromo) {
       setAppliedPromo(null);
       setCouponMessage('Promo removed — wheel coupons cannot stack with promo codes.');
     }
@@ -407,7 +412,7 @@ export default function Checkout() {
           subtotal: sub,
           promoDiscount,
           loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
-          spinPrizeId: useSpinPrize && activeSpinPrize ? activeSpinPrize.id : undefined,
+          spinPrizeId: useSpinPrize && selectedSpinPrize ? selectedSpinPrize.id : undefined,
           promoCode: appliedPromo?.code,
           isFirstOrder,
           discount,
@@ -446,7 +451,7 @@ export default function Checkout() {
           subtotal: sub,
           promoDiscount,
           loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
-          spinPrizeId: useSpinPrize && activeSpinPrize ? activeSpinPrize.id : undefined,
+          spinPrizeId: useSpinPrize && selectedSpinPrize ? selectedSpinPrize.id : undefined,
           promoCode: appliedPromo?.code,
           isFirstOrder,
           discount,
@@ -496,7 +501,7 @@ export default function Checkout() {
       subtotal: sub,
       promoDiscount,
       loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
-      spinPrizeId: useSpinPrize && activeSpinPrize ? activeSpinPrize.id : undefined,
+      spinPrizeId: useSpinPrize && selectedSpinPrize ? selectedSpinPrize.id : undefined,
       promoCode: appliedPromo?.code,
       isFirstOrder,
       discount,
@@ -669,9 +674,9 @@ export default function Checkout() {
                   <span>-${loyaltyDiscount.toFixed(2)}</span>
                 </div>
               )}
-              {useSpinPrize && activeSpinPrize && (
+              {useSpinPrize && selectedSpinPrize && (
                 <div className="flex justify-between text-[#00ff9d]">
-                  <span>Wheel: {activeSpinPrize.label}</span>
+                  <span>Wheel: {selectedSpinPrize.label}</span>
                   <span>
                     {spinDiscount > 0
                       ? `-$${spinDiscount.toFixed(2)}`
@@ -759,28 +764,54 @@ export default function Checkout() {
             )}
             {couponMessage && <p className="text-sm text-[#00ff9d] mb-4">{couponMessage}</p>}
 
-            {isLoggedIn && activeSpinPrize && (
+            {isLoggedIn && savedSpinCoupons.length > 0 && (
               <div className="bg-zinc-900 border border-[#00ff9d]/30 rounded-2xl p-4 mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold">Wheel Prize</h3>
+                  <h3 className="font-semibold">Wheel Coupons</h3>
                   <Link href="/account?tab=wheel" className="text-xs text-[#00ff9d] hover:underline">
                     Spin again
                   </Link>
                 </div>
-                <p className="text-sm text-[#00ff9d] mb-3">{activeSpinPrize.label}</p>
                 <p className="text-xs text-zinc-500 mb-3">
-                  Expires {new Date(activeSpinPrize.expiresAt!).toLocaleDateString()}
-                  {spinPreview.freeTshirt && ' · Free t-shirt will be added to your shipment'}
+                  Pick one coupon for this order. Cannot combine with promo codes.
                 </p>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={useSpinPrize}
-                    onChange={(e) => toggleSpinPrize(e.target.checked)}
-                    className="w-4 h-4 accent-[#00ff9d]"
-                  />
-                  <span className="text-sm">Apply wheel coupon (cannot combine with promo codes)</span>
-                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2 hover:bg-zinc-800/50">
+                    <input
+                      type="radio"
+                      name="wheelCoupon"
+                      checked={!selectedSpinPrizeId}
+                      onChange={() => selectSpinPrize(null)}
+                      className="accent-[#00ff9d]"
+                    />
+                    <span className="text-sm text-zinc-400">No wheel coupon</span>
+                  </label>
+                  {savedSpinCoupons.map((coupon) => (
+                    <label
+                      key={coupon.id}
+                      className={`flex items-start gap-3 cursor-pointer rounded-xl px-3 py-2 ${
+                        selectedSpinPrizeId === coupon.id ? 'bg-[#00ff9d]/10' : 'hover:bg-zinc-800/50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="wheelCoupon"
+                        checked={selectedSpinPrizeId === coupon.id}
+                        onChange={() => selectSpinPrize(coupon.id)}
+                        className="mt-1 accent-[#00ff9d]"
+                      />
+                      <div>
+                        <p className="text-sm text-[#00ff9d] font-medium">{coupon.label}</p>
+                        <p className="text-xs text-zinc-500">
+                          Expires {new Date(coupon.expiresAt!).toLocaleDateString()}
+                          {coupon.type === 'free_tshirt' && selectedSpinPrizeId === coupon.id
+                            ? ' · Free t-shirt added to shipment'
+                            : ''}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
 

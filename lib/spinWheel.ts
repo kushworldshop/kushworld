@@ -4,6 +4,8 @@ import {
   WHEEL_SEGMENTS,
   buildPrizeExpiryDate,
   computeSpinPrizeDiscount,
+  getSpinCouponSlot,
+  isBetterPercentCoupon,
   isSpinPrizeActive,
   type SpinPrize,
   type WheelSegment,
@@ -15,13 +17,14 @@ import {
 } from '@/lib/spinWheelHistory';
 import {
   addLoyaltyPoints,
-  clearActiveSpinPrize,
   clearPendingSpinPrize,
   getRedeemableLoyaltyPoints,
   getUserById,
   redeemLoyaltyPoints,
-  setActiveSpinPrize,
+  removeSavedSpinCoupon,
+  resolveSavedSpinCoupons,
   setPendingSpinPrize,
+  upsertSavedSpinCoupon,
   type UserProfile,
 } from '@/lib/users';
 
@@ -63,9 +66,17 @@ export function getPendingSpinPrize(user: UserProfile): SpinPrize | null {
   return user.pendingSpinPrize ?? null;
 }
 
+export function getSavedSpinCoupons(user: UserProfile): SpinPrize[] {
+  return resolveSavedSpinCoupons(user);
+}
+
+export function getSavedSpinCouponById(user: UserProfile, prizeId: string): SpinPrize | null {
+  return getSavedSpinCoupons(user).find((coupon) => coupon.id === prizeId) ?? null;
+}
+
+/** @deprecated Use getSavedSpinCoupons */
 export function getActiveSpinPrize(user: UserProfile): SpinPrize | null {
-  const prize = user.activeSpinPrize;
-  return isSpinPrizeActive(prize) ? prize! : null;
+  return getSavedSpinCoupons(user)[0] ?? null;
 }
 
 /** Only an unaccepted win blocks another spin — saved coupons do not. */
@@ -73,9 +84,16 @@ export function hasPendingWheelDecision(user: UserProfile): boolean {
   return !!getPendingSpinPrize(user);
 }
 
+function findCouponInSlot(coupons: SpinPrize[], slot: ReturnType<typeof getSpinCouponSlot>) {
+  if (!slot) return null;
+  return coupons.find((coupon) => getSpinCouponSlot(coupon.type) === slot) ?? null;
+}
+
 export async function acceptSpinPrize(userId: string): Promise<{
-  prize: SpinPrize;
+  savedCoupons: SpinPrize[];
+  acceptedPrize?: SpinPrize;
   replacedPrevious: boolean;
+  keptExistingBetter: boolean;
 }> {
   const user = await getUserById(userId);
   if (!user) throw new Error('User not found');
@@ -83,9 +101,18 @@ export async function acceptSpinPrize(userId: string): Promise<{
   const pending = getPendingSpinPrize(user);
   if (!pending) throw new Error('No prize waiting to accept');
 
-  const existing = getActiveSpinPrize(user);
-  if (existing) {
-    await markSpinHistoryForfeited(existing.id);
+  const saved = getSavedSpinCoupons(user);
+  const slot = getSpinCouponSlot(pending.type);
+  const existingInSlot = slot ? findCouponInSlot(saved, slot) : null;
+
+  if (slot === 'percent_off' && existingInSlot && !isBetterPercentCoupon(pending, existingInSlot)) {
+    await clearPendingSpinPrize(userId);
+    await markSpinHistoryForfeited(pending.id);
+    return {
+      savedCoupons: saved,
+      replacedPrevious: false,
+      keptExistingBetter: true,
+    };
   }
 
   const acceptedAt = new Date().toISOString();
@@ -96,11 +123,20 @@ export async function acceptSpinPrize(userId: string): Promise<{
     expiresAt,
   };
 
-  await setActiveSpinPrize(userId, accepted);
+  if (existingInSlot) {
+    await markSpinHistoryForfeited(existingInSlot.id);
+  }
+
+  const savedCoupons = await upsertSavedSpinCoupon(userId, accepted);
   await clearPendingSpinPrize(userId);
   await markSpinHistoryAccepted(pending.id, expiresAt);
 
-  return { prize: accepted, replacedPrevious: !!existing };
+  return {
+    savedCoupons,
+    acceptedPrize: accepted,
+    replacedPrevious: !!existingInSlot,
+    keptExistingBetter: false,
+  };
 }
 
 export async function forfeitPendingSpinPrize(userId: string): Promise<void> {
@@ -114,26 +150,15 @@ export async function forfeitPendingSpinPrize(userId: string): Promise<void> {
   await markSpinHistoryForfeited(pending.id);
 }
 
-export async function forfeitActiveSpinPrize(userId: string): Promise<void> {
+export async function forfeitSavedSpinCoupon(userId: string, prizeId: string): Promise<void> {
   const user = await getUserById(userId);
   if (!user) throw new Error('User not found');
 
-  const active = getActiveSpinPrize(user);
-  if (!active) throw new Error('No saved coupon to remove');
+  const coupon = getSavedSpinCouponById(user, prizeId);
+  if (!coupon) throw new Error('No saved coupon to remove');
 
-  await clearActiveSpinPrize(userId);
-  await markSpinHistoryForfeited(active.id);
-}
-
-/** @deprecated Use forfeitPendingSpinPrize or forfeitActiveSpinPrize */
-export async function forfeitSpinPrize(userId: string): Promise<void> {
-  const user = await getUserById(userId);
-  if (!user) throw new Error('User not found');
-  if (getPendingSpinPrize(user)) {
-    await forfeitPendingSpinPrize(userId);
-    return;
-  }
-  await forfeitActiveSpinPrize(userId);
+  await removeSavedSpinCoupon(userId, prizeId);
+  await markSpinHistoryForfeited(prizeId);
 }
 
 async function getSpinCost(): Promise<number> {
@@ -263,8 +288,8 @@ export async function validateSpinPrizeForCheckout(
   const user = await getUserById(userId);
   if (!user) throw new Error('User not found');
 
-  const prize = getActiveSpinPrize(user);
-  if (!prize || prize.id !== prizeId) {
+  const prize = getSavedSpinCouponById(user, prizeId);
+  if (!prize || !isSpinPrizeActive(prize)) {
     throw new Error('Wheel prize is invalid or expired');
   }
 

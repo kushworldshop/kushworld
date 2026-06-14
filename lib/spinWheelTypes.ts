@@ -11,6 +11,43 @@ export function isCouponPrizeType(type: SpinPrizeType): boolean {
   return type !== 'try_again' && type !== 'bonus_points';
 }
 
+export type SpinCouponSlot = 'percent_off' | 'fixed_off' | 'free_shipping' | 'free_tshirt';
+
+export function getSpinCouponSlot(type: SpinPrizeType): SpinCouponSlot | null {
+  switch (type) {
+    case 'percent_off_10':
+    case 'percent_off_20':
+      return 'percent_off';
+    case 'fixed_5_off':
+      return 'fixed_off';
+    case 'free_shipping':
+      return 'free_shipping';
+    case 'free_tshirt':
+      return 'free_tshirt';
+    default:
+      return null;
+  }
+}
+
+export function getPercentOffValue(prize: Pick<SpinPrize, 'type' | 'value'>): number {
+  if (prize.type === 'percent_off_20') return prize.value ?? 20;
+  if (prize.type === 'percent_off_10') return prize.value ?? 10;
+  return prize.value ?? 0;
+}
+
+export function isBetterPercentCoupon(
+  incoming: Pick<SpinPrize, 'type' | 'value'>,
+  existing: Pick<SpinPrize, 'type' | 'value'>
+): boolean {
+  return getPercentOffValue(incoming) > getPercentOffValue(existing);
+}
+
+export function getActiveSavedSpinCoupons(
+  coupons: SpinPrize[] | null | undefined
+): SpinPrize[] {
+  return (coupons ?? []).filter(isSpinPrizeActive);
+}
+
 export type SpinPrizeType =
   | 'try_again'
   | 'bonus_points'

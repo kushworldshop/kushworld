@@ -6,7 +6,6 @@ import {
   WHEEL_SEGMENTS,
   getSpinPrizeDaysRemaining,
   getWheelRotationDelta,
-  isSpinPrizeActive,
   type SpinPrize,
 } from '@/lib/spinWheelTypes';
 
@@ -14,11 +13,11 @@ interface SpinWheelProps {
   points: number;
   spinCost: number;
   pendingPrize: SpinPrize | null | undefined;
-  activePrize: SpinPrize | null | undefined;
+  savedCoupons: SpinPrize[];
   onPrizeChange: (update: {
     remainingPoints?: number;
     pendingPrize?: SpinPrize | null;
-    activePrize?: SpinPrize | null;
+    savedCoupons?: SpinPrize[];
   }) => void;
 }
 
@@ -26,7 +25,7 @@ export default function SpinWheel({
   points,
   spinCost,
   pendingPrize,
-  activePrize,
+  savedCoupons,
   onPrizeChange,
 }: SpinWheelProps) {
   const [rotation, setRotation] = useState(0);
@@ -37,7 +36,6 @@ export default function SpinWheel({
   const [acting, setActing] = useState(false);
 
   const displayPending = pendingPrize ?? wonPrize;
-  const displayActive = isSpinPrizeActive(activePrize) ? activePrize : null;
   const mustDecide = !!displayPending;
 
   const gradient = WHEEL_SEGMENTS.map((seg, i) => {
@@ -100,7 +98,7 @@ export default function SpinWheel({
         setWonPrize(null);
         onPrizeChange({
           pendingPrize: null,
-          activePrize: data.prize ?? null,
+          savedCoupons: data.savedCoupons ?? savedCoupons,
         });
       } else {
         setError(data.error || 'Could not save coupon');
@@ -141,9 +139,9 @@ export default function SpinWheel({
       return 'Free studio tee at checkout — not a promo code.';
     }
     if (prize.type === 'free_shipping') {
-      return 'Free shipping on your next order at checkout.';
+      return 'Free shipping coupon — use one wheel coupon per order.';
     }
-    return 'Apply at checkout. Cannot combine with promo codes.';
+    return 'Saved to your profile — pick one wheel coupon at checkout.';
   };
 
   return (
@@ -192,7 +190,7 @@ export default function SpinWheel({
           <p className="text-xl font-bold text-amber-300">{displayPending.label}</p>
           <p className="text-xs text-zinc-500 mt-2">{prizeDescription(displayPending)}</p>
           <p className="text-xs text-zinc-500 mt-1">
-            Accept to save for 7 days on your profile, or forfeit to spin again.
+            Accept to save for 7 days. Different prize types can stack on your profile — pick one at checkout.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
             <button
@@ -221,16 +219,24 @@ export default function SpinWheel({
         </button>
       )}
 
-      {displayActive && !displayPending && (
-        <div className="w-full max-w-md bg-black/60 border border-[#00ff9d]/25 rounded-xl px-4 py-3 mb-4 text-center">
-          <p className="text-xs text-zinc-500">
-            Saved coupon: <span className="text-[#00ff9d] font-medium">{displayActive.label}</span>
-            {' · '}
-            {getSpinPrizeDaysRemaining(displayActive)} day
-            {getSpinPrizeDaysRemaining(displayActive) === 1 ? '' : 's'} left
-            {' · '}
+      {savedCoupons.length > 0 && !displayPending && (
+        <div className="w-full max-w-md bg-black/60 border border-[#00ff9d]/25 rounded-xl px-4 py-3 mb-4">
+          <p className="text-xs text-zinc-500 text-center mb-2">
+            Saved coupons ({savedCoupons.length}) — use one per order
+          </p>
+          <ul className="space-y-1">
+            {savedCoupons.map((coupon) => (
+              <li key={coupon.id} className="text-xs text-center text-zinc-400">
+                <span className="text-[#00ff9d] font-medium">{coupon.label}</span>
+                {' · '}
+                {getSpinPrizeDaysRemaining(coupon)} day
+                {getSpinPrizeDaysRemaining(coupon) === 1 ? '' : 's'} left
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-center mt-2">
             <Link href="/checkout" className="text-[#00ff9d] hover:underline">
-              Use at checkout
+              Choose at checkout →
             </Link>
           </p>
         </div>
