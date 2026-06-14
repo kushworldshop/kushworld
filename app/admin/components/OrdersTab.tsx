@@ -19,6 +19,23 @@ export default function OrdersTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
+  // Manual order creation for adding to user accounts
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [createEmail, setCreateEmail] = useState('');
+  const [createName, setCreateName] = useState('');
+  const [createAddress, setCreateAddress] = useState('');
+  const [createCity, setCreateCity] = useState('');
+  const [createState, setCreateState] = useState('');
+  const [createZip, setCreateZip] = useState('');
+  const [createPhone, setCreatePhone] = useState('');
+  const [createItems, setCreateItems] = useState<any[]>([{ name: '', quantity: 1, price: 0 }]);
+  const [createStatus, setCreateStatus] = useState('confirmed');
+  const [createPaymentStatus, setCreatePaymentStatus] = useState('paid');
+  const [createFreeEighth, setCreateFreeEighth] = useState(false);
+  const [createTrackingNumber, setCreateTrackingNumber] = useState('');
+  const [createTrackingCarrier, setCreateTrackingCarrier] = useState('usps');
+  const [creating, setCreating] = useState(false);
+
   const loadOrders = async () => {
     setLoading(true);
     try {
@@ -149,6 +166,92 @@ export default function OrdersTab() {
     }
   };
 
+  // Create manual order and add to user's account + notify
+  const createManualOrder = async () => {
+    if (!createEmail.trim()) {
+      alert('Email is required to add to account and notify user');
+      return;
+    }
+    const validItems = createItems.filter(i => i.name.trim() && i.quantity > 0);
+    if (validItems.length === 0) {
+      alert('Add at least one item');
+      return;
+    }
+    setCreating(true);
+    try {
+      const subtotal = validItems.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0);
+      const shipping = 9.99; // default discreet
+      const total = subtotal + shipping;
+
+      const customer = {
+        email: createEmail.trim(),
+        name: createName.trim(),
+        address: createAddress.trim(),
+        city: createCity.trim(),
+        state: createState.trim().toUpperCase(),
+        zip: createZip.trim(),
+        phone: createPhone.trim(),
+      };
+
+      const payload: any = {
+        manual: true,
+        customer,
+        items: validItems,
+        subtotal,
+        shipping,
+        total,
+        paymentMethod: 'manual',
+        paymentStatus: createPaymentStatus,
+        status: createStatus,
+        freeEighthBonus: createFreeEighth,
+        freeEighthNote: createFreeEighth ? 'Free 1/8th manually added to account by admin' : undefined,
+        trackingNumber: createTrackingNumber.trim() || undefined,
+        trackingCarrier: createTrackingNumber.trim() ? createTrackingCarrier : undefined,
+      };
+
+      const res = await adminFetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Manual order #${data.orderId} created and added to ${createEmail}. Notification email sent. Tracker ready.`);
+        setShowCreateForm(false);
+        // reset form
+        setCreateEmail(''); setCreateName(''); setCreateAddress(''); setCreateCity(''); setCreateState(''); setCreateZip(''); setCreatePhone('');
+        setCreateItems([{ name: '', quantity: 1, price: 0 }]);
+        setCreateStatus('confirmed'); setCreatePaymentStatus('paid'); setCreateFreeEighth(false);
+        setCreateTrackingNumber(''); setCreateTrackingCarrier('usps');
+        await loadOrders();
+        // select the new one if possible
+        setTimeout(() => setSelectedId(data.orderId), 100);
+      } else {
+        alert(data.error || 'Failed to create order');
+      }
+    } catch (e) {
+      alert('Error creating manual order');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const addCreateItem = () => {
+    setCreateItems([...createItems, { name: '', quantity: 1, price: 0 }]);
+  };
+
+  const updateCreateItem = (index: number, field: string, value: any) => {
+    const updated = [...createItems];
+    updated[index][field] = value;
+    setCreateItems(updated);
+  };
+
+  const removeCreateItem = (index: number) => {
+    if (createItems.length > 1) {
+      setCreateItems(createItems.filter((_, i) => i !== index));
+    }
+  };
+
   const activeBucket = ADMIN_ORDER_BUCKETS.find((item) => item.id === bucket);
 
   return (
@@ -168,6 +271,15 @@ export default function OrdersTab() {
             className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium disabled:opacity-50"
           >
             {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            onClick={() => {
+              setShowCreateForm(!showCreateForm);
+              if (showCreateForm) setSelectedId(null); // allow form
+            }}
+            className="bg-emerald-600 hover:bg-emerald-700 px-5 py-3 rounded-xl text-sm font-medium text-black"
+          >
+            {showCreateForm ? 'Cancel Create' : '+ Create Manual Order'}
           </button>
         </div>
       </div>
@@ -272,9 +384,77 @@ export default function OrdersTab() {
           </div>
 
           <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-12rem)]">
-            {!selectedOrder ? (
+            {showCreateForm ? (
+              <div>
+                <h3 className="text-xl font-bold mb-4">Create Manual Order (adds to user's account)</h3>
+                <p className="text-xs text-zinc-500 mb-4">This will create the order, notify the user by email, and make it appear in their account + Kush Tracker immediately. Use for free 1/8ths, special orders, etc.</p>
+
+                <div className="space-y-3">
+                  <input value={createEmail} onChange={e=>setCreateEmail(e.target.value)} placeholder="User Email (required for account + notify)" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+                  <input value={createName} onChange={e=>setCreateName(e.target.value)} placeholder="Name" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+                  <input value={createAddress} onChange={e=>setCreateAddress(e.target.value)} placeholder="Street Address" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input value={createCity} onChange={e=>setCreateCity(e.target.value)} placeholder="City" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+                    <input value={createState} onChange={e=>setCreateState(e.target.value)} placeholder="State" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <input value={createZip} onChange={e=>setCreateZip(e.target.value)} placeholder="Zip" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+                    <input value={createPhone} onChange={e=>setCreatePhone(e.target.value)} placeholder="Phone" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between mb-2 text-sm">
+                      <span>Items</span>
+                      <button onClick={addCreateItem} className="text-[#00ff9d] text-xs">+ Add Item</button>
+                    </div>
+                    {createItems.map((item, idx) => (
+                      <div key={idx} className="flex gap-2 mb-2">
+                        <input value={item.name} onChange={e=>updateCreateItem(idx,'name',e.target.value)} placeholder="Item name (e.g. Free 1/8th - Strain)" className="flex-1 bg-black border border-zinc-700 p-2 rounded text-sm" />
+                        <input type="number" value={item.quantity} onChange={e=>updateCreateItem(idx,'quantity',parseInt(e.target.value)||1)} className="w-16 bg-black border border-zinc-700 p-2 rounded text-sm" />
+                        <input type="number" step="0.01" value={item.price} onChange={e=>updateCreateItem(idx,'price',parseFloat(e.target.value)||0)} placeholder="Price" className="w-20 bg-black border border-zinc-700 p-2 rounded text-sm" />
+                        {createItems.length > 1 && <button onClick={()=>removeCreateItem(idx)} className="text-red-400 px-2">×</button>}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <select value={createStatus} onChange={e=>setCreateStatus(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl">
+                      <option value="confirmed">confirmed</option>
+                      <option value="packing">packing</option>
+                      <option value="sealed">sealed</option>
+                      <option value="shipped">shipped</option>
+                      <option value="delivered">delivered</option>
+                    </select>
+                    <select value={createPaymentStatus} onChange={e=>setCreatePaymentStatus(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl">
+                      <option value="paid">paid</option>
+                      <option value="manual">manual (awaiting)</option>
+                    </select>
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={createFreeEighth} onChange={e=>setCreateFreeEighth(e.target.checked)} />
+                    Include Free 1/8th bonus (for tracker/account)
+                  </label>
+
+                  <div>
+                    <input value={createTrackingNumber} onChange={e=>setCreateTrackingNumber(e.target.value)} placeholder="Tracking number (optional, for immediate ship)" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm font-mono mb-2" />
+                    <select value={createTrackingCarrier} onChange={e=>setCreateTrackingCarrier(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl text-sm">
+                      <option value="usps">USPS</option>
+                      <option value="ups">UPS</option>
+                      <option value="fedex">FedEx</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <button onClick={createManualOrder} disabled={creating || !createEmail.trim()} className="w-full py-3 bg-[#00ff9d] text-black font-bold rounded-2xl disabled:opacity-50 mt-2">
+                    {creating ? 'Creating & Notifying...' : 'Create Order, Add to Account & Notify User'}
+                  </button>
+                  <p className="text-[10px] text-zinc-500 mt-1">Order will appear in user's /account and /track immediately. Email confirmation sent. Tracker will reflect status/tracking accurately.</p>
+                </div>
+              </div>
+            ) : !selectedOrder ? (
               <div className="h-full flex items-center justify-center text-zinc-500">
-                Select an order
+                Select an order or use "Create Manual Order" above
               </div>
             ) : (
               <OrderDetailPanel

@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
     subtotal: order.subtotal,
     // light shipping hint only (city/state is fine)
     shipTo: order.customer?.state || order.state || undefined,
+    adminCreated: !!order.adminCreated,
     authMethod,
   };
 

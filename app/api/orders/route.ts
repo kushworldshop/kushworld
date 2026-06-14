@@ -186,6 +186,84 @@ export async function POST(request: NextRequest) {
   try {
     await ensureOrdersFile();
     const body = await request.json();
+
+    // Support for admin manual order creation (add orders to user accounts + notify)
+    const isAdmin = isAdminRequest(request);
+    if (isAdmin && body.manual) {
+      const orderId = generateOrderId();
+      const customer = body.customer || {};
+      const email = (customer.email || body.email || '').trim().toLowerCase();
+      const items = Array.isArray(body.items) ? body.items : [];
+      const subtotal = body.subtotal || items.reduce((sum: number, item: any) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
+      const shipping = body.shipping || 9.99;
+      const total = body.total || (subtotal + shipping);
+      const paymentMethod = body.paymentMethod || 'manual';
+      const paymentStatus = body.paymentStatus || 'paid';
+      const status = body.status || 'confirmed';
+      const freeEighthBonus = !!body.freeEighthBonus;
+      const freeEighthNote = freeEighthBonus ? (body.freeEighthNote || 'Free 1/8th manually added to account by admin') : undefined;
+
+      const newOrder: any = {
+        id: orderId,
+        customer,
+        items: items.map((i: any) => ({ name: i.name, quantity: i.quantity || 1, price: i.price || 0, image: '/logo.png' })),
+        subtotal,
+        shipping,
+        total,
+        paymentMethod,
+        paymentStatus,
+        status,
+        email,
+        name: customer.name,
+        address: customer.address,
+        city: customer.city,
+        state: customer.state,
+        zip: customer.zip,
+        phone: customer.phone,
+        freeEighthBonus: freeEighthBonus || undefined,
+        freeEighthNote,
+        adminCreated: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        inventoryDeducted: false, // admin manual - inventory managed separately if needed
+        idVerification: { status: 'verified', note: 'Admin created order' },
+        trackingNumber: body.trackingNumber?.trim() || undefined,
+        trackingCarrier: body.trackingCarrier ? normalizeTrackingCarrier(body.trackingCarrier) : undefined,
+        shippedAt: status === 'shipped' ? new Date().toISOString() : undefined,
+        deliveredAt: status === 'delivered' ? new Date().toISOString() : undefined,
+      };
+
+      let ordersData: any[] = [];
+      try {
+        const dataStr = await fs.readFile(ORDERS_FILE, 'utf8');
+        ordersData = JSON.parse(dataStr);
+      } catch {}
+      ordersData.unshift(newOrder);
+      await fs.writeFile(ORDERS_FILE, JSON.stringify(ordersData, null, 2));
+
+      // Notify user that order was created + added to their account
+      if (email) {
+        await sendOrderConfirmation(email, {
+          id: orderId,
+          total,
+          subtotal,
+          shipping,
+          discount: 0,
+          paymentMethod,
+          items: items.map((i: any) => ({ name: i.name, quantity: i.quantity || 1, price: i.price || 0 })),
+        });
+      }
+
+      const orderAccessToken = email ? createOrderAccessToken(orderId, email) : undefined;
+
+      return NextResponse.json({
+        success: true,
+        orderId,
+        orderAccessToken,
+        message: 'Manual order created, added to account, and user notified. Kush Tracker ready.',
+      });
+    }
+
     const customer = body.customer ?? {};
     const email = customer.email ?? body.email;
 

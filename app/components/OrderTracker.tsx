@@ -25,6 +25,7 @@ interface OrderForTracker {
   freeEighthBonus?: boolean;
   freeEighthNote?: string;
   total?: number;
+  adminCreated?: boolean;
 }
 
 interface OrderTrackerProps {
@@ -356,11 +357,14 @@ export default function OrderTracker({ order: initialOrder, showHeader = true, c
         )}
       </div>
 
-      {/* Tracking block */}
+      {/* Tracking block - always accurate for Kush Tracker */}
       {order.trackingNumber && (
         <div className="mt-5 bg-black/50 border border-zinc-800 rounded-2xl p-4">
           <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">CARRIER TRACKING</div>
           <div className="font-mono text-lg text-[#00ff9d] break-all">{order.trackingNumber}</div>
+          {order.trackingCarrier && order.trackingCarrier !== 'other' && (
+            <div className="text-xs text-zinc-400 mt-0.5">via {order.trackingCarrier.toUpperCase()}</div>
+          )}
           {trackingUrl && (
             <a
               href={trackingUrl}
@@ -368,9 +372,18 @@ export default function OrderTracker({ order: initialOrder, showHeader = true, c
               rel="noopener noreferrer"
               className="mt-2 inline-flex items-center gap-1 text-sm underline hover:text-[#00ff9d] transition"
             >
-              Track on carrier site <span aria-hidden>↗</span>
+              Track package with {order.trackingCarrier?.toUpperCase() || 'carrier'} ↗
             </a>
           )}
+          {!trackingUrl && order.trackingCarrier === 'other' && (
+            <p className="text-xs text-zinc-400 mt-1">Use the tracking number on your carrier's website.</p>
+          )}
+        </div>
+      )}
+
+      {order.adminCreated && (
+        <div className="mt-3 text-xs text-amber-300 bg-amber-400/10 border border-amber-400/20 rounded-xl px-3 py-2">
+          This order was manually added to your account by the Kush World team.
         </div>
       )}
 
