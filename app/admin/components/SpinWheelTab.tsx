@@ -58,8 +58,7 @@ export default function SpinWheelTab() {
         const next = { ...prev };
         for (const member of nextMembers) {
           if (next[member.memberKey] === undefined) {
-            next[member.memberKey] =
-              member.awaitingAccept > 0 || member.savedCoupons > 0 || nextMembers.length <= 8;
+            next[member.memberKey] = false;
           }
         }
         return next;
