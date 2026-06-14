@@ -96,6 +96,17 @@ export default function CustomersTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, Partial<MemberDraft>>>({});
 
+  // Per-client orders and manual add order for this profile
+  const [userOrders, setUserOrders] = useState<any[]>([]);
+  const [loadingUserOrders, setLoadingUserOrders] = useState(false);
+  const [showAddOrderForm, setShowAddOrderForm] = useState(false);
+  const [addOrderItems, setAddOrderItems] = useState<any[]>([{ name: '', quantity: 1, price: 0 }]);
+  const [addOrderStatus, setAddOrderStatus] = useState('confirmed');
+  const [addOrderTrackingNumber, setAddOrderTrackingNumber] = useState('');
+  const [addOrderTrackingCarrier, setAddOrderTrackingCarrier] = useState('usps');
+  const [addOrderFreeEighth, setAddOrderFreeEighth] = useState(false);
+  const [addingOrder, setAddingOrder] = useState(false);
+
   const displayUsers = showFree8thOnly ? users.filter((u) => !!u.freeEighthReceivedAt) : users;
 
   const loadUsers = async (query = search) => {
@@ -117,6 +128,25 @@ export default function CustomersTab() {
     }
   };
 
+  const loadUserOrders = async (email: string) => {
+    setLoadingUserOrders(true);
+    try {
+      const res = await adminFetch('/api/orders');
+      if (res.ok) {
+        const allOrders = await res.json();
+        const filtered = (Array.isArray(allOrders) ? allOrders : []).filter((o: any) => {
+          const oEmail = (o.email || o.customer?.email || '').toLowerCase();
+          return oEmail === email.toLowerCase();
+        });
+        setUserOrders(filtered);
+      }
+    } catch {
+      setUserOrders([]);
+    } finally {
+      setLoadingUserOrders(false);
+    }
+  };
+
   useEffect(() => {
     loadUsers();
   }, []);
@@ -125,6 +155,15 @@ export default function CustomersTab() {
     () => users.find((user) => user.id === selectedId) ?? null,
     [users, selectedId]
   );
+
+  useEffect(() => {
+    if (selectedUser?.email) {
+      loadUserOrders(selectedUser.email);
+    } else {
+      setUserOrders([]);
+      setShowAddOrderForm(false);
+    }
+  }, [selectedUser]);
 
   const getDraft = (user: AdminUser): MemberDraft => {
     const patch = edits[user.id];
@@ -367,6 +406,93 @@ export default function CustomersTab() {
     }
   };
 
+  const addOrderForUser = async (user: AdminUser) => {
+    if (!user.email) return;
+    const validItems = addOrderItems.filter((i) => i.name.trim() && i.quantity > 0);
+    if (validItems.length === 0) {
+      setMessage('Add at least one item');
+      return;
+    }
+    setAddingOrder(true);
+    setMessage('');
+    try {
+      const subtotal = validItems.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0);
+      const shipping = 9.99;
+      const total = subtotal + shipping;
+      const customer = {
+        email: user.email,
+        name: user.name,
+        address: user.shippingAddress?.address || '',
+        city: user.shippingAddress?.city || '',
+        state: user.shippingAddress?.state || '',
+        zip: user.shippingAddress?.zip || '',
+        phone: user.phone || '',
+      };
+      const payload = {
+        manual: true,
+        customer,
+        items: validItems,
+        subtotal,
+        shipping,
+        total,
+        paymentMethod: 'manual',
+        paymentStatus: 'paid',
+        status: addOrderStatus,
+        freeEighthBonus: addOrderFreeEighth,
+        freeEighthNote: addOrderFreeEighth ? 'Free 1/8th manually added by admin for this client' : undefined,
+        trackingNumber: addOrderTrackingNumber.trim() || undefined,
+        trackingCarrier: addOrderTrackingNumber.trim() ? addOrderTrackingCarrier : undefined,
+      };
+      const res = await adminFetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage(`Order #${data.orderId} added to ${user.email}. Notification sent. Tracker updated.`);
+        setShowAddOrderForm(false);
+        setAddOrderItems([{ name: '', quantity: 1, price: 0 }]);
+        setAddOrderStatus('confirmed');
+        setAddOrderTrackingNumber('');
+        setAddOrderTrackingCarrier('usps');
+        setAddOrderFreeEighth(false);
+        await loadUserOrders(user.email);
+        await loadUsers(search);
+      } else {
+        setMessage(data.error || 'Failed to add order');
+      }
+    } catch (e) {
+      setMessage('Error adding order');
+    } finally {
+      setAddingOrder(false);
+    }
+  };
+
+  const addAddOrderItem = () => setAddOrderItems([...addOrderItems, { name: '', quantity: 1, price: 0 }]);
+  const updateAddOrderItem = (index: number, field: string, value: any) => {
+    const updated = [...addOrderItems];
+    updated[index][field] = value;
+    setAddOrderItems(updated);
+  };
+  const removeAddOrderItem = (index: number) => {
+    if (addOrderItems.length > 1) setAddOrderItems(addOrderItems.filter((_, i) => i !== index));
+  };
+
+  const updateOrderTracking = async (orderId: string, trackingNumber: string, carrier: string) => {
+    try {
+      await adminFetch('/api/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: orderId, trackingNumber: trackingNumber.trim() || undefined, trackingCarrier: carrier }),
+      });
+      setMessage('Tracking updated. Kush Tracker will reflect it.');
+      if (selectedUser) await loadUserOrders(selectedUser.email);
+    } catch {
+      setMessage('Failed to update tracking');
+    }
+  };
+
   const deleteUser = async (user: AdminUser) => {
     const confirmed = window.confirm(
       `Delete ${user.email} permanently?\n\nThis removes their account, login access, and loyalty balance. Order history is kept.`
@@ -496,6 +622,25 @@ export default function CustomersTab() {
               onResetPassword={(newPassword) => resetUserPassword(selectedUser, newPassword)}
               onUnlockPoints={(amount) => unlockUserPoints(selectedUser, amount)}
               onMarkFreeEighth={() => markFreeEighthForUser(selectedUser)}
+              userOrders={userOrders}
+              loadingUserOrders={loadingUserOrders}
+              showAddOrderForm={showAddOrderForm}
+              setShowAddOrderForm={setShowAddOrderForm}
+              addOrderItems={addOrderItems}
+              addAddOrderItem={addAddOrderItem}
+              updateAddOrderItem={updateAddOrderItem}
+              removeAddOrderItem={removeAddOrderItem}
+              addOrderStatus={addOrderStatus}
+              setAddOrderStatus={setAddOrderStatus}
+              addOrderTrackingNumber={addOrderTrackingNumber}
+              setAddOrderTrackingNumber={setAddOrderTrackingNumber}
+              addOrderTrackingCarrier={addOrderTrackingCarrier}
+              setAddOrderTrackingCarrier={setAddOrderTrackingCarrier}
+              addOrderFreeEighth={addOrderFreeEighth}
+              setAddOrderFreeEighth={setAddOrderFreeEighth}
+              addingOrder={addingOrder}
+              addOrderForUser={() => addOrderForUser(selectedUser)}
+              updateOrderTracking={updateOrderTracking}
             />
           )}
         </div>
@@ -520,6 +665,25 @@ function MemberProfilePanel({
   onResetPassword,
   onUnlockPoints,
   onMarkFreeEighth,
+  userOrders,
+  loadingUserOrders,
+  showAddOrderForm,
+  setShowAddOrderForm,
+  addOrderItems,
+  addAddOrderItem,
+  updateAddOrderItem,
+  removeAddOrderItem,
+  addOrderStatus,
+  setAddOrderStatus,
+  addOrderTrackingNumber,
+  setAddOrderTrackingNumber,
+  addOrderTrackingCarrier,
+  setAddOrderTrackingCarrier,
+  addOrderFreeEighth,
+  setAddOrderFreeEighth,
+  addingOrder,
+  addOrderForUser,
+  updateOrderTracking,
 }: {
   user: AdminUser;
   draft: MemberDraft;
@@ -536,6 +700,25 @@ function MemberProfilePanel({
   onResetPassword: (newPassword: string) => void;
   onUnlockPoints: (amount?: number) => void;
   onMarkFreeEighth?: () => void;
+  userOrders: any[];
+  loadingUserOrders: boolean;
+  showAddOrderForm: boolean;
+  setShowAddOrderForm: (v: boolean) => void;
+  addOrderItems: any[];
+  addAddOrderItem: () => void;
+  updateAddOrderItem: (index: number, field: string, value: any) => void;
+  removeAddOrderItem: (index: number) => void;
+  addOrderStatus: string;
+  setAddOrderStatus: (v: string) => void;
+  addOrderTrackingNumber: string;
+  setAddOrderTrackingNumber: (v: string) => void;
+  addOrderTrackingCarrier: string;
+  setAddOrderTrackingCarrier: (v: string) => void;
+  addOrderFreeEighth: boolean;
+  setAddOrderFreeEighth: (v: boolean) => void;
+  addingOrder: boolean;
+  addOrderForUser: () => void;
+  updateOrderTracking: (orderId: string, trackingNumber: string, carrier: string) => void;
 }) {
   const redeemable = Math.max(0, draft.loyaltyPoints - draft.lockedLoyaltyPoints);
   const idStatus = user.idVerification?.status ?? (user.idVerified ? 'verified' : 'none');
@@ -742,6 +925,110 @@ function MemberProfilePanel({
         >
           {saving ? 'Resetting...' : 'Reset Password'}
         </button>
+      </section>
+
+      <section className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5">
+        <SectionTitle>Orders & Tracking for this Client</SectionTitle>
+        <p className="text-sm text-zinc-500 mb-4">View orders linked to this account. Add new manual orders (will notify client and appear in their Kush Tracker). Edit tracking numbers directly here for accuracy in the tracker.</p>
+
+        <button
+          onClick={() => setShowAddOrderForm(!showAddOrderForm)}
+          disabled={addingOrder || saving || deleting}
+          className="mb-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-black text-sm font-bold rounded-xl"
+        >
+          {showAddOrderForm ? 'Cancel Add Order' : '+ Add Manual Order for this Client'}
+        </button>
+
+        {showAddOrderForm && (
+          <div className="mb-6 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 space-y-3">
+            <div className="text-sm font-medium">New Order Items</div>
+            {addOrderItems.map((item, idx) => (
+              <div key={idx} className="flex gap-2">
+                <input value={item.name} onChange={e => updateAddOrderItem(idx, 'name', e.target.value)} placeholder="Item name (e.g. Free 1/8th - Strain)" className="flex-1 bg-black border border-zinc-700 p-2 rounded text-sm" />
+                <input type="number" value={item.quantity} onChange={e => updateAddOrderItem(idx, 'quantity', parseInt(e.target.value) || 1)} className="w-16 bg-black border border-zinc-700 p-2 rounded text-sm" />
+                <input type="number" step="0.01" value={item.price} onChange={e => updateAddOrderItem(idx, 'price', parseFloat(e.target.value) || 0)} placeholder="Price" className="w-20 bg-black border border-zinc-700 p-2 rounded text-sm" />
+                {addOrderItems.length > 1 && <button onClick={() => removeAddOrderItem(idx)} className="text-red-400 px-2">×</button>}
+              </div>
+            ))}
+            <button onClick={addAddOrderItem} className="text-[#00ff9d] text-xs">+ Add Item</button>
+
+            <div className="grid grid-cols-2 gap-3 text-sm mt-2">
+              <select value={addOrderStatus} onChange={e => setAddOrderStatus(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl">
+                <option value="confirmed">confirmed</option>
+                <option value="packing">packing</option>
+                <option value="sealed">sealed</option>
+                <option value="shipped">shipped</option>
+                <option value="delivered">delivered</option>
+              </select>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={addOrderFreeEighth} onChange={e => setAddOrderFreeEighth(e.target.checked)} /> Free 1/8th bonus
+              </label>
+            </div>
+
+            <div>
+              <input value={addOrderTrackingNumber} onChange={e => setAddOrderTrackingNumber(e.target.value)} placeholder="Tracking number (optional)" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm font-mono mb-2" />
+              <select value={addOrderTrackingCarrier} onChange={e => setAddOrderTrackingCarrier(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl text-sm">
+                <option value="usps">USPS</option>
+                <option value="ups">UPS</option>
+                <option value="fedex">FedEx</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <button onClick={addOrderForUser} disabled={addingOrder || !addOrderItems.some(i => i.name.trim())} className="w-full py-3 bg-[#00ff9d] text-black font-bold rounded-2xl disabled:opacity-50">
+              {addingOrder ? 'Adding & Notifying...' : 'Add Order to Client Profile & Notify'}
+            </button>
+          </div>
+        )}
+
+        <div className="mt-4">
+          <div className="text-sm font-medium mb-2">Recent Orders ({user.orderCount})</div>
+          {loadingUserOrders ? (
+            <p className="text-xs text-zinc-400">Loading orders...</p>
+          ) : userOrders.length === 0 ? (
+            <p className="text-xs text-zinc-500">No orders yet for this client.</p>
+          ) : (
+            <div className="space-y-3 text-sm">
+              {userOrders.slice(0, 5).map((order) => (
+                <div key={order.id} className="bg-black border border-zinc-700 rounded-xl p-3">
+                  <div className="flex justify-between">
+                    <div>
+                      <span className="font-mono text-[#00ff9d]">#{order.id}</span> · {order.status || 'pending'} · ${order.total || order.subtotal || 0}
+                    </div>
+                    <div className="text-xs text-zinc-500">{new Date(order.createdAt).toLocaleDateString()}</div>
+                  </div>
+                  {order.items && order.items.length > 0 && (
+                    <div className="text-xs text-zinc-400 mt-1">{order.items.map((i: any) => i.name).join(', ')}</div>
+                  )}
+                  <div className="mt-2 flex gap-2 items-center">
+                    <input
+                      defaultValue={order.trackingNumber || ''}
+                      placeholder="Tracking #"
+                      className="flex-1 bg-zinc-900 border border-zinc-700 p-1 rounded text-xs font-mono"
+                      onBlur={(e) => {
+                        if (e.target.value !== (order.trackingNumber || '')) {
+                          updateOrderTracking(order.id, e.target.value, order.trackingCarrier || 'usps');
+                        }
+                      }}
+                    />
+                    <select
+                      defaultValue={order.trackingCarrier || 'usps'}
+                      onChange={(e) => updateOrderTracking(order.id, order.trackingNumber || '', e.target.value)}
+                      className="bg-zinc-900 border border-zinc-700 p-1 rounded text-xs"
+                    >
+                      <option value="usps">USPS</option>
+                      <option value="ups">UPS</option>
+                      <option value="fedex">FedEx</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <a href={`/track/${order.id}`} target="_blank" className="text-[#00ff9d] text-xs underline">View Tracker</a>
+                  </div>
+                  {order.freeEighthNote && <div className="text-[10px] text-amber-300 mt-1">🌿 Free 1/8th: {order.freeEighthNote}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="bg-red-950/20 border border-red-900/50 rounded-2xl p-5">
