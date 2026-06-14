@@ -8,6 +8,9 @@ import ReviewsSection from './components/ReviewsSection';
 
 import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
+import MobileBottomNav from './components/MobileBottomNav';
+import InstallPrompt from './components/InstallPrompt';
+import OfflineIndicator from './components/OfflineIndicator';
 import ProductCollectionSection from './components/ProductCollectionSection';
 import HowItWorksSection from './components/HowItWorksSection';
 import CommunitySection from './components/CommunitySection';
@@ -24,7 +27,7 @@ export default function HomeClient() {
     <>
       <Navbar onCartClick={() => setIsCartOpen(true)} />
 
-      <main>
+      <main className="pb-16 md:pb-0">
         <Hero merchOnly={isMerchOnly} />
 
         {features.bestSellers.enabled && (
@@ -56,6 +59,9 @@ export default function HomeClient() {
       <Footer />
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <MobileBottomNav />
+      <InstallPrompt />
+      <OfflineIndicator />
     </>
   );
 }

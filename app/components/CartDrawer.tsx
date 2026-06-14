@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { useCartStore } from '@/lib/cartStore';
 import { formatCartItemOptions } from '@/lib/productOptions';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
+import { useRef } from 'react';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface CartDrawerProps {
 }
 
 export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
+  const swipeStart = useRef(0);
   const { 
     items, 
     removeItem, 
@@ -23,6 +25,21 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const handleCheckout = () => {
     onClose();
     window.location.href = '/checkout';
+  };
+
+  // Simple left swipe to close on mobile (app gesture prep)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isOpen) return;
+    swipeStart.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!isOpen) return;
+    const endX = e.changedTouches[0].clientX;
+    const diff = swipeStart.current - endX;
+    if (diff > 80) { // swipe left threshold
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -40,6 +57,8 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         className={`relative w-full max-w-md h-full bg-zinc-950 border-l border-zinc-700 flex flex-col transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
         {/* Header */}
         <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">

@@ -5,6 +5,9 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 import CartDrawer from './CartDrawer';
 import SiteBranding from './SiteBranding';
+import MobileBottomNav from './MobileBottomNav';
+import InstallPrompt from './InstallPrompt';
+import OfflineIndicator from './OfflineIndicator';
 import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useReferralStore } from '@/lib/referralStore';
@@ -25,9 +28,12 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
     <>
       <SiteBranding />
       <Navbar onCartClick={() => setIsCartOpen(true)} />
-      <main className="min-h-screen bg-black text-white">{children}</main>
+      <main className="min-h-screen bg-black text-white pb-16 md:pb-0">{children}</main>
       <Footer />
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <MobileBottomNav />
+      <InstallPrompt />
+      <OfflineIndicator />
     </>
   );
 }

@@ -209,7 +209,7 @@ export default function OrdersTab() {
           <p className="text-sm text-zinc-500">Try another category or clear your search.</p>
         </div>
       ) : (
-        <div className="grid lg:grid-cols-[360px_1fr] gap-6 min-h-[640px]">
+        <div className="grid lg:grid-cols-[360px_1fr] gap-6 min-h-[640px] overflow-x-auto">
           <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 flex flex-col max-h-[calc(100vh-12rem)]">
             <input
               value={search}

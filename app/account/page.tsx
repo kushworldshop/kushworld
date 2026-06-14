@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
+import PullToRefresh from '@/app/components/PullToRefresh';
 import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
 import { getSpinPrizeDaysRemaining } from '@/lib/spinWheelTypes';
@@ -1023,18 +1024,24 @@ export default function Account() {
         )}
 
         {tab === 'orders' && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6">Order History</h2>
-            {loading ? (
-              <p className="text-zinc-400">Loading orders...</p>
-            ) : orders.length === 0 ? (
-              <div className="bg-zinc-900 p-12 rounded-3xl text-center border border-zinc-800">
-                <p className="text-xl mb-4">No orders yet</p>
-                <Link href="/shop" className="text-[#00ff9d] hover:underline">Start shopping</Link>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {orders.map((order) => (
+          <PullToRefresh
+            onRefresh={async () => {
+              await loadOrders();
+            }}
+            disabled={loading}
+          >
+            <div>
+              <h2 className="text-2xl font-bold mb-6">Order History</h2>
+              {loading ? (
+                <p className="text-zinc-400">Loading orders...</p>
+              ) : orders.length === 0 ? (
+                <div className="bg-zinc-900 p-12 rounded-3xl text-center border border-zinc-800">
+                  <p className="text-xl mb-4">No orders yet</p>
+                  <Link href="/shop" className="text-[#00ff9d] hover:underline">Start shopping</Link>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {orders.map((order) => (
                   <div key={order.id} className="bg-zinc-900 p-6 rounded-3xl border border-zinc-800">
                     <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
                       <div>
@@ -1073,6 +1080,7 @@ export default function Account() {
               </div>
             )}
           </div>
+          </PullToRefresh>
         )}
       </div>
     </SiteLayout>
