@@ -744,6 +744,41 @@ export default function Account() {
           <StatCard label="Link Clicks" value={String(stats?.clicks ?? 0)} />
         </div>
 
+        {/* Prominent live trackers directly in the main account/profile view so customers always see their Kush Tracker without switching tabs */}
+        {orders.length > 0 && tab !== 'orders' && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-xs uppercase tracking-[2px] text-zinc-500">LIVE</div>
+                <h3 className="text-xl font-bold">Your Kush Trackers</h3>
+              </div>
+              <button
+                onClick={() => setTab('orders')}
+                className="text-sm text-[#00ff9d] hover:underline font-medium"
+              >
+                View full order history →
+              </button>
+            </div>
+            <div className="space-y-4">
+              {orders.slice(0, 2).map((order: any) => (
+                <div key={order.id} className="bg-zinc-900 border border-zinc-800 rounded-3xl p-4">
+                  <div className="flex justify-between items-center mb-2 text-xs text-zinc-500">
+                    <span className="font-mono text-[#00ff9d]">#{order.id}</span>
+                    <span>{order.status || 'pending'}</span>
+                  </div>
+                  <OrderTracker
+                    order={order}
+                    showHeader={false}
+                    compact={true}
+                    refreshWith={{ orderId: order.id }}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-zinc-500 mt-2 text-center">Trackers update live. Click refresh or enable auto-updates inside each card. Full details in the Orders tab.</p>
+          </div>
+        )}
+
         <div className="flex gap-2 mb-8 border-b border-zinc-800 pb-4 overflow-x-auto whitespace-nowrap scrollbar-thin scrollbar-thumb-zinc-700 -mx-1 px-1">
           {(
             [
