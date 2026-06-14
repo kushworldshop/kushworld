@@ -179,13 +179,17 @@ export default function Checkout() {
     const hasHempItems = orderRequiresIdVerification(paidItems);
 
     if (isMerchOnly || !hasHempItems || paidItems.length === 0) {
-      removeFirstOrderBonus();
+      if (items.some(isFirstOrderBonusLineItem)) {
+        removeFirstOrderBonus();
+      }
       return;
     }
 
     const email = customerInfo.email.trim();
     if (!email.includes('@')) {
-      removeFirstOrderBonus();
+      if (items.some(isFirstOrderBonusLineItem)) {
+        removeFirstOrderBonus();
+      }
       return;
     }
 
@@ -198,12 +202,14 @@ export default function Checkout() {
         if (cancelled) return;
         if (data.eligible) {
           addFirstOrderBonus();
-        } else {
+        } else if (items.some(isFirstOrderBonusLineItem)) {
           removeFirstOrderBonus();
         }
       })
       .catch(() => {
-        if (!cancelled) removeFirstOrderBonus();
+        if (!cancelled && items.some(isFirstOrderBonusLineItem)) {
+          removeFirstOrderBonus();
+        }
       });
 
     return () => {

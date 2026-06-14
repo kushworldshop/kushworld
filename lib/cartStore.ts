@@ -49,9 +49,11 @@ export const useCartStore = create<CartStore>()(
         }),
 
       removeFirstOrderBonus: () =>
-        set((state) => ({
-          items: state.items.filter((item) => !isFirstOrderBonusLineItem(item)),
-        })),
+        set((state) => {
+          const filtered = state.items.filter((item) => !isFirstOrderBonusLineItem(item));
+          if (filtered.length === state.items.length) return state; // no change, prevent unnecessary update
+          return { items: filtered };
+        }),
 
       hasFirstOrderBonus: () => get().items.some(isFirstOrderBonusLineItem),
 
