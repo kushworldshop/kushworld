@@ -431,7 +431,7 @@ export default function Checkout() {
     } else {
       addPoints(Math.floor(sub / 10));
     }
-    if (customerInfo.email) {
+    if (typeof window !== 'undefined' && customerInfo.email) {
       localStorage.setItem(`ordered_${customerInfo.email}`, 'true');
     }
     if (storedReferralCode) {
@@ -536,7 +536,7 @@ export default function Checkout() {
       setOrderPlaced(true);
       setPaymentComplete(false);
       clearCart();
-      if (customerInfo.email) {
+      if (typeof window !== 'undefined' && customerInfo.email) {
         localStorage.setItem(`ordered_${customerInfo.email}`, 'true');
       }
       if (storedReferralCode) {
