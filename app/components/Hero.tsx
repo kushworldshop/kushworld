@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import BrandLogoLink from '@/app/components/BrandLogoLink';
-import AnimatedMascot from '@/app/components/AnimatedMascot';
 import { splitHeadline } from '@/lib/siteContentTypes';
 import { useSiteContent } from '@/lib/useSiteContent';
 
@@ -12,9 +11,21 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
   const headlineLines = splitHeadline(variant.headline);
 
   return (
-    <section className="hero-bg min-h-[75vh] flex items-center relative">
+    <section className="min-h-[75vh] flex items-center relative overflow-hidden bg-black">
+      {/* Animated mascot video as the full hero background — the logo guy actually smoking his joint (seamless loop) */}
+      <video
+        src="/mascot-smoking-loop.mp4"
+        className="absolute inset-0 w-full h-full object-cover z-0"
+        autoPlay
+        loop
+        muted
+        playsInline
+      />
+      {/* Subtle overlay for better text contrast over the animated character bg */}
+      <div className="absolute inset-0 bg-black/45 z-10" />
+
       <BrandLogoLink overlay />
-      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center py-20">
+      <div className="relative z-20 max-w-4xl mx-auto px-6 text-center py-20 text-white">
         <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-6">
           {variant.eyebrow}
         </p>
@@ -49,16 +60,10 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
           )}
         </div>
 
-        <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 mt-12 text-xs text-zinc-500 uppercase tracking-wider">
+        <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 mt-12 text-xs text-zinc-300 uppercase tracking-wider">
           {variant.badges.map((badge) => (
             <span key={badge}>{badge}</span>
           ))}
-        </div>
-
-        {/* Animated mascot logo guy — actually smoking his joint (looping video version of the classic logo) */}
-        <div className="mt-8 flex flex-col items-center">
-          <AnimatedMascot className="drop-shadow-2xl" width={110} height={110} />
-          <p className="mt-2 text-[10px] text-zinc-500 tracking-[2px] uppercase">The mascot getting lit</p>
         </div>
       </div>
     </section>

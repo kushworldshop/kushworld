@@ -28,7 +28,7 @@ export default function BrandLogoLink({
         href="/"
         onClick={handleClick}
         aria-label="Go to homepage"
-        className={`absolute left-1/2 top-[8%] z-[1] h-[38vh] w-[min(85vw,480px)] -translate-x-1/2 cursor-pointer ${className}`}
+        className={`absolute left-1/2 top-[8%] z-[30] h-[38vh] w-[min(85vw,480px)] -translate-x-1/2 cursor-pointer ${className}`}
       />
     );
   }
