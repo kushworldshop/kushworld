@@ -745,7 +745,7 @@ export default function Checkout() {
 
             <div className="flex gap-2 mb-2">
               <input
-                placeholder="Promo code (try FIRST20 or a friend's code)"
+                placeholder="Promo code (use a friend's code)"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                 disabled={useSpinPrize}
