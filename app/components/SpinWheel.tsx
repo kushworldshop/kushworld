@@ -1,12 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  WHEEL_SEGMENTS,
-  formatWheelOdds,
-  getWheelRotationDelta,
-  type SpinPrize,
-} from '@/lib/spinWheelTypes';
+import { WHEEL_SEGMENTS, getWheelRotationDelta, type SpinPrize } from '@/lib/spinWheelTypes';
 
 interface SpinWheelProps {
   points: number;
@@ -95,7 +90,8 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
           }}
         >
           {WHEEL_SEGMENTS.map((seg, i) => {
-            const angle = (360 / WHEEL_SEGMENTS.length) * i + 360 / WHEEL_SEGMENTS.length / 2 - 90;
+            const segmentAngle = 360 / WHEEL_SEGMENTS.length;
+            const angle = segmentAngle * i + segmentAngle / 2;
             return (
               <div
                 key={seg.id}
@@ -166,34 +162,6 @@ export default function SpinWheel({ points, spinCost, activePrize, onSpinComplet
         </div>
       )}
       {error && <p className="text-red-400 text-sm text-center max-w-sm">{error}</p>}
-
-      <div className="mt-8 w-full max-w-lg">
-        <p className="text-xs text-zinc-500 text-center mb-3 uppercase tracking-wider">Odds per spin</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {WHEEL_SEGMENTS.map((seg) => {
-            const isJackpot = seg.type === 'free_tshirt';
-            return (
-              <div
-                key={seg.id}
-                className={`text-center text-xs rounded-xl p-3 border ${
-                  isJackpot
-                    ? 'bg-pink-950/40 border-pink-500/50'
-                    : seg.type === 'try_again'
-                      ? 'bg-zinc-950 border-zinc-800'
-                      : 'bg-zinc-900 border-zinc-800'
-                }`}
-              >
-                <div className="w-3 h-3 rounded-full mx-auto mb-1" style={{ background: seg.color }} />
-                <p className="font-medium">{seg.label}</p>
-                <p className={`mt-1 ${isJackpot ? 'text-pink-300' : 'text-zinc-500'}`}>
-                  {formatWheelOdds(seg)}
-                  {isJackpot && ' · Jackpot'}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
