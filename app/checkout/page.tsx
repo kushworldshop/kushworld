@@ -194,8 +194,9 @@ export default function Checkout() {
     }
 
     let cancelled = false;
+    const phone = customerInfo.phone ? customerInfo.phone.trim() : '';
     fetch(
-      `/api/first-order-bonus?email=${encodeURIComponent(email)}&hasHempItems=true`
+      `/api/first-order-bonus?email=${encodeURIComponent(email)}&hasHempItems=true${phone ? `&phone=${encodeURIComponent(phone)}` : ''}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -218,6 +219,7 @@ export default function Checkout() {
   }, [
     items,
     customerInfo.email,
+    customerInfo.phone,
     isMerchOnly,
     addFirstOrderBonus,
     removeFirstOrderBonus,

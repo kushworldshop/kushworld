@@ -15,7 +15,6 @@ import { recordReferralConversion } from '@/lib/referrals';
 import { creditReferrerForConversion } from '@/lib/referralRewards';
 import { getSessionUserId } from '@/lib/auth';
 import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
-import { markFreeEighthGranted } from '@/lib/firstOrderBonusServer';
 import { markUserSpinPrizeUsed, unlockLoyaltyPointsAfterPurchase } from '@/lib/users';
 import { resolvePromoForOrder } from '@/lib/orderPromo';
 import {
@@ -299,10 +298,6 @@ export async function POST(request: NextRequest) {
       }
       await awardPurchaseLoyalty(userId, subtotal);
       await unlockLoyaltyPointsAfterPurchase(userId);
-    }
-
-    if (freeEighthBonus) {
-      await markFreeEighthGranted(email, newOrder.id, userId ?? undefined);
     }
 
     if (email) {
