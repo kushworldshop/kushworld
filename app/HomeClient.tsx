@@ -37,26 +37,6 @@ export default function HomeClient() {
           />
         )}
 
-        {features.newArrivals.enabled && (
-          <ProductCollectionSection
-            type="new-arrivals"
-            title={features.newArrivals.title}
-            subtitle={features.newArrivals.subtitle}
-            ctaHref="/shop"
-            ctaLabel="See What's New"
-          />
-        )}
-
-        {features.onSale.enabled && (
-          <ProductCollectionSection
-            type="on-sale"
-            title={features.onSale.title}
-            subtitle={features.onSale.subtitle}
-            ctaHref="/shop"
-            ctaLabel="Shop Deals"
-          />
-        )}
-
         {features.howItWorks.enabled && (
           <HowItWorksSection title={features.howItWorks.title} steps={features.howItWorks.steps} />
         )}

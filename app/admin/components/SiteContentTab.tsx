@@ -377,32 +377,6 @@ export default function SiteContentTab({
               multiline
             />
 
-            <h3 className="font-bold text-[#00ff9d] pt-2">New Arrivals</h3>
-            <Field
-              label="Section title"
-              value={features.newArrivals.title}
-              onChange={(v) => patchFeatures({ newArrivals: { title: v } })}
-            />
-            <Field
-              label="Subtitle"
-              value={features.newArrivals.subtitle}
-              onChange={(v) => patchFeatures({ newArrivals: { subtitle: v } })}
-              multiline
-            />
-
-            <h3 className="font-bold text-[#00ff9d] pt-2">On Sale</h3>
-            <Field
-              label="Section title"
-              value={features.onSale.title}
-              onChange={(v) => patchFeatures({ onSale: { title: v } })}
-            />
-            <Field
-              label="Subtitle"
-              value={features.onSale.subtitle}
-              onChange={(v) => patchFeatures({ onSale: { subtitle: v } })}
-              multiline
-            />
-
             <h3 className="font-bold text-[#00ff9d] pt-2">How It Works</h3>
             <Field
               label="Section title"

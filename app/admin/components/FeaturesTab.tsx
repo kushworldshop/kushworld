@@ -189,33 +189,6 @@ export default function FeaturesTab({
             )}
 
             <Toggle
-              label="New Arrivals section"
-              checked={features.newArrivals.enabled}
-              onChange={(enabled) => patchFeatures({ newArrivals: { enabled } })}
-            />
-            {features.newArrivals.enabled && (
-              <Field
-                label="Max products"
-                value={features.newArrivals.limit}
-                type="number"
-                onChange={(v) => patchFeatures({ newArrivals: { limit: Number(v) || 8 } })}
-              />
-            )}
-
-            <Toggle
-              label="On Sale section"
-              checked={features.onSale.enabled}
-              onChange={(enabled) => patchFeatures({ onSale: { enabled } })}
-            />
-            {features.onSale.enabled && (
-              <Toggle
-                label="Show SALE badge on product cards"
-                checked={features.onSale.showBadge}
-                onChange={(showBadge) => patchFeatures({ onSale: { showBadge } })}
-              />
-            )}
-
-            <Toggle
               label="How It Works section"
               checked={features.howItWorks.enabled}
               onChange={(enabled) => patchFeatures({ howItWorks: { enabled } })}
@@ -238,6 +211,11 @@ export default function FeaturesTab({
             <Toggle label="COA links on products" checked={features.coaLinks.enabled} onChange={(enabled) => patchFeatures({ coaLinks: { enabled } })} />
             <Toggle label="Product search" checked={features.productSearch.enabled} onChange={(enabled) => patchFeatures({ productSearch: { enabled } })} />
             <Toggle label="Star ratings on products" checked={features.starRatings.enabled} onChange={(enabled) => patchFeatures({ starRatings: { enabled } })} />
+            <Toggle
+              label="Show SALE badge on product cards"
+              checked={features.onSale.showBadge}
+              onChange={(showBadge) => patchFeatures({ onSale: { showBadge } })}
+            />
           </>
         )}
 
