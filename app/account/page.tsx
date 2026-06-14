@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
-import PullToRefresh from '@/app/components/PullToRefresh';
 import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
 import { getSpinPrizeDaysRemaining } from '@/lib/spinWheelTypes';
@@ -1056,12 +1055,6 @@ export default function Account() {
         )}
 
         {tab === 'orders' && (
-          <PullToRefresh
-            onRefresh={async () => {
-              await loadOrders();
-            }}
-            disabled={loading}
-          >
             <div>
               <h2 className="text-2xl font-bold mb-6">Order History</h2>
               {orders.length === 0 ? (
@@ -1110,7 +1103,6 @@ export default function Account() {
               </div>
             )}
           </div>
-          </PullToRefresh>
         )}
       </div>
     </SiteLayout>
