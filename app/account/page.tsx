@@ -79,6 +79,18 @@ export default function Account() {
   const [copiedPromo, setCopiedPromo] = useState(false);
   const [promoTerms, setPromoTerms] = useState<PromoTerms | null>(null);
   const [markingNotificationsRead, setMarkingNotificationsRead] = useState(false);
+
+  // Force exit loading to prevent infinite loading / crash
+  useEffect(() => {
+    if (!loading) return;
+    const timeout = setTimeout(() => {
+      console.warn('Account load timeout - forcing end of loading state');
+      setError('Loading account timed out. This may be a temporary network issue. Please refresh the page or try signing in again.');
+      setUser(null);
+      setLoading(false);
+    }, 15000);
+    return () => clearTimeout(timeout);
+  }, [loading]);
   const loadProfile = async () => {
     try {
       const res = await fetch('/api/users/me');
@@ -699,7 +711,7 @@ export default function Account() {
         )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-          <StatCard label="Loyalty Points" value={user.loyaltyPoints.toLocaleString()} accent />
+          <StatCard label="Loyalty Points" value={(user.loyaltyPoints ?? 0).toLocaleString()} accent />
           <StatCard
             label="Commission Earned"
             value={`$${(stats?.commissionEarned ?? 0).toFixed(2)}`}
@@ -920,9 +932,9 @@ export default function Account() {
         {tab === 'loyalty' && (
           <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
             <h2 className="text-2xl font-bold mb-6">Loyalty Rewards</h2>
-            <p className="text-5xl font-bold text-[#00ff9d] mb-2">{user.loyaltyPoints.toLocaleString()}</p>
+            <p className="text-5xl font-bold text-[#00ff9d] mb-2">{(user.loyaltyPoints ?? 0).toLocaleString()}</p>
             <p className="text-zinc-400 mb-2">
-              total points · {user.redeemableLoyaltyPoints.toLocaleString()} redeemable
+              total points · {(user.redeemableLoyaltyPoints ?? 0).toLocaleString()} redeemable
             </p>
             {(user.lockedLoyaltyPoints ?? 0) > 0 && (
               <p className="text-yellow-400 text-sm mb-8">

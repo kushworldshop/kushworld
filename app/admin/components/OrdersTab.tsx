@@ -255,222 +255,232 @@ export default function OrdersTab() {
   const activeBucket = ADMIN_ORDER_BUCKETS.find((item) => item.id === bucket);
 
   return (
-    <div className="mb-10">
-      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Orders</h2>
-            <p className="text-zinc-400 text-sm max-w-2xl">
-              Orders are grouped by status so you can focus on what needs action. New and pending stay up front;
-              completed and refunded move out of the way automatically.
-            </p>
+    <>
+      <div className="mb-10">
+        <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Orders</h2>
+              <p className="text-zinc-400 text-sm max-w-2xl">
+                Orders are grouped by status so you can focus on what needs action. New and pending stay up front;
+                completed and refunded move out of the way automatically.
+              </p>
+            </div>
+            <button
+              onClick={loadOrders}
+              disabled={loading}
+              className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium disabled:opacity-50"
+            >
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 px-5 py-3 rounded-xl text-sm font-medium text-black"
+            >
+              + Create Manual Order
+            </button>
           </div>
-          <button
-            onClick={loadOrders}
-            disabled={loading}
-            className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium disabled:opacity-50"
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button
-            onClick={() => {
-              setShowCreateForm(!showCreateForm);
-              if (showCreateForm) setSelectedId(null); // allow form
-            }}
-            className="bg-emerald-600 hover:bg-emerald-700 px-5 py-3 rounded-xl text-sm font-medium text-black"
-          >
-            {showCreateForm ? 'Cancel Create' : '+ Create Manual Order'}
-          </button>
         </div>
-      </div>
 
-      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 mb-6">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {ADMIN_ORDER_BUCKETS.map((item) => {
-            const active = bucket === item.id;
-            const count = grouped[item.id].length;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setBucket(item.id)}
-                className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition ${
-                  active ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
-                }`}
-              >
-                {item.label}
-                <span className={`ml-2 text-xs ${active ? 'text-black/70' : 'text-zinc-500'}`}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+        <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 mb-6">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {ADMIN_ORDER_BUCKETS.map((item) => {
+              const active = bucket === item.id;
+              const count = grouped[item.id].length;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setBucket(item.id)}
+                  className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition ${
+                    active ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
+                  }`}
+                >
+                  {item.label}
+                  <span className={`ml-2 text-xs ${active ? 'text-black/70' : 'text-zinc-500'}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {activeBucket && (
+            <p className="text-xs text-zinc-500 mt-3 px-1">{activeBucket.description}</p>
+          )}
         </div>
-        {activeBucket && (
-          <p className="text-xs text-zinc-500 mt-3 px-1">{activeBucket.description}</p>
+
+        {loading ? (
+          <p className="text-center py-20 text-xl text-zinc-400">Loading orders...</p>
+        ) : orders.length === 0 ? (
+          <p className="text-center py-20 text-xl text-zinc-400">No orders placed yet.</p>
+        ) : filteredInBucket.length === 0 ? (
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-12 text-center">
+            <p className="text-xl text-zinc-400 mb-2">No {activeBucket?.label.toLowerCase()} orders</p>
+            <p className="text-sm text-zinc-500">Try another category or clear your search.</p>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-[360px_1fr] gap-6 min-h-[640px] overflow-x-auto">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 flex flex-col max-h-[calc(100vh-12rem)]">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search order #, name, email..."
+                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 mb-3 text-sm"
+              />
+              <p className="text-xs text-zinc-500 mb-3 px-1">
+                {filteredInBucket.length} order{filteredInBucket.length === 1 ? '' : 's'}
+              </p>
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                {filteredInBucket.map((order) => {
+                  const active = order.id === selectedId;
+                  const orderBucket = getAdminOrderBucket(order);
+                  return (
+                    <button
+                      key={order.id}
+                      type="button"
+                      onClick={() => setSelectedId(order.id)}
+                      className={`w-full text-left rounded-2xl border px-4 py-3 transition ${
+                        active
+                          ? 'border-[#00ff9d] bg-[#00ff9d]/10'
+                          : 'border-zinc-800 bg-black/40 hover:border-zinc-600'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-mono text-sm text-[#00ff9d]">#{order.id}</span>
+                        <span className="text-sm font-semibold">
+                          ${order.total?.toFixed(2) || order.subtotal?.toFixed(2) || '0.00'}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium truncate mt-1">
+                        {order.customer?.name || order.name || 'Customer'}
+                      </p>
+                      <p className="text-xs text-zinc-500 truncate">
+                        {order.customer?.email || order.email}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 mt-2 text-[10px]">
+                        <span className="uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300">
+                          {order.status || 'pending'}
+                        </span>
+                        {order.paymentStatus && (
+                          <span className="uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
+                            {order.paymentStatus}
+                          </span>
+                        )}
+                        {orderBucket === 'new' && order.idVerification?.status === 'uploaded' && (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
+                            ID review
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-zinc-600 mt-2">
+                        {new Date(order.createdAt).toLocaleString()}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-12rem)]">
+              {!selectedOrder ? (
+                <div className="h-full flex items-center justify-center text-zinc-500">
+                  Select an order or use "Create Manual Order" above
+                </div>
+              ) : (
+                <OrderDetailPanel
+                  order={selectedOrder}
+                  onUpdated={loadOrders}
+                  onUpdateStatus={updateStatus}
+                  onApproveAction={approveOrderAction}
+                  onConfirmBtc={confirmBtcPayment}
+                  onApproveId={approveIdVerification}
+                  onViewId={viewIdImage}
+                />
+              )}
+            </div>
+          </div>
         )}
       </div>
 
-      {loading ? (
-        <p className="text-center py-20 text-xl text-zinc-400">Loading orders...</p>
-      ) : orders.length === 0 ? (
-        <p className="text-center py-20 text-xl text-zinc-400">No orders placed yet.</p>
-      ) : filteredInBucket.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-12 text-center">
-          <p className="text-xl text-zinc-400 mb-2">No {activeBucket?.label.toLowerCase()} orders</p>
-          <p className="text-sm text-zinc-500">Try another category or clear your search.</p>
-        </div>
-      ) : (
-        <div className="grid lg:grid-cols-[360px_1fr] gap-6 min-h-[640px] overflow-x-auto">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 flex flex-col max-h-[calc(100vh-12rem)]">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search order #, name, email..."
-              className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 mb-3 text-sm"
-            />
-            <p className="text-xs text-zinc-500 mb-3 px-1">
-              {filteredInBucket.length} order{filteredInBucket.length === 1 ? '' : 's'}
-            </p>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-              {filteredInBucket.map((order) => {
-                const active = order.id === selectedId;
-                const orderBucket = getAdminOrderBucket(order);
-                return (
-                  <button
-                    key={order.id}
-                    type="button"
-                    onClick={() => setSelectedId(order.id)}
-                    className={`w-full text-left rounded-2xl border px-4 py-3 transition ${
-                      active
-                        ? 'border-[#00ff9d] bg-[#00ff9d]/10'
-                        : 'border-zinc-800 bg-black/40 hover:border-zinc-600'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-mono text-sm text-[#00ff9d]">#{order.id}</span>
-                      <span className="text-sm font-semibold">
-                        ${order.total?.toFixed(2) || order.subtotal?.toFixed(2) || '0.00'}
-                      </span>
-                    </div>
-                    <p className="text-sm font-medium truncate mt-1">
-                      {order.customer?.name || order.name || 'Customer'}
-                    </p>
-                    <p className="text-xs text-zinc-500 truncate">
-                      {order.customer?.email || order.email}
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mt-2 text-[10px]">
-                      <span className="uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300">
-                        {order.status || 'pending'}
-                      </span>
-                      {order.paymentStatus && (
-                        <span className="uppercase px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
-                          {order.paymentStatus}
-                        </span>
-                      )}
-                      {orderBucket === 'new' && order.idVerification?.status === 'uploaded' && (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
-                          ID review
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-zinc-600 mt-2">
-                      {new Date(order.createdAt).toLocaleString()}
-                    </p>
-                  </button>
-                );
-              })}
+      {/* Modal for manual order creation - allows inputting all fields including tracking */}
+      {showCreateForm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onClick={() => setShowCreateForm(false)}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Create Manual Order (adds to user's account)</h3>
+              <button onClick={() => setShowCreateForm(false)} className="text-2xl leading-none text-zinc-400 hover:text-white">×</button>
             </div>
-          </div>
+            <p className="text-xs text-zinc-500 mb-4">This will create the order, notify the user by email, and make it appear in their account + Kush Tracker immediately. Use for free 1/8ths, special orders, etc. All fields are editable.</p>
 
-          <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-12rem)]">
-            {showCreateForm ? (
+            <div className="space-y-3">
+              <input value={createEmail} onChange={e=>setCreateEmail(e.target.value)} placeholder="User Email (required for account + notify)" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+              <input value={createName} onChange={e=>setCreateName(e.target.value)} placeholder="Name" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+              <input value={createAddress} onChange={e=>setCreateAddress(e.target.value)} placeholder="Street Address" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+              <div className="grid grid-cols-2 gap-3">
+                <input value={createCity} onChange={e=>setCreateCity(e.target.value)} placeholder="City" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+                <input value={createState} onChange={e=>setCreateState(e.target.value)} placeholder="State" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <input value={createZip} onChange={e=>setCreateZip(e.target.value)} placeholder="Zip" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+                <input value={createPhone} onChange={e=>setCreatePhone(e.target.value)} placeholder="Phone" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
+              </div>
+
               <div>
-                <h3 className="text-xl font-bold mb-4">Create Manual Order (adds to user's account)</h3>
-                <p className="text-xs text-zinc-500 mb-4">This will create the order, notify the user by email, and make it appear in their account + Kush Tracker immediately. Use for free 1/8ths, special orders, etc.</p>
-
-                <div className="space-y-3">
-                  <input value={createEmail} onChange={e=>setCreateEmail(e.target.value)} placeholder="User Email (required for account + notify)" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
-                  <input value={createName} onChange={e=>setCreateName(e.target.value)} placeholder="Name" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
-                  <input value={createAddress} onChange={e=>setCreateAddress(e.target.value)} placeholder="Street Address" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input value={createCity} onChange={e=>setCreateCity(e.target.value)} placeholder="City" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
-                    <input value={createState} onChange={e=>setCreateState(e.target.value)} placeholder="State" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <input value={createZip} onChange={e=>setCreateZip(e.target.value)} placeholder="Zip" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
-                    <input value={createPhone} onChange={e=>setCreatePhone(e.target.value)} placeholder="Phone" className="bg-black border border-zinc-700 p-3 rounded-xl text-sm" />
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between mb-2 text-sm">
-                      <span>Items</span>
-                      <button onClick={addCreateItem} className="text-[#00ff9d] text-xs">+ Add Item</button>
-                    </div>
-                    {createItems.map((item, idx) => (
-                      <div key={idx} className="flex gap-2 mb-2">
-                        <input value={item.name} onChange={e=>updateCreateItem(idx,'name',e.target.value)} placeholder="Item name (e.g. Free 1/8th - Strain)" className="flex-1 bg-black border border-zinc-700 p-2 rounded text-sm" />
-                        <input type="number" value={item.quantity} onChange={e=>updateCreateItem(idx,'quantity',parseInt(e.target.value)||1)} className="w-16 bg-black border border-zinc-700 p-2 rounded text-sm" />
-                        <input type="number" step="0.01" value={item.price} onChange={e=>updateCreateItem(idx,'price',parseFloat(e.target.value)||0)} placeholder="Price" className="w-20 bg-black border border-zinc-700 p-2 rounded text-sm" />
-                        {createItems.length > 1 && <button onClick={()=>removeCreateItem(idx)} className="text-red-400 px-2">×</button>}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <select value={createStatus} onChange={e=>setCreateStatus(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl">
-                      <option value="confirmed">confirmed</option>
-                      <option value="packing">packing</option>
-                      <option value="sealed">sealed</option>
-                      <option value="shipped">shipped</option>
-                      <option value="delivered">delivered</option>
-                    </select>
-                    <select value={createPaymentStatus} onChange={e=>setCreatePaymentStatus(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl">
-                      <option value="paid">paid</option>
-                      <option value="manual">manual (awaiting)</option>
-                    </select>
-                  </div>
-
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={createFreeEighth} onChange={e=>setCreateFreeEighth(e.target.checked)} />
-                    Include Free 1/8th bonus (for tracker/account)
-                  </label>
-
-                  <div>
-                    <input value={createTrackingNumber} onChange={e=>setCreateTrackingNumber(e.target.value)} placeholder="Tracking number (optional, for immediate ship)" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm font-mono mb-2" />
-                    <select value={createTrackingCarrier} onChange={e=>setCreateTrackingCarrier(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl text-sm">
-                      <option value="usps">USPS</option>
-                      <option value="ups">UPS</option>
-                      <option value="fedex">FedEx</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-
-                  <button onClick={createManualOrder} disabled={creating || !createEmail.trim()} className="w-full py-3 bg-[#00ff9d] text-black font-bold rounded-2xl disabled:opacity-50 mt-2">
-                    {creating ? 'Creating & Notifying...' : 'Create Order, Add to Account & Notify User'}
-                  </button>
-                  <p className="text-[10px] text-zinc-500 mt-1">Order will appear in user's /account and /track immediately. Email confirmation sent. Tracker will reflect status/tracking accurately.</p>
+                <div className="flex justify-between mb-2 text-sm">
+                  <span>Items</span>
+                  <button onClick={addCreateItem} className="text-[#00ff9d] text-xs">+ Add Item</button>
                 </div>
+                {createItems.map((item, idx) => (
+                  <div key={idx} className="flex gap-2 mb-2">
+                    <input value={item.name} onChange={e=>updateCreateItem(idx,'name',e.target.value)} placeholder="Item name (e.g. Free 1/8th - Strain)" className="flex-1 bg-black border border-zinc-700 p-2 rounded text-sm" />
+                    <input type="number" value={item.quantity} onChange={e=>updateCreateItem(idx,'quantity',parseInt(e.target.value)||1)} className="w-16 bg-black border border-zinc-700 p-2 rounded text-sm" />
+                    <input type="number" step="0.01" value={item.price} onChange={e=>updateCreateItem(idx,'price',parseFloat(e.target.value)||0)} placeholder="Price" className="w-20 bg-black border border-zinc-700 p-2 rounded text-sm" />
+                    {createItems.length > 1 && <button onClick={()=>removeCreateItem(idx)} className="text-red-400 px-2">×</button>}
+                  </div>
+                ))}
               </div>
-            ) : !selectedOrder ? (
-              <div className="h-full flex items-center justify-center text-zinc-500">
-                Select an order or use "Create Manual Order" above
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <select value={createStatus} onChange={e=>setCreateStatus(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl">
+                  <option value="confirmed">confirmed</option>
+                  <option value="packing">packing</option>
+                  <option value="sealed">sealed</option>
+                  <option value="shipped">shipped</option>
+                  <option value="delivered">delivered</option>
+                </select>
+                <select value={createPaymentStatus} onChange={e=>setCreatePaymentStatus(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl">
+                  <option value="paid">paid</option>
+                  <option value="manual">manual (awaiting)</option>
+                </select>
               </div>
-            ) : (
-              <OrderDetailPanel
-                order={selectedOrder}
-                onUpdated={loadOrders}
-                onUpdateStatus={updateStatus}
-                onApproveAction={approveOrderAction}
-                onConfirmBtc={confirmBtcPayment}
-                onApproveId={approveIdVerification}
-                onViewId={viewIdImage}
-              />
-            )}
+
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={createFreeEighth} onChange={e=>setCreateFreeEighth(e.target.checked)} />
+                Include Free 1/8th bonus (for tracker/account)
+              </label>
+
+              <div>
+                <input value={createTrackingNumber} onChange={e=>setCreateTrackingNumber(e.target.value)} placeholder="Tracking number (optional, for immediate ship)" className="w-full bg-black border border-zinc-700 p-3 rounded-xl text-sm font-mono mb-2" />
+                <select value={createTrackingCarrier} onChange={e=>setCreateTrackingCarrier(e.target.value)} className="bg-black border border-zinc-700 p-3 rounded-xl text-sm">
+                  <option value="usps">USPS</option>
+                  <option value="ups">UPS</option>
+                  <option value="fedex">FedEx</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button onClick={() => setShowCreateForm(false)} className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl">Cancel</button>
+                <button onClick={createManualOrder} disabled={creating || !createEmail.trim()} className="flex-1 py-3 bg-[#00ff9d] text-black font-bold rounded-2xl disabled:opacity-50">
+                  {creating ? 'Creating & Notifying...' : 'Create Order, Add to Account & Notify User'}
+                </button>
+              </div>
+              <p className="text-[10px] text-zinc-500 mt-1">Order will appear in user's /account and /track immediately. Email confirmation sent. Tracker will reflect status/tracking accurately.</p>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
