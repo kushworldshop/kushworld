@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
 import { getEnabledShopCategories, MERCH_SHOP_ID } from '@/lib/shopNavigation';
+import BrandLogoLink from '@/app/components/BrandLogoLink';
 
 export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const totalItems = useCartStore((state) => state.totalItems());
@@ -55,12 +56,12 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
       <nav className="bg-black border-b border-zinc-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-20 gap-4">
-            <Link href="/" className="flex items-center gap-3 flex-shrink-0">
+            <BrandLogoLink className="flex items-center gap-3 flex-shrink-0 hover:opacity-90 transition">
               <img src={content.brand.logoUrl} alt={content.brand.name} className="h-12 w-auto" />
               <span className="text-xl md:text-2xl font-bold text-white tracking-tight hidden sm:inline">
                 {content.brand.name.toUpperCase()}
               </span>
-            </Link>
+            </BrandLogoLink>
 
             {content.features.productSearch.enabled && (
             <form onSubmit={handleSearch} className="hidden lg:flex flex-1 max-w-md mx-4">

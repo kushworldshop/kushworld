@@ -5,6 +5,7 @@ import { useWishlistStore } from '@/lib/wishlistStore';
 import { useSiteContent } from '@/lib/useSiteContent';
 import SocialButtons from '@/app/components/SocialButtons';
 import { getEnabledShopCategories } from '@/lib/shopNavigation';
+import BrandLogoLink from '@/app/components/BrandLogoLink';
 
 export default function Footer() {
   const wishlistCount = useWishlistStore((state) => state.items.length);
@@ -16,10 +17,10 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div>
-            <div className="flex items-center gap-3 mb-6">
+            <BrandLogoLink className="flex items-center gap-3 mb-6 hover:opacity-90 transition w-fit">
               <img src={content.brand.logoUrl} alt={content.brand.name} className="h-10 w-auto" />
               <span className="text-2xl font-bold tracking-tight">{content.brand.name.toUpperCase()}</span>
-            </div>
+            </BrandLogoLink>
             <p className="text-zinc-400 text-sm leading-relaxed max-w-xs mb-6">{content.footer.tagline}</p>
             <SocialButtons size="sm" />
           </div>

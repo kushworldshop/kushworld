@@ -1,5 +1,6 @@
 'use client';
 
+import BrandLogoLink from '@/app/components/BrandLogoLink';
 import { splitHeadline } from '@/lib/siteContentTypes';
 import { useSiteContent } from '@/lib/useSiteContent';
 
@@ -10,7 +11,8 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
 
   return (
     <section className="hero-bg min-h-[75vh] flex items-center relative">
-      <div className="max-w-4xl mx-auto px-6 text-center py-20">
+      <BrandLogoLink overlay />
+      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center py-20">
         <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-6">
           {variant.eyebrow}
         </p>
