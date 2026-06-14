@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import SpinWheel from '@/app/components/SpinWheel';
