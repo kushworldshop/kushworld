@@ -186,6 +186,66 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
+// DELETE order (admin only) - permanently removes the order record, restores inventory if applicable
+export async function DELETE(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    await ensureOrdersFile();
+
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get('id');
+
+    if (!id) {
+      // fallback to body for flexibility
+      try {
+        const body = await request.json();
+        id = body?.id;
+      } catch {}
+    }
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Order id required' }, { status: 400 });
+    }
+
+    const data = await fs.readFile(ORDERS_FILE, 'utf8');
+    let orders = JSON.parse(data);
+    const index = orders.findIndex((order: { id: string }) => order.id === id);
+
+    if (index === -1) {
+      return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
+    }
+
+    const order = orders[index];
+
+    // Restore inventory if it was deducted (mirrors cancel/refund logic)
+    if (order.inventoryDeducted && !order.inventoryRestored) {
+      try {
+        await restoreInventoryForOrder(order.items || []);
+      } catch (invErr) {
+        console.error('Inventory restore on delete failed:', invErr);
+        // continue with delete anyway
+      }
+    }
+
+    orders.splice(index, 1);
+    await fs.writeFile(ORDERS_FILE, JSON.stringify(orders, null, 2));
+
+    // Optional: notify customer (commented to avoid spammy "confirmation" email; admin can manually notify)
+    // const email = order.customer?.email || order.email;
+    // if (email) {
+    //   await sendOrderConfirmation(email, { id, total: order.total || 0, items: order.items || [], note: 'This order was deleted by the Kush World team.' }).catch(() => {});
+    // }
+
+    return NextResponse.json({ success: true, message: `Order #${id} deleted` });
+  } catch (error) {
+    console.error('Order delete error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to delete order' }, { status: 500 });
+  }
+}
+
 // POST new order (from checkout)
 export async function POST(request: NextRequest) {
   try {

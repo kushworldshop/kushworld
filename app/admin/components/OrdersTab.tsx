@@ -151,6 +151,28 @@ export default function OrdersTab() {
     }
   };
 
+  const deleteOrder = async (orderId: string) => {
+    if (!confirm(`Permanently delete order #${orderId}?\n\nThis cannot be undone.\nInventory will be restored if applicable.`)) {
+      return;
+    }
+    try {
+      const res = await adminFetch(`/api/orders?id=${encodeURIComponent(orderId)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadOrders();
+        if (selectedId === orderId) {
+          setSelectedId(null);
+        }
+      } else {
+        alert(data.error || 'Failed to delete order');
+      }
+    } catch {
+      alert('Failed to delete order');
+    }
+  };
+
   const viewIdImage = async (orderId: string) => {
     try {
       const res = await adminFetch(`/api/admin/id-image?orderId=${orderId}`);
@@ -375,6 +397,17 @@ export default function OrdersTab() {
                       <p className="text-[10px] text-zinc-600 mt-2">
                         {new Date(order.createdAt).toLocaleString()}
                       </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteOrder(order.id);
+                        }}
+                        className="mt-1 text-[10px] text-red-400 hover:text-red-500"
+                        title="Delete order"
+                      >
+                        🗑️ delete
+                      </button>
                     </button>
                   );
                 })}
@@ -395,6 +428,7 @@ export default function OrdersTab() {
                   onConfirmBtc={confirmBtcPayment}
                   onApproveId={approveIdVerification}
                   onViewId={viewIdImage}
+                  onDelete={deleteOrder}
                 />
               )}
             </div>
@@ -492,6 +526,7 @@ function OrderDetailPanel({
   onConfirmBtc,
   onApproveId,
   onViewId,
+  onDelete,
 }: {
   order: any;
   onUpdated: () => void;
@@ -500,6 +535,7 @@ function OrderDetailPanel({
   onConfirmBtc: (orderId: string) => void;
   onApproveId: (orderId: string) => void;
   onViewId: (orderId: string) => void;
+  onDelete: (orderId: string) => void;
 }) {
   return (
     <div>
@@ -617,6 +653,14 @@ function OrderDetailPanel({
               </button>
             </>
           )}
+
+        {/* Permanent delete - always available for admin cleanup */}
+        <button
+          onClick={() => onDelete(order.id)}
+          className="px-4 py-2.5 bg-red-800 hover:bg-red-900 text-white rounded-xl text-sm font-medium border border-red-700"
+        >
+          🗑️ Delete Order (permanent)
+        </button>
       </div>
 
       {order.inventoryRestored && (

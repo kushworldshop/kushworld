@@ -493,6 +493,25 @@ export default function CustomersTab() {
     }
   };
 
+  const deleteOrderForUser = async (orderId: string) => {
+    if (!confirm(`Permanently delete order #${orderId}?\n\nThis cannot be undone. Inventory restored if needed.`)) return;
+    try {
+      const res = await adminFetch(`/api/orders?id=${encodeURIComponent(orderId)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage(`Order #${orderId} deleted.`);
+        if (selectedUser) await loadUserOrders(selectedUser.email);
+        await loadUsers(search);
+      } else {
+        setMessage(data.error || 'Failed to delete order');
+      }
+    } catch {
+      setMessage('Failed to delete order');
+    }
+  };
+
   const deleteUser = async (user: AdminUser) => {
     const confirmed = window.confirm(
       `Delete ${user.email} permanently?\n\nThis removes their account, login access, and loyalty balance. Order history is kept.`
@@ -641,6 +660,7 @@ export default function CustomersTab() {
               addingOrder={addingOrder}
               addOrderForUser={() => addOrderForUser(selectedUser)}
               updateOrderTracking={updateOrderTracking}
+              deleteOrderForUser={deleteOrderForUser}
             />
           )}
         </div>
@@ -684,6 +704,7 @@ function MemberProfilePanel({
   addingOrder,
   addOrderForUser,
   updateOrderTracking,
+  deleteOrderForUser,
 }: {
   user: AdminUser;
   draft: MemberDraft;
@@ -719,6 +740,7 @@ function MemberProfilePanel({
   addingOrder: boolean;
   addOrderForUser: () => void;
   updateOrderTracking: (orderId: string, trackingNumber: string, carrier: string) => void;
+  deleteOrderForUser: (orderId: string) => void;
 }) {
   const redeemable = Math.max(0, draft.loyaltyPoints - draft.lockedLoyaltyPoints);
   const idStatus = user.idVerification?.status ?? (user.idVerified ? 'verified' : 'none');
@@ -1022,6 +1044,13 @@ function MemberProfilePanel({
                       <option value="other">Other</option>
                     </select>
                     <a href={`/track/${order.id}`} target="_blank" className="text-[#00ff9d] text-xs underline">View Tracker</a>
+                    <button
+                      onClick={() => deleteOrderForUser(order.id)}
+                      className="text-red-400 text-xs hover:text-red-500 ml-1"
+                      title="Delete this order permanently"
+                    >
+                      🗑️ Delete
+                    </button>
                   </div>
                   {order.freeEighthNote && <div className="text-[10px] text-amber-300 mt-1">🌿 Free 1/8th: {order.freeEighthNote}</div>}
                 </div>
