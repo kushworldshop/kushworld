@@ -44,6 +44,11 @@ export default function Account() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
+  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot' | 'reset'>('login');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
   const [signupName, setSignupName] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [signupPromoCode, setSignupPromoCode] = useState('');
@@ -120,9 +125,15 @@ export default function Account() {
   }, []);
 
   useEffect(() => {
-    const tabParam = new URLSearchParams(window.location.search).get('tab');
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
     if (tabParam === 'wheel' || tabParam === 'loyalty' || tabParam === 'referrals' || tabParam === 'orders' || tabParam === 'profile') {
       setTab(tabParam);
+    }
+    const resetParam = params.get('reset');
+    if (resetParam) {
+      setResetToken(resetParam);
+      setAuthView('reset');
     }
   }, []);
 
@@ -156,6 +167,80 @@ export default function Account() {
       markReferralNotificationsRead(true);
     }
   }, [tab, user?.unreadReferralNotificationCount]);
+
+  const handleForgotPassword = async () => {
+    setMessage('');
+    setError('');
+    if (!email.trim()) {
+      setError('Enter your account email');
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || 'Could not send reset email');
+        return;
+      }
+      setMessage(data.message);
+      if (data.devResetUrl) {
+        setMessage(`${data.message} Dev link: ${data.devResetUrl}`);
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    setMessage('');
+    setError('');
+    if (!resetToken) {
+      setError('Reset link is invalid. Request a new one.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setAuthLoading(true);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, password: newPassword }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || 'Could not reset password');
+        return;
+      }
+      setMessage(data.message);
+      setAuthView('login');
+      setIsLogin(true);
+      setPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setResetToken('');
+      window.history.replaceState({}, '', '/account');
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const handleAuth = async () => {
     setMessage('');
@@ -333,79 +418,180 @@ export default function Account() {
         <div className="min-h-[80vh] flex items-center justify-center p-6">
           <div className="bg-zinc-900 p-10 rounded-3xl w-full max-w-md border border-zinc-800">
             <h1 className="text-3xl font-bold text-center mb-2 text-[#00ff9d]">
-              {isLogin ? 'Login' : 'Create Account'}
+              {authView === 'forgot'
+                ? 'Forgot Password'
+                : authView === 'reset'
+                  ? 'Set New Password'
+                  : isLogin
+                    ? 'Login'
+                    : 'Create Account'}
             </h1>
-            <p className="text-center text-sm text-zinc-400 mb-4">
-              Sign up to track loyalty points, referral commissions, and orders.
+            <p className="text-center text-sm text-zinc-400 mb-8">
+              {authView === 'forgot'
+                ? "Enter your email and we'll send a reset link if an account exists."
+                : authView === 'reset'
+                  ? 'Choose a new password for your account.'
+                  : 'Sign up to track loyalty points, referral commissions, and orders.'}
             </p>
-            {!isLogin && (
-              <p className="text-center text-sm text-[#00ff9d]/90 mb-8">
-                Verify your email or phone after signup to get ${SIGNUP_BONUS_DOLLARS} in points ({SIGNUP_BONUS_POINTS.toLocaleString()} pts). Unlocks after your first purchase.
-              </p>
-            )}
-            {isLogin && <div className="mb-8" />}
 
-            {!isLogin && (
+            {authView === 'forgot' && (
               <>
                 <input
-                  type="text"
-                  placeholder="Display Name"
-                  value={signupName}
-                  onChange={(e) => setSignupName(e.target.value)}
-                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-6"
                 />
-                <input
-                  type="tel"
-                  placeholder="Phone (optional — verify via SMS instead of email)"
-                  value={signupPhone}
-                  onChange={(e) => setSignupPhone(e.target.value)}
-                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
-                />
-                <input
-                  type="text"
-                  placeholder="Promo code (optional — e.g. MYNAME10)"
-                  value={signupPromoCode}
-                  onChange={(e) => setSignupPromoCode(e.target.value.toUpperCase())}
-                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4 uppercase"
-                />
-                <p className="text-xs text-zinc-500 -mt-2 mb-4">
-                  Pick your own referral code at signup, or customize it later in your account.
+                <button
+                  onClick={handleForgotPassword}
+                  disabled={authLoading}
+                  className="w-full bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black py-4 rounded-2xl font-bold text-lg mb-4 disabled:opacity-50"
+                >
+                  {authLoading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+                <p className="text-center text-sm text-zinc-400">
+                  <button
+                    onClick={() => {
+                      setAuthView('login');
+                      setError('');
+                      setMessage('');
+                    }}
+                    className="text-[#00ff9d] hover:underline font-medium"
+                  >
+                    Back to login
+                  </button>
                 </p>
               </>
             )}
 
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
-            />
+            {authView === 'reset' && (
+              <>
+                <input
+                  type="password"
+                  placeholder="New password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-6"
+                />
+                <button
+                  onClick={handleResetPassword}
+                  disabled={authLoading}
+                  className="w-full bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black py-4 rounded-2xl font-bold text-lg mb-4 disabled:opacity-50"
+                >
+                  {authLoading ? 'Saving...' : 'Update Password'}
+                </button>
+                <p className="text-center text-sm text-zinc-400">
+                  <button
+                    onClick={() => {
+                      setAuthView('forgot');
+                      setError('');
+                      setMessage('');
+                    }}
+                    className="text-[#00ff9d] hover:underline font-medium"
+                  >
+                    Request a new reset link
+                  </button>
+                </p>
+              </>
+            )}
 
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-6"
-            />
+            {(authView === 'login' || authView === 'signup') && (
+              <>
+                {!isLogin && (
+                  <>
+                    <p className="text-center text-sm text-[#00ff9d]/90 mb-4">
+                      Verify your email or phone after signup to get ${SIGNUP_BONUS_DOLLARS} in points ({SIGNUP_BONUS_POINTS.toLocaleString()} pts). Unlocks after your first purchase.
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="Display Name"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Phone (optional — verify via SMS instead of email)"
+                      value={signupPhone}
+                      onChange={(e) => setSignupPhone(e.target.value)}
+                      className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Promo code (optional — e.g. MYNAME10)"
+                      value={signupPromoCode}
+                      onChange={(e) => setSignupPromoCode(e.target.value.toUpperCase())}
+                      className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4 uppercase"
+                    />
+                    <p className="text-xs text-zinc-500 -mt-2 mb-4">
+                      Pick your own referral code at signup, or customize it later in your account.
+                    </p>
+                  </>
+                )}
 
-            <button
-              onClick={handleAuth}
-              className="w-full bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black py-4 rounded-2xl font-bold text-lg mb-4"
-            >
-              {isLogin ? 'Login' : 'Sign Up'}
-            </button>
+                <input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
+                />
 
-            <p className="text-center text-sm text-zinc-400">
-              {isLogin ? "Don't have an account? " : 'Already have an account? '}
-              <button
-                onClick={() => { setIsLogin(!isLogin); setError(''); setMessage(''); }}
-                className="text-[#00ff9d] hover:underline font-medium"
-              >
-                {isLogin ? 'Sign up' : 'Login'}
-              </button>
-            </p>
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-black border border-zinc-700 p-4 rounded-2xl mb-4"
+                />
+
+                {isLogin && (
+                  <p className="text-right text-sm mb-4">
+                    <button
+                      onClick={() => {
+                        setAuthView('forgot');
+                        setError('');
+                        setMessage('');
+                      }}
+                      className="text-[#00ff9d] hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </p>
+                )}
+
+                <button
+                  onClick={handleAuth}
+                  disabled={authLoading}
+                  className="w-full bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black py-4 rounded-2xl font-bold text-lg mb-4 disabled:opacity-50"
+                >
+                  {isLogin ? 'Login' : 'Sign Up'}
+                </button>
+
+                <p className="text-center text-sm text-zinc-400">
+                  {isLogin ? "Don't have an account? " : 'Already have an account? '}
+                  <button
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setAuthView(isLogin ? 'signup' : 'login');
+                      setError('');
+                      setMessage('');
+                    }}
+                    className="text-[#00ff9d] hover:underline font-medium"
+                  >
+                    {isLogin ? 'Sign up' : 'Login'}
+                  </button>
+                </p>
+              </>
+            )}
 
             {error && <p className="text-center mt-4 text-red-400 text-sm">{error}</p>}
             {message && <p className="text-center mt-4 text-[#00ff9d] text-sm">{message}</p>}

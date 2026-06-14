@@ -47,6 +47,8 @@ export interface UserProfile {
   pendingEmailCodeExp?: number;
   pendingPhoneCode?: string;
   pendingPhoneCodeExp?: number;
+  passwordResetTokenHash?: string;
+  passwordResetExp?: number;
   phone?: string;
   bio?: string;
   avatarUrl?: string;

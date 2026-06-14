@@ -273,6 +273,25 @@ export default function CustomersTab() {
     }
   };
 
+  const resetUserPassword = async (user: AdminUser, newPassword: string) => {
+    setSavingId(user.id);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user.id, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Password reset failed');
+      setMessage(`Password reset for ${user.email}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to reset password');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const deleteUser = async (user: AdminUser) => {
     const confirmed = window.confirm(
       `Delete ${user.email} permanently?\n\nThis removes their account, login access, and loyalty balance. Order history is kept.`
@@ -386,6 +405,7 @@ export default function CustomersTab() {
               onViewId={() => viewUserId(selectedUser.id)}
               onVerifyId={() => updateIdVerification(selectedUser, 'verify')}
               onRejectId={(reason) => updateIdVerification(selectedUser, 'reject', reason)}
+              onResetPassword={(newPassword) => resetUserPassword(selectedUser, newPassword)}
             />
           )}
         </div>
@@ -407,6 +427,7 @@ function MemberProfilePanel({
   onViewId,
   onVerifyId,
   onRejectId,
+  onResetPassword,
 }: {
   user: AdminUser;
   draft: MemberDraft;
@@ -420,10 +441,33 @@ function MemberProfilePanel({
   onViewId: () => void;
   onVerifyId: () => void;
   onRejectId: (reason: string) => void;
+  onResetPassword: (newPassword: string) => void;
 }) {
   const redeemable = Math.max(0, draft.loyaltyPoints - draft.lockedLoyaltyPoints);
   const idStatus = user.idVerification?.status ?? (user.idVerified ? 'verified' : 'none');
   const [rejectReason, setRejectReason] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
+  const handleResetPassword = () => {
+    setPasswordError('');
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Reset password for ${user.email}?\n\nThey will need to use the new password on their next login.`
+    );
+    if (!confirmed) return;
+    onResetPassword(newPassword);
+    setNewPassword('');
+    setConfirmPassword('');
+  };
 
   return (
     <div className="space-y-8">
@@ -569,6 +613,39 @@ function MemberProfilePanel({
             Reject ID
           </button>
         </div>
+      </section>
+
+      <section className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5">
+        <SectionTitle>Reset Password</SectionTitle>
+        <p className="text-sm text-zinc-500 mb-4">
+          Set a new login password for this member. Use when they cannot access their email or need help
+          getting back in. This does not send them an email — share the new password securely.
+        </p>
+        <div className="grid md:grid-cols-2 gap-4 mb-4">
+          <Field
+            label="New password"
+            type="password"
+            value={newPassword}
+            onChange={setNewPassword}
+            placeholder="At least 6 characters"
+          />
+          <Field
+            label="Confirm password"
+            type="password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            placeholder="Re-enter password"
+          />
+        </div>
+        {passwordError && <p className="text-sm text-red-400 mb-3">{passwordError}</p>}
+        <button
+          type="button"
+          onClick={handleResetPassword}
+          disabled={saving || deleting || !newPassword || !confirmPassword}
+          className="text-sm bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl disabled:opacity-40"
+        >
+          {saving ? 'Resetting...' : 'Reset Password'}
+        </button>
       </section>
 
       <section className="bg-red-950/20 border border-red-900/50 rounded-2xl p-5">

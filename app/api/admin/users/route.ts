@@ -15,6 +15,7 @@ import { getSettings } from '@/lib/settings';
 import { tryClaimSignupBonus } from '@/lib/accountVerification';
 import { markUserIdRejected, markUserIdVerified } from '@/lib/verification';
 import type { UserIdVerification } from '@/lib/verification';
+import { adminSetUserPassword } from '@/lib/passwordReset';
 import {
   deleteUserById,
   getRedeemableLoyaltyPoints,
@@ -273,6 +274,16 @@ export async function PATCH(request: NextRequest) {
       if (!rewardResult.success) {
         return NextResponse.json(
           { success: false, error: rewardResult.error || 'Failed to update referral reward points' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (body.newPassword !== undefined) {
+      const passwordResult = await adminSetUserPassword(userId, String(body.newPassword));
+      if (!passwordResult.success) {
+        return NextResponse.json(
+          { success: false, error: passwordResult.error || 'Failed to reset password' },
           { status: 400 }
         );
       }

@@ -116,6 +116,57 @@ export function isEmailVerificationConfigured(): boolean {
   return !!RESEND_API_KEY;
 }
 
+export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<EmailSendResult> {
+  const body = `You requested a password reset for your Kush World account.
+
+Reset your password here (link expires in 1 hour):
+${resetUrl}
+
+If you didn't request this, you can ignore this email. Your password won't change until you use the link above.
+
+— Kush World Team`;
+
+  if (!RESEND_API_KEY) {
+    console.log(`[Email stub] To: ${to}\n${body}`);
+    return { sent: false, stub: true };
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to,
+        subject: 'Reset your Kush World password',
+        text: body,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('[Resend] Password reset email failed:', res.status, errBody);
+      return {
+        sent: false,
+        stub: false,
+        error: 'Could not send reset email. Try again or contact support.',
+      };
+    }
+
+    return { sent: true, stub: false };
+  } catch (err) {
+    console.error('[Resend] Password reset email error:', err);
+    return {
+      sent: false,
+      stub: false,
+      error: 'Could not send reset email. Try again or contact support.',
+    };
+  }
+}
+
 export type ShippingEmailKind = 'shipped' | 'tracking_update';
 
 export async function sendShippingNotification(
