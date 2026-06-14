@@ -494,6 +494,8 @@ export default function CustomersTab() {
   };
 
   const deleteOrderForUser = async (orderId: string) => {
+    // ADMIN ONLY action - this is called from admin UI only when viewing a customer's profile.
+    // Customers themselves have no delete capability on /account or elsewhere.
     if (!confirm(`Permanently delete order #${orderId}?\n\nThis cannot be undone. Inventory restored if needed.`)) return;
     try {
       const res = await adminFetch(`/api/orders?id=${encodeURIComponent(orderId)}`, {
@@ -1047,7 +1049,7 @@ function MemberProfilePanel({
                     <button
                       onClick={() => deleteOrderForUser(order.id)}
                       className="text-red-400 text-xs hover:text-red-500 ml-1"
-                      title="Delete this order permanently"
+                      title="Admin only: permanently delete this customer's order (customers cannot delete orders)"
                     >
                       🗑️ Delete
                     </button>

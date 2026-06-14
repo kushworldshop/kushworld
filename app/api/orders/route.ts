@@ -186,10 +186,14 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE order (admin only) - permanently removes the order record, restores inventory if applicable
+// DELETE order - **STRICTLY ADMIN ONLY**
+// Customers must NEVER be allowed to delete their own orders (or any orders).
+// This endpoint is protected by isAdminRequest (admin session cookie or dev header).
+// All customer-facing order views (/account, /api/orders/me, /track/*) are read-only for orders.
+// Delete UI/buttons are only present in admin components (OrdersTab, CustomersTab).
 export async function DELETE(request: NextRequest) {
   if (!isAdminRequest(request)) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ success: false, error: 'Unauthorized - admin only' }, { status: 401 });
   }
 
   try {

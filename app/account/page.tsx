@@ -775,7 +775,7 @@ export default function Account() {
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-zinc-500 mt-2 text-center">Trackers update live. Click refresh or enable auto-updates inside each card. Full details in the Orders tab.</p>
+            <p className="text-[10px] text-zinc-500 mt-2 text-center">Trackers update live. Click refresh or enable auto-updates inside each card. Full details in the Orders tab. <span className="text-zinc-600">Orders cannot be deleted by customers — contact support for changes.</span></p>
           </div>
         )}
 
@@ -1116,6 +1116,7 @@ export default function Account() {
         {tab === 'orders' && (
             <div>
               <h2 className="text-2xl font-bold mb-6">Order History</h2>
+              <p className="text-xs text-zinc-500 -mt-5 mb-4">Orders cannot be self-deleted by customers (admin only). Use the trackers below for live status.</p>
               {orders.length === 0 ? (
                 <div className="bg-zinc-900 p-12 rounded-3xl text-center border border-zinc-800">
                   <p className="text-xl mb-4">No orders yet</p>

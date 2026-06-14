@@ -152,6 +152,7 @@ export default function OrdersTab() {
   };
 
   const deleteOrder = async (orderId: string) => {
+    // ADMIN ONLY - customers have no access to this. See API route for enforcement.
     if (!confirm(`Permanently delete order #${orderId}?\n\nThis cannot be undone.\nInventory will be restored if applicable.`)) {
       return;
     }
@@ -404,7 +405,7 @@ export default function OrdersTab() {
                           deleteOrder(order.id);
                         }}
                         className="mt-1 text-[10px] text-red-400 hover:text-red-500"
-                        title="Delete order"
+                        title="Admin only: permanently delete this order (customers cannot delete)"
                       >
                         🗑️ delete
                       </button>
@@ -654,7 +655,7 @@ function OrderDetailPanel({
             </>
           )}
 
-        {/* Permanent delete - always available for admin cleanup */}
+        {/* Permanent delete - always available for admin cleanup. CUSTOMERS MUST NOT BE ABLE TO DELETE ORDERS (enforced server-side + no UI on /account). */}
         <button
           onClick={() => onDelete(order.id)}
           className="px-4 py-2.5 bg-red-800 hover:bg-red-900 text-white rounded-xl text-sm font-medium border border-red-700"
