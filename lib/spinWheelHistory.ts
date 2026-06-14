@@ -357,13 +357,106 @@ function buildStats(entries: SpinHistoryEntry[]): SpinHistoryStats {
   return stats;
 }
 
+export type SpinHistoryRow = SpinHistoryEntry & { displayStatus: SpinHistoryStatus };
+
+export interface SpinHistoryMemberGroup {
+  memberKey: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  totalSpins: number;
+  totalPointsSpent: number;
+  instantPointsAwarded: number;
+  savedCoupons: number;
+  awaitingAccept: number;
+  usedPrizes: number;
+  lastSpinAt: string;
+  entries: SpinHistoryRow[];
+}
+
+function spinHistoryMemberKey(entry: Pick<SpinHistoryEntry, 'userId' | 'userEmail'>): string {
+  if (entry.userId && entry.userId !== 'unknown') return entry.userId;
+  return entry.userEmail.toLowerCase().trim() || 'unknown';
+}
+
+function entryMatchesSearch(entry: SpinHistoryRow, q: string): boolean {
+  return (
+    entry.userEmail.toLowerCase().includes(q) ||
+    entry.userName.toLowerCase().includes(q) ||
+    (entry.prizeLabel?.toLowerCase().includes(q) ?? false) ||
+    entry.segmentLabel.toLowerCase().includes(q) ||
+    (entry.orderId?.toLowerCase().includes(q) ?? false) ||
+    (entry.prizeId?.toLowerCase().includes(q) ?? false)
+  );
+}
+
+export function groupSpinHistoryByMember(
+  rows: SpinHistoryRow[],
+  options?: { memberLimit?: number }
+): SpinHistoryMemberGroup[] {
+  const grouped = new Map<string, SpinHistoryMemberGroup>();
+
+  for (const entry of rows) {
+    const key = spinHistoryMemberKey(entry);
+    let group = grouped.get(key);
+    if (!group) {
+      group = {
+        memberKey: key,
+        userId: entry.userId,
+        userEmail: entry.userEmail,
+        userName: entry.userName,
+        totalSpins: 0,
+        totalPointsSpent: 0,
+        instantPointsAwarded: 0,
+        savedCoupons: 0,
+        awaitingAccept: 0,
+        usedPrizes: 0,
+        lastSpinAt: entry.spunAt,
+        entries: [],
+      };
+      grouped.set(key, group);
+    }
+
+    group.entries.push(entry);
+    group.totalSpins += 1;
+    group.totalPointsSpent += entry.pointsSpent;
+    group.instantPointsAwarded += entry.instantBonusPoints ?? 0;
+
+    if (entry.displayStatus === 'pending') group.savedCoupons += 1;
+    if (entry.displayStatus === 'awaiting_accept') group.awaitingAccept += 1;
+    if (entry.displayStatus === 'used') group.usedPrizes += 1;
+
+    if (new Date(entry.spunAt).getTime() > new Date(group.lastSpinAt).getTime()) {
+      group.lastSpinAt = entry.spunAt;
+      group.userName = entry.userName;
+      group.userEmail = entry.userEmail;
+      if (entry.userId && entry.userId !== 'unknown') {
+        group.userId = entry.userId;
+      }
+    }
+  }
+
+  for (const group of grouped.values()) {
+    group.entries.sort(
+      (a, b) => new Date(b.spunAt).getTime() - new Date(a.spunAt).getTime()
+    );
+  }
+
+  const memberLimit = options?.memberLimit ?? 150;
+  return Array.from(grouped.values())
+    .sort((a, b) => new Date(b.lastSpinAt).getTime() - new Date(a.lastSpinAt).getTime())
+    .slice(0, memberLimit);
+}
+
 export async function getAdminSpinHistory(options?: {
   q?: string;
   status?: SpinHistoryStatus | 'all';
   limit?: number;
+  memberLimit?: number;
   reconcile?: boolean;
 }): Promise<{
-  entries: Array<SpinHistoryEntry & { displayStatus: SpinHistoryStatus }>;
+  entries: SpinHistoryRow[];
+  members: SpinHistoryMemberGroup[];
   stats: SpinHistoryStats;
   reconciled: number;
 }> {
@@ -374,25 +467,28 @@ export async function getAdminSpinHistory(options?: {
   const q = options?.q?.toLowerCase().trim();
   const statusFilter = options?.status ?? 'all';
 
-  const rows = (await readSpinHistory())
-    .map((entry) => ({ ...entry, displayStatus: resolveDisplayStatus(entry) }))
-    .filter((entry) => {
-      if (statusFilter !== 'all' && entry.displayStatus !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        entry.userEmail.toLowerCase().includes(q) ||
-        entry.userName.toLowerCase().includes(q) ||
-        entry.prizeLabel?.toLowerCase().includes(q) ||
-        entry.segmentLabel.toLowerCase().includes(q) ||
-        entry.orderId?.toLowerCase().includes(q) ||
-        entry.prizeId?.toLowerCase().includes(q)
-      );
-    });
+  const allRows = (await readSpinHistory()).map((entry) => ({
+    ...entry,
+    displayStatus: resolveDisplayStatus(entry),
+  }));
 
-  const limit = options?.limit ?? 200;
+  const statusFiltered =
+    statusFilter === 'all'
+      ? allRows
+      : allRows.filter((entry) => entry.displayStatus === statusFilter);
+
+  const rows = statusFiltered.filter((entry) => {
+    if (!q) return true;
+    return entryMatchesSearch(entry, q);
+  });
+
+  const limit = options?.limit ?? 500;
+  const members = groupSpinHistoryByMember(rows, { memberLimit: options?.memberLimit ?? 150 });
+
   return {
     entries: rows.slice(0, limit),
-    stats: buildStats(await readSpinHistory()),
+    members,
+    stats: buildStats(allRows),
     reconciled: 0,
   };
 }
