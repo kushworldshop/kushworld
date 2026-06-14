@@ -804,7 +804,7 @@ export default function Account() {
 
             <h3 className="text-lg font-semibold pt-2">Wheel Coupons</h3>
             <p className="text-sm text-zinc-500 mb-4">
-              Prizes you accept from the spin wheel are saved here for 7 days. Only one wheel coupon can be active at a time and they cannot stack with promo codes.
+              Prizes you accept are saved here for 7 days. You can keep spinning — accepting a new prize replaces your previous coupon. Wheel coupons cannot stack with promo codes at checkout.
             </p>
             {user.pendingSpinPrize ? (
               <div className="bg-black border border-amber-400/30 rounded-2xl p-5 mb-4">

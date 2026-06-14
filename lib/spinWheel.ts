@@ -68,19 +68,24 @@ export function getActiveSpinPrize(user: UserProfile): SpinPrize | null {
   return isSpinPrizeActive(prize) ? prize! : null;
 }
 
-export function hasOpenWheelPrize(user: UserProfile): boolean {
-  return !!getPendingSpinPrize(user) || !!getActiveSpinPrize(user);
+/** Only an unaccepted win blocks another spin — saved coupons do not. */
+export function hasPendingWheelDecision(user: UserProfile): boolean {
+  return !!getPendingSpinPrize(user);
 }
 
-export async function acceptSpinPrize(userId: string): Promise<SpinPrize> {
+export async function acceptSpinPrize(userId: string): Promise<{
+  prize: SpinPrize;
+  replacedPrevious: boolean;
+}> {
   const user = await getUserById(userId);
   if (!user) throw new Error('User not found');
 
   const pending = getPendingSpinPrize(user);
   if (!pending) throw new Error('No prize waiting to accept');
 
-  if (getActiveSpinPrize(user)) {
-    throw new Error('You already have an active wheel coupon. Use or forfeit it first.');
+  const existing = getActiveSpinPrize(user);
+  if (existing) {
+    await markSpinHistoryForfeited(existing.id);
   }
 
   const acceptedAt = new Date().toISOString();
@@ -95,27 +100,40 @@ export async function acceptSpinPrize(userId: string): Promise<SpinPrize> {
   await clearPendingSpinPrize(userId);
   await markSpinHistoryAccepted(pending.id, expiresAt);
 
-  return accepted;
+  return { prize: accepted, replacedPrevious: !!existing };
 }
 
-export async function forfeitSpinPrize(userId: string): Promise<void> {
+export async function forfeitPendingSpinPrize(userId: string): Promise<void> {
   const user = await getUserById(userId);
   if (!user) throw new Error('User not found');
 
   const pending = getPendingSpinPrize(user);
+  if (!pending) throw new Error('No prize waiting to forfeit');
+
+  await clearPendingSpinPrize(userId);
+  await markSpinHistoryForfeited(pending.id);
+}
+
+export async function forfeitActiveSpinPrize(userId: string): Promise<void> {
+  const user = await getUserById(userId);
+  if (!user) throw new Error('User not found');
+
   const active = getActiveSpinPrize(user);
-  const prizeId = pending?.id ?? active?.id;
+  if (!active) throw new Error('No saved coupon to remove');
 
-  if (pending) {
-    await clearPendingSpinPrize(userId);
-  }
-  if (active) {
-    await clearActiveSpinPrize(userId);
-  }
+  await clearActiveSpinPrize(userId);
+  await markSpinHistoryForfeited(active.id);
+}
 
-  if (prizeId) {
-    await markSpinHistoryForfeited(prizeId);
+/** @deprecated Use forfeitPendingSpinPrize or forfeitActiveSpinPrize */
+export async function forfeitSpinPrize(userId: string): Promise<void> {
+  const user = await getUserById(userId);
+  if (!user) throw new Error('User not found');
+  if (getPendingSpinPrize(user)) {
+    await forfeitPendingSpinPrize(userId);
+    return;
   }
+  await forfeitActiveSpinPrize(userId);
 }
 
 async function getSpinCost(): Promise<number> {
@@ -137,8 +155,8 @@ export async function spinWheel(userId: string): Promise<{
   const user = await getUserById(userId);
   if (!user) throw new Error('User not found');
 
-  if (hasOpenWheelPrize(user)) {
-    throw new Error('Accept or forfeit your current wheel prize before spinning again');
+  if (hasPendingWheelDecision(user)) {
+    throw new Error('Accept or forfeit your latest wheel prize before spinning again');
   }
 
   const spinCost = await getSpinCost();

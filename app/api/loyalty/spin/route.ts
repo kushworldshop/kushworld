@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUserId } from '@/lib/auth';
-import { acceptSpinPrize, forfeitSpinPrize, spinWheel } from '@/lib/spinWheel';
+import {
+  acceptSpinPrize,
+  forfeitActiveSpinPrize,
+  forfeitPendingSpinPrize,
+  spinWheel,
+} from '@/lib/spinWheel';
 
 export async function POST(request: NextRequest) {
   const userId = await getSessionUserId();
@@ -12,16 +17,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
 
     if (body.action === 'forfeit') {
-      await forfeitSpinPrize(userId);
+      await forfeitPendingSpinPrize(userId);
       return NextResponse.json({ success: true, message: 'Prize forfeited. You can spin again.' });
     }
 
+    if (body.action === 'forfeit-coupon') {
+      await forfeitActiveSpinPrize(userId);
+      return NextResponse.json({ success: true, message: 'Saved coupon removed.' });
+    }
+
     if (body.action === 'accept') {
-      const prize = await acceptSpinPrize(userId);
+      const { prize, replacedPrevious } = await acceptSpinPrize(userId);
+      const expiryLabel = new Date(prize.expiresAt!).toLocaleDateString();
       return NextResponse.json({
         success: true,
-        message: `Coupon saved! Use it within 7 days (expires ${new Date(prize.expiresAt!).toLocaleDateString()}).`,
+        message: replacedPrevious
+          ? `New coupon saved (replaced your previous one). Expires ${expiryLabel}. You can keep spinning!`
+          : `Coupon saved! Expires ${expiryLabel}. You can keep spinning!`,
         prize,
+        replacedPrevious,
       });
     }
 

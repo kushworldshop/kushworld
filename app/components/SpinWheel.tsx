@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import {
   WHEEL_SEGMENTS,
   getSpinPrizeDaysRemaining,
@@ -37,7 +38,7 @@ export default function SpinWheel({
 
   const displayPending = pendingPrize ?? wonPrize;
   const displayActive = isSpinPrizeActive(activePrize) ? activePrize : null;
-  const blocked = !!displayPending || !!displayActive;
+  const mustDecide = !!displayPending;
 
   const gradient = WHEEL_SEGMENTS.map((seg, i) => {
     const start = (i / WHEEL_SEGMENTS.length) * 100;
@@ -46,7 +47,7 @@ export default function SpinWheel({
   }).join(', ');
 
   const handleSpin = async () => {
-    if (spinning || blocked) return;
+    if (spinning || mustDecide) return;
     if (points < spinCost) {
       setError(`You need ${spinCost} points to spin`);
       return;
@@ -124,10 +125,7 @@ export default function SpinWheel({
       if (data.success) {
         setResult('Prize forfeited — spin again!');
         setWonPrize(null);
-        onPrizeChange({
-          pendingPrize: null,
-          activePrize: null,
-        });
+        onPrizeChange({ pendingPrize: null });
       } else {
         setError(data.error || 'Could not forfeit prize');
       }
@@ -140,12 +138,12 @@ export default function SpinWheel({
 
   const prizeDescription = (prize: SpinPrize) => {
     if (prize.type === 'free_tshirt') {
-      return 'Free studio tee added to your order at checkout — not a promo code.';
+      return 'Free studio tee at checkout — not a promo code.';
     }
     if (prize.type === 'free_shipping') {
       return 'Free shipping on your next order at checkout.';
     }
-    return 'Saved to your profile — apply at checkout. Cannot combine with promo codes.';
+    return 'Apply at checkout. Cannot combine with promo codes.';
   };
 
   return (
@@ -213,25 +211,6 @@ export default function SpinWheel({
             </button>
           </div>
         </div>
-      ) : displayActive ? (
-        <div className="w-full max-w-md bg-black border border-[#00ff9d]/40 rounded-2xl p-5 mb-4 text-center">
-          <p className="text-sm text-zinc-400 mb-1">Your saved coupon</p>
-          <p className="text-xl font-bold text-[#00ff9d]">{displayActive.label}</p>
-          <p className="text-xs text-zinc-500 mt-2">{prizeDescription(displayActive)}</p>
-          <p className="text-xs text-zinc-500 mt-1">
-            Expires {new Date(displayActive.expiresAt!).toLocaleDateString()}
-            {getSpinPrizeDaysRemaining(displayActive) !== null && (
-              <> · {getSpinPrizeDaysRemaining(displayActive)} day{getSpinPrizeDaysRemaining(displayActive) === 1 ? '' : 's'} left</>
-            )}
-          </p>
-          <button
-            onClick={handleForfeit}
-            disabled={acting}
-            className="mt-4 text-sm text-zinc-400 hover:text-white underline disabled:opacity-50"
-          >
-            Forfeit & spin again
-          </button>
-        </div>
       ) : (
         <button
           onClick={handleSpin}
@@ -240,6 +219,21 @@ export default function SpinWheel({
         >
           {spinning ? 'Spinning...' : `Spin for ${spinCost} pts`}
         </button>
+      )}
+
+      {displayActive && !displayPending && (
+        <div className="w-full max-w-md bg-black/60 border border-[#00ff9d]/25 rounded-xl px-4 py-3 mb-4 text-center">
+          <p className="text-xs text-zinc-500">
+            Saved coupon: <span className="text-[#00ff9d] font-medium">{displayActive.label}</span>
+            {' · '}
+            {getSpinPrizeDaysRemaining(displayActive)} day
+            {getSpinPrizeDaysRemaining(displayActive) === 1 ? '' : 's'} left
+            {' · '}
+            <Link href="/checkout" className="text-[#00ff9d] hover:underline">
+              Use at checkout
+            </Link>
+          </p>
+        </div>
       )}
 
       <p className="text-sm text-zinc-500 mb-2">
