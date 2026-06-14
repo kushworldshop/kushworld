@@ -115,6 +115,11 @@ export async function PATCH(request: NextRequest) {
     if (trackingNumber !== undefined) {
       const trimmed = String(trackingNumber).trim();
       orders[index].trackingNumber = trimmed || undefined;
+      // Auto-detect tracking -> advance to shipped stage so Kush Tracker shows accurate "En Route" immediately (for manual + admin updates)
+      if (trimmed && !orders[index].shippedAt && orders[index].status !== 'delivered' && orders[index].status !== 'shipped') {
+        orders[index].status = 'shipped';
+        orders[index].shippedAt = new Date().toISOString();
+      }
     }
 
     if (trackingCarrier !== undefined) {
@@ -199,9 +204,11 @@ export async function POST(request: NextRequest) {
       const total = body.total || (subtotal + shipping);
       const paymentMethod = body.paymentMethod || 'manual';
       const paymentStatus = body.paymentStatus || 'paid';
-      const status = body.status || 'confirmed';
       const freeEighthBonus = !!body.freeEighthBonus;
       const freeEighthNote = freeEighthBonus ? (body.freeEighthNote || 'Free 1/8th manually added to account by admin') : undefined;
+      const hasTrackingAtCreate = !!body.trackingNumber?.trim();
+      // If tracking provided at creation, default to shipped so tracker stages are accurate from the start
+      const effectiveStatus = body.status || (hasTrackingAtCreate ? 'shipped' : 'confirmed');
 
       const newOrder: any = {
         id: orderId,
@@ -212,7 +219,7 @@ export async function POST(request: NextRequest) {
         total,
         paymentMethod,
         paymentStatus,
-        status,
+        status: effectiveStatus,
         email,
         name: customer.name,
         address: customer.address,
@@ -229,8 +236,8 @@ export async function POST(request: NextRequest) {
         idVerification: { status: 'verified', note: 'Admin created order' },
         trackingNumber: body.trackingNumber?.trim() || undefined,
         trackingCarrier: body.trackingCarrier ? normalizeTrackingCarrier(body.trackingCarrier) : undefined,
-        shippedAt: status === 'shipped' ? new Date().toISOString() : undefined,
-        deliveredAt: status === 'delivered' ? new Date().toISOString() : undefined,
+        shippedAt: (effectiveStatus === 'shipped' || hasTrackingAtCreate) ? new Date().toISOString() : undefined,
+        deliveredAt: effectiveStatus === 'delivered' ? new Date().toISOString() : undefined,
       };
 
       let ordersData: any[] = [];

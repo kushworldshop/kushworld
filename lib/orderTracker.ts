@@ -82,12 +82,14 @@ export function getTrackerStepFromOrder(order: any): TrackerStep {
   const paymentStatus = (order?.paymentStatus || '').toLowerCase();
   const hasShipped = !!order?.shippedAt || status === 'shipped';
   const hasDelivered = !!order?.deliveredAt || status === 'delivered';
+  const hasTracking = !!order?.trackingNumber?.trim();
   const isPaid = paymentStatus === 'paid' || status === 'processing' || status === 'shipped' || status === 'delivered';
 
   if (hasDelivered || status === 'delivered') {
     return KUSH_TRACKER_STEPS[5];
   }
-  if (hasShipped || status === 'shipped') {
+  // Detect tracking numbers (from manual orders or admin updates) -> treat as En Route for accurate stages
+  if (hasShipped || status === 'shipped' || hasTracking) {
     return KUSH_TRACKER_STEPS[4];
   }
   if (status === 'packing' || status === 'quality' || status === 'sealed') {
@@ -161,10 +163,11 @@ export function getEstimatedDelivery(order: any): string {
   const daysSince = Math.floor((now.getTime() - created.getTime()) / (1000 * 3600 * 24));
 
   const status = (order.status || '').toLowerCase();
+  const hasTracking = !!order?.trackingNumber?.trim();
   if (status === 'delivered' || order.deliveredAt) {
     return 'Delivered';
   }
-  if (status === 'shipped' || order.shippedAt) {
+  if (status === 'shipped' || order.shippedAt || hasTracking) {
     return '1–3 business days from ship date';
   }
   if (daysSince >= 2) {

@@ -11,6 +11,7 @@ import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { useSiteContent } from '@/lib/useSiteContent';
 import IdVerificationUpload from '@/app/components/IdVerificationUpload';
 import OrderShippingStatus from '@/app/components/OrderShippingStatus';
+import OrderTracker from '@/app/components/OrderTracker';
 
 interface PromoTerms {
   customerDiscount: number;
@@ -1117,9 +1118,18 @@ export default function Account() {
                         href={`/track/${order.id}`}
                         className="inline-flex items-center gap-2 text-sm font-medium text-[#00ff9d] hover:underline"
                       >
-                        🌱 View full Kush Tracker →
+                        🌱 View full Kush Tracker (detailed page) →
                       </Link>
-                      <span className="text-xs text-zinc-500 ml-2">(live progress like Domino’s but for your buds)</span>
+                    </div>
+
+                    {/* Live tracker embedded directly in account panel for instant access + live updates (no need to leave) */}
+                    <div className="mt-4 pt-4 border-t border-zinc-800">
+                      <OrderTracker
+                        order={order}
+                        showHeader={false}
+                        compact={true}
+                        refreshWith={{ orderId: order.id }}
+                      />
                     </div>
                   </div>
                 ))}
