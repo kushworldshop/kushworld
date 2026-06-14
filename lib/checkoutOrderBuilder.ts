@@ -34,7 +34,8 @@ export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: stri
   const validated = await validateCheckoutItems(
     (body.items || []) as Parameters<typeof validateCheckoutItems>[0],
     body.subtotal,
-    email
+    email,
+    customer.phone
   );
 
   const { items, subtotal, isFirstOrder, freeEighthBonus } = validated;

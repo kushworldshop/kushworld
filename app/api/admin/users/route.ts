@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { readOrders } from '@/lib/ordersStore';
+import { normalizePhone } from '@/lib/accountVerification';
 import {
   createOrGetReferral,
   getReferralByEmail,
@@ -210,10 +211,20 @@ export async function PATCH(request: NextRequest) {
     }
 
     const current = users[index];
+    const newPhone = body.phone !== undefined ? String(body.phone).trim() || undefined : current.phone;
+    if (newPhone) {
+      const normNewPhone = normalizePhone(newPhone);
+      const conflict = users.find(
+        (u, i) => i !== index && u.phone && normalizePhone(u.phone) === normNewPhone
+      );
+      if (conflict) {
+        return NextResponse.json({ success: false, error: 'Phone number already in use by another member' }, { status: 400 });
+      }
+    }
     users[index] = {
       ...current,
       name: body.name !== undefined ? String(body.name).trim() || current.name : current.name,
-      phone: body.phone !== undefined ? String(body.phone).trim() || undefined : current.phone,
+      phone: newPhone,
       bio: body.bio !== undefined ? String(body.bio) : current.bio,
       avatarUrl: body.avatarUrl !== undefined ? String(body.avatarUrl) || undefined : current.avatarUrl,
       socials: body.socials !== undefined ? sanitizeSocials(body.socials) : current.socials,
@@ -251,6 +262,18 @@ export async function PATCH(request: NextRequest) {
           : body.blockReason !== undefined
             ? String(body.blockReason).trim() || undefined
             : current.blockReason,
+      freeEighthReceivedAt:
+        body.freeEighthReceivedAt !== undefined
+          ? body.freeEighthReceivedAt
+            ? String(body.freeEighthReceivedAt)
+            : undefined
+          : current.freeEighthReceivedAt,
+      freeEighthOrderId:
+        body.freeEighthOrderId !== undefined
+          ? body.freeEighthOrderId
+            ? String(body.freeEighthOrderId)
+            : undefined
+          : current.freeEighthOrderId,
     };
 
     if (body.commissionPercent !== undefined) {

@@ -10,9 +10,8 @@ import CustomersTab from '@/app/admin/components/CustomersTab';
 import OrdersTab from '@/app/admin/components/OrdersTab';
 import ProductsTab from '@/app/admin/components/ProductsTab';
 import SpinWheelTab from '@/app/admin/components/SpinWheelTab';
-import FirstOrderBonusTab from '@/app/admin/components/FirstOrderBonusTab';
 
-type AdminTab = 'orders' | 'products' | 'wishlist' | 'wheel' | 'free8ths' | 'site' | 'features' | 'customers';
+type AdminTab = 'orders' | 'products' | 'wishlist' | 'wheel' | 'site' | 'features' | 'customers';
 
 interface WishlistStat {
   id: string;
@@ -186,12 +185,6 @@ export default function AdminOrders() {
             Wheel Wins
           </button>
           <button
-            onClick={() => setTab('free8ths')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'free8ths' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Free 8ths
-          </button>
-          <button
             onClick={() => { setTab('site'); loadSiteContent(); }}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'site' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
@@ -224,8 +217,6 @@ export default function AdminOrders() {
         {tab === 'products' && <ProductsTab />}
 
         {tab === 'wheel' && <SpinWheelTab />}
-
-        {tab === 'free8ths' && <FirstOrderBonusTab />}
 
         {tab === 'wishlist' && (
           <div className="mb-10">

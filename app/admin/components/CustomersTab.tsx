@@ -88,12 +88,15 @@ const emptySocials: UserSocials = {
 export default function CustomersTab() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [search, setSearch] = useState('');
+  const [showFree8thOnly, setShowFree8thOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [edits, setEdits] = useState<Record<string, Partial<MemberDraft>>>({});
+
+  const displayUsers = showFree8thOnly ? users.filter((u) => !!u.freeEighthReceivedAt) : users;
 
   const loadUsers = async (query = search) => {
     setLoading(true);
@@ -335,6 +338,35 @@ export default function CustomersTab() {
     }
   };
 
+  const markFreeEighthForUser = async (user: AdminUser) => {
+    if (user.freeEighthReceivedAt) {
+      setMessage('This member has already received the free 1/8th');
+      return;
+    }
+    const orderId = window.prompt('Enter related order ID (or blank for manual):', '') || `manual-${Date.now()}`;
+    setSavingId(user.id);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          freeEighthReceivedAt: new Date().toISOString(),
+          freeEighthOrderId: orderId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Mark failed');
+      setUsers((prev) => prev.map((item) => (item.id === user.id ? data.user : item)));
+      setMessage(`Free 1/8th marked for ${user.email}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to mark free 1/8th');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const deleteUser = async (user: AdminUser) => {
     const confirmed = window.confirm(
       `Delete ${user.email} permanently?\n\nThis removes their account, login access, and loyalty balance. Order history is kept.`
@@ -388,12 +420,22 @@ export default function CustomersTab() {
           <button onClick={() => loadUsers(search)} className="w-full px-4 py-2 bg-zinc-800 rounded-xl text-sm mb-4">
             Search
           </button>
+          <label className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
+            <input
+              type="checkbox"
+              checked={showFree8thOnly}
+              onChange={(e) => setShowFree8thOnly(e.target.checked)}
+              className="accent-[#00ff9d]"
+            />
+            Only free 1/8th recipients
+          </label>
           <p className="text-xs text-zinc-500 mb-3 px-1">
-            {loading ? 'Loading...' : `${users.length} member${users.length === 1 ? '' : 's'}`}
+            {loading ? 'Loading...' : `${displayUsers.length} member${displayUsers.length === 1 ? '' : 's'}`}
+            {showFree8thOnly ? ' (free 1/8th)' : ''}
           </p>
 
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {users.map((user) => {
+            {displayUsers.map((user) => {
               const active = user.id === selectedId;
               return (
                 <button
@@ -426,7 +468,7 @@ export default function CustomersTab() {
                 </button>
               );
             })}
-            {!loading && users.length === 0 && (
+            {!loading && displayUsers.length === 0 && (
               <p className="text-center text-zinc-500 text-sm py-10">No members found.</p>
             )}
           </div>
@@ -453,6 +495,7 @@ export default function CustomersTab() {
               onRejectId={(reason) => updateIdVerification(selectedUser, 'reject', reason)}
               onResetPassword={(newPassword) => resetUserPassword(selectedUser, newPassword)}
               onUnlockPoints={(amount) => unlockUserPoints(selectedUser, amount)}
+              onMarkFreeEighth={() => markFreeEighthForUser(selectedUser)}
             />
           )}
         </div>
@@ -476,6 +519,7 @@ function MemberProfilePanel({
   onRejectId,
   onResetPassword,
   onUnlockPoints,
+  onMarkFreeEighth,
 }: {
   user: AdminUser;
   draft: MemberDraft;
@@ -491,6 +535,7 @@ function MemberProfilePanel({
   onRejectId: (reason: string) => void;
   onResetPassword: (newPassword: string) => void;
   onUnlockPoints: (amount?: number) => void;
+  onMarkFreeEighth?: () => void;
 }) {
   const redeemable = Math.max(0, draft.loyaltyPoints - draft.lockedLoyaltyPoints);
   const idStatus = user.idVerification?.status ?? (user.idVerified ? 'verified' : 'none');
@@ -884,6 +929,32 @@ function MemberProfilePanel({
             Referral points earned: {user.pointsEarnedFromReferrals?.toLocaleString()} · claimed:{' '}
             {user.pointsClaimedFromReferrals?.toLocaleString()}
           </p>
+        )}
+      </section>
+
+      <section className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5">
+        <SectionTitle>Free 1/8th First-Order Bonus Tracking</SectionTitle>
+        {user.freeEighthReceivedAt ? (
+          <div className="text-sm">
+            <p className="text-green-400 font-medium">Granted</p>
+            <p className="text-zinc-400 text-xs mt-1">
+              {new Date(user.freeEighthReceivedAt).toLocaleString()} for order #{user.freeEighthOrderId || '—'}
+            </p>
+            <p className="text-xs text-zinc-500 mt-2">This member received their free 1/8th on first hemp order.</p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm text-zinc-400 mb-3">Not yet granted (eligible on first qualifying hemp order).</p>
+            {onMarkFreeEighth && (
+              <button
+                onClick={onMarkFreeEighth}
+                disabled={saving || deleting}
+                className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-xl border border-zinc-700"
+              >
+                Manually mark as granted
+              </button>
+            )}
+          </div>
         )}
       </section>
 

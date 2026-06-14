@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     let validated;
     try {
-      validated = await validateCheckoutItems(body.items || [], body.subtotal, email);
+      validated = await validateCheckoutItems(body.items || [], body.subtotal, email, customer.phone);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Invalid cart';
       return NextResponse.json({ success: false, error: message }, { status: 400 });

@@ -25,6 +25,7 @@ import {
   type SpinPrize,
 } from '@/lib/spinWheelTypes';
 import type { UserIdVerification } from '@/lib/verification';
+import { normalizePhone } from '@/lib/accountVerification';
 
 const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
 
@@ -223,9 +224,13 @@ export async function createUser(input: {
 }): Promise<UserProfile> {
   const users = await readUsers();
   const normalizedEmail = input.email.trim().toLowerCase();
+  const normalizedPhone = input.phone ? normalizePhone(input.phone) : null;
 
   if (users.some((u) => u.email.toLowerCase() === normalizedEmail)) {
     throw new Error('User already exists');
+  }
+  if (normalizedPhone && users.some((u) => u.phone && normalizePhone(u.phone) === normalizedPhone)) {
+    throw new Error('Account with this phone number already exists');
   }
 
   const name = input.name?.trim() || normalizedEmail.split('@')[0];

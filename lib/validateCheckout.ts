@@ -48,7 +48,8 @@ export { isEmailFirstOrder } from '@/lib/firstOrder';
 export async function validateCheckoutItems(
   items: CheckoutLineItem[],
   clientSubtotal?: number,
-  email?: string
+  email?: string,
+  phone?: string
 ): Promise<ValidatedCheckout> {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error('Cart is empty');
@@ -114,7 +115,7 @@ export async function validateCheckoutItems(
     }
   }
 
-  const isFirstOrder = await isEmailFirstOrder(email);
+  const isFirstOrder = await isEmailFirstOrder(email, phone);
   const hasHempItems = validated.some((item) => item.category !== 'merch');
 
   if (bonusItemCount > 1) {
@@ -123,7 +124,7 @@ export async function validateCheckoutItems(
 
   let freeEighthBonus = false;
   if (bonusItemCount === 1) {
-    if (!(await isEligibleForFreeEighth(email, hasHempItems))) {
+    if (!(await isEligibleForFreeEighth(email, hasHempItems, phone))) {
       throw new Error('Free 1/8th first-order bonus is not available for this customer');
     }
 
