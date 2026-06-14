@@ -119,12 +119,34 @@ export async function resetPasswordWithToken(
   return { success: true };
 }
 
+export async function buildAdminPasswordFields(
+  newPassword: string
+): Promise<
+  | { success: true; password: string; passwordResetTokenHash: undefined; passwordResetExp: undefined }
+  | { success: false; error: string }
+> {
+  if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
+    return {
+      success: false,
+      error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    };
+  }
+
+  return {
+    success: true,
+    password: await bcrypt.hash(newPassword, 10),
+    passwordResetTokenHash: undefined,
+    passwordResetExp: undefined,
+  };
+}
+
 export async function adminSetUserPassword(
   userId: string,
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
-    return { success: false, error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` };
+  const passwordFields = await buildAdminPasswordFields(newPassword);
+  if (!passwordFields.success) {
+    return { success: false, error: passwordFields.error };
   }
 
   const users = await readUsers();
@@ -133,12 +155,9 @@ export async function adminSetUserPassword(
     return { success: false, error: 'User not found' };
   }
 
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
   users[index] = {
     ...users[index],
-    password: hashedPassword,
-    passwordResetTokenHash: undefined,
-    passwordResetExp: undefined,
+    ...passwordFields,
   };
   await writeUsers(users);
 

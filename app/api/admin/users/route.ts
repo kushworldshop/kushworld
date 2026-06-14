@@ -15,7 +15,7 @@ import { getSettings } from '@/lib/settings';
 import { tryClaimSignupBonus } from '@/lib/accountVerification';
 import { markUserIdRejected, markUserIdVerified } from '@/lib/verification';
 import type { UserIdVerification } from '@/lib/verification';
-import { adminSetUserPassword } from '@/lib/passwordReset';
+import { buildAdminPasswordFields } from '@/lib/passwordReset';
 import {
   deleteUserById,
   getRedeemableLoyaltyPoints,
@@ -280,13 +280,17 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (body.newPassword !== undefined) {
-      const passwordResult = await adminSetUserPassword(userId, String(body.newPassword));
-      if (!passwordResult.success) {
+      const passwordFields = await buildAdminPasswordFields(String(body.newPassword));
+      if (!passwordFields.success) {
         return NextResponse.json(
-          { success: false, error: passwordResult.error || 'Failed to reset password' },
+          { success: false, error: passwordFields.error || 'Failed to reset password' },
           { status: 400 }
         );
       }
+      users[index] = {
+        ...users[index],
+        ...passwordFields,
+      };
     }
 
     let unlockedPoints = 0;
