@@ -9,7 +9,7 @@ import ReviewsSection from './components/ReviewsSection';
 import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
 import MobileBottomNav from './components/MobileBottomNav';
-import InstallPrompt from './components/InstallPrompt';
+// import InstallPrompt from './components/InstallPrompt'; // kept for future app launch
 import OfflineIndicator from './components/OfflineIndicator';
 import ProductCollectionSection from './components/ProductCollectionSection';
 import HowItWorksSection from './components/HowItWorksSection';
@@ -60,7 +60,7 @@ export default function HomeClient() {
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       <MobileBottomNav />
-      <InstallPrompt />
+      {/* <InstallPrompt /> */} {/* disabled for now - not ready for public install, kept in files for future launch */}
       <OfflineIndicator />
     </>
   );

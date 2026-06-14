@@ -6,7 +6,7 @@ import Footer from './Footer';
 import CartDrawer from './CartDrawer';
 import SiteBranding from './SiteBranding';
 import MobileBottomNav from './MobileBottomNav';
-import InstallPrompt from './InstallPrompt';
+// import InstallPrompt from './InstallPrompt'; // kept for future app launch
 import OfflineIndicator from './OfflineIndicator';
 import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
@@ -32,7 +32,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <Footer />
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       <MobileBottomNav />
-      <InstallPrompt />
+      {/* <InstallPrompt /> */} {/* disabled for now - not ready for public install, kept in files for future launch */}
       <OfflineIndicator />
     </>
   );
