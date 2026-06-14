@@ -7,6 +7,7 @@ import { useSiteContent } from '@/lib/useSiteContent';
 import SocialButtons from '@/app/components/SocialButtons';
 import { getEnabledShopCategories } from '@/lib/shopNavigation';
 import BrandLogoLink from '@/app/components/BrandLogoLink';
+import AnimatedMascot from '@/app/components/AnimatedMascot';
 
 export default function Footer() {
   const wishlistCount = useWishlistStore((state) => state.items.length);
@@ -19,7 +20,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           <div>
             <BrandLogoLink className="flex items-center gap-3 mb-6 hover:opacity-90 transition w-fit">
-              <Image src={content.brand.logoUrl} alt={content.brand.name} width={40} height={40} className="h-10 w-auto" />
+              <AnimatedMascot className="h-10 w-auto" width={40} height={40} />
               <span className="text-2xl font-bold tracking-tight">{content.brand.name.toUpperCase()}</span>
             </BrandLogoLink>
             <p className="text-zinc-400 text-sm leading-relaxed max-w-xs mb-6">{content.footer.tagline}</p>

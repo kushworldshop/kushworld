@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import BrandLogoLink from '@/app/components/BrandLogoLink';
+import AnimatedMascot from '@/app/components/AnimatedMascot';
 import { splitHeadline } from '@/lib/siteContentTypes';
 import { useSiteContent } from '@/lib/useSiteContent';
 
@@ -52,6 +53,12 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
           {variant.badges.map((badge) => (
             <span key={badge}>{badge}</span>
           ))}
+        </div>
+
+        {/* Animated mascot logo guy — actually smoking his joint (looping video version of the classic logo) */}
+        <div className="mt-8 flex flex-col items-center">
+          <AnimatedMascot className="drop-shadow-2xl" width={110} height={110} />
+          <p className="mt-2 text-[10px] text-zinc-500 tracking-[2px] uppercase">The mascot getting lit</p>
         </div>
       </div>
     </section>
