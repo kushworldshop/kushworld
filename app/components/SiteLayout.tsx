@@ -1,13 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import CartDrawer from './CartDrawer';
 import SiteBranding from './SiteBranding';
+import { useCartStore } from '@/lib/cartStore';
+import { useLoyaltyStore } from '@/lib/loyaltyStore';
+import { useReferralStore } from '@/lib/referralStore';
+import { useWishlistStore } from '@/lib/wishlistStore';
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  useEffect(() => {
+    // Rehydrate persisted stores after skipHydration to load cart/loyalty/etc from localStorage on page loads
+    useCartStore.persist.rehydrate();
+    useLoyaltyStore.persist.rehydrate();
+    useReferralStore.persist.rehydrate();
+    useWishlistStore.persist.rehydrate();
+  }, []);
 
   return (
     <>
