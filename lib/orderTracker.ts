@@ -172,3 +172,57 @@ export function getEstimatedDelivery(order: any): string {
   }
   return '3–7 business days from order date';
 }
+
+// Admin auto-advance rules for the Kush Tracker stages.
+// Returns the next logical status string, or null if no clear forward move.
+// Conservative: only advances when conditions are clearly met (paid + verified, etc.).
+// Used by admin "Smart Advance" button and optionally in fulfillment flows.
+export function getSuggestedNextStatus(order: any): string | null {
+  if (!order) return null;
+  const status = (order.status || 'pending').toLowerCase();
+  const paymentStatus = (order.paymentStatus || '').toLowerCase();
+  const idStatus = order.idVerification?.status || '';
+  const hasTracking = !!order.trackingNumber?.trim();
+
+  // Already at end
+  if (status === 'delivered' || status === 'cancelled' || status === 'refunded') return null;
+
+  // Early: if just paid + id good, move out of pending/received
+  if ((status === 'pending' || status === 'received') && paymentStatus === 'paid' && (idStatus === 'verified' || idStatus === '')) {
+    return 'packing';
+  }
+
+  // From processing/packing -> sealed (QC)
+  if (status === 'processing' || status === 'packing') {
+    return 'sealed';
+  }
+
+  // Sealed -> shipped (admin should usually add tracking at this point, but allow)
+  if (status === 'sealed' || status === 'quality') {
+    return 'shipped';
+  }
+
+  // Shipped -> delivered (manual confirmation usually)
+  if (status === 'shipped' && hasTracking) {
+    return 'delivered';
+  }
+
+  // If paid but still low status, push to packing
+  if (paymentStatus === 'paid' && (status === 'pending' || status === 'received' || !status)) {
+    return 'packing';
+  }
+
+  return null;
+}
+
+// Convenience: get the label for the suggested button
+export function getSuggestedNextLabel(suggested: string | null): string {
+  if (!suggested) return 'No further auto-advance';
+  const map: Record<string, string> = {
+    packing: 'Advance to Packing',
+    sealed: 'Advance to Sealed / QC',
+    shipped: 'Mark Shipped (add tracking first)',
+    delivered: 'Mark Delivered',
+  };
+  return map[suggested] || `Advance to ${suggested}`;
+}

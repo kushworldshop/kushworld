@@ -130,6 +130,10 @@ export async function PATCH(request: NextRequest) {
         if (orders[index].status === 'pending') {
           orders[index].status = 'processing';
         }
+        // Auto nudge tracker stage for paid orders (ties into visual garden-to-door progress)
+        if (orders[index].status === 'pending' || orders[index].status === 'received') {
+          orders[index].status = 'packing';
+        }
       }
     }
 

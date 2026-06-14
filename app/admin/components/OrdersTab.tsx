@@ -10,6 +10,7 @@ import {
   type AdminOrderBucket,
 } from '@/lib/adminOrderBuckets';
 import { formatCartItemOptions } from '@/lib/productOptions';
+import { getSuggestedNextStatus, getSuggestedNextLabel } from '@/lib/orderTracker';
 
 export default function OrdersTab() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -391,6 +392,22 @@ function OrderDetailPanel({
             Mark Delivered
           </button>
         )}
+
+        {/* Auto-advance rules for the visual Kush Tracker (smart garden-to-door logic) */}
+        {(() => {
+          const suggested = getSuggestedNextStatus(order);
+          if (!suggested) return null;
+          const label = getSuggestedNextLabel(suggested);
+          return (
+            <button
+              onClick={() => onUpdateStatus(order.id, suggested)}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-black rounded-xl text-sm font-medium"
+              title="Applies tracker-aware auto-advance rules (e.g. paid+verified → packing, packing → sealed)"
+            >
+              ✨ {label}
+            </button>
+          );
+        })()}
         {order.inventoryDeducted &&
           !order.inventoryRestored &&
           order.status !== 'cancelled' &&
