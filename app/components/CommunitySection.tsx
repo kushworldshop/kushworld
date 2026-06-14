@@ -17,13 +17,16 @@ export default function CommunitySection({ title, body }: { title: string; body:
         <div className="flex flex-wrap justify-center gap-3">
           {links.map((link) => (
             <a
-              key={link.label}
+              key={link.key}
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-zinc-900 border border-zinc-700 hover:border-[#00ff9d] px-5 py-3 rounded-2xl text-sm font-medium transition"
             >
-              <i className={`${link.icon} text-[#00ff9d]`} />
+              <i
+                className={`${link.brand ? 'fa-brands' : 'fa-solid'} ${link.icon} text-[#00ff9d]`}
+                aria-hidden="true"
+              />
               {link.label}
             </a>
           ))}

@@ -11,7 +11,7 @@ export interface SocialLinkDef {
 
 export const SOCIAL_LINK_ORDER: SocialLinkDef[] = [
   { key: 'discordUrl', label: 'Discord', icon: 'fa-discord', brand: true },
-  { key: 'studioUrl', label: 'Kush World Studio', icon: 'fa-shirt', brand: true },
+  { key: 'studioUrl', label: 'Kush World Studio', icon: 'fa-shirt' },
   { key: 'twitterUrl', label: 'X', icon: 'fa-x-twitter', brand: true },
   { key: 'tiktokUrl', label: 'TikTok', icon: 'fa-tiktok', brand: true },
   { key: 'facebookUrl', label: 'Facebook', icon: 'fa-facebook', brand: true },
