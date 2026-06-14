@@ -273,6 +273,47 @@ export default function CustomersTab() {
     }
   };
 
+  const unlockUserPoints = async (user: AdminUser, amount?: number) => {
+    const locked = user.lockedLoyaltyPoints ?? 0;
+    if (locked <= 0) {
+      setMessage(`${user.email} has no locked points`);
+      return;
+    }
+
+    const unlockLabel = amount ? `${amount.toLocaleString()} points` : `all ${locked.toLocaleString()} locked points`;
+    const confirmed = window.confirm(
+      `Unlock ${unlockLabel} for ${user.name}?\n\nThey can use these at checkout immediately.`
+    );
+    if (!confirmed) return;
+
+    setSavingId(user.id);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          unlockLoyaltyPoints: amount ?? true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unlock failed');
+      setUsers((prev) => prev.map((item) => (item.id === user.id ? data.user : item)));
+      setEdits((prev) => {
+        const next = { ...prev };
+        delete next[user.id];
+        return next;
+      });
+      const unlocked = data.unlockedPoints ?? locked;
+      setMessage(`Unlocked ${unlocked.toLocaleString()} pts for ${user.email}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to unlock points');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   const resetUserPassword = async (user: AdminUser, newPassword: string) => {
     setSavingId(user.id);
     setMessage('');
@@ -376,6 +417,9 @@ export default function CustomersTab() {
                       <span className="text-yellow-400">ID pending</span>
                     )}
                     {user.promoCode && <span className="text-[#00ff9d]">{user.promoCode}</span>}
+                    {(user.lockedLoyaltyPoints ?? 0) > 0 && (
+                      <span className="text-amber-400">{user.lockedLoyaltyPoints.toLocaleString()} locked</span>
+                    )}
                   </div>
                 </button>
               );
@@ -406,6 +450,7 @@ export default function CustomersTab() {
               onVerifyId={() => updateIdVerification(selectedUser, 'verify')}
               onRejectId={(reason) => updateIdVerification(selectedUser, 'reject', reason)}
               onResetPassword={(newPassword) => resetUserPassword(selectedUser, newPassword)}
+              onUnlockPoints={(amount) => unlockUserPoints(selectedUser, amount)}
             />
           )}
         </div>
@@ -428,6 +473,7 @@ function MemberProfilePanel({
   onVerifyId,
   onRejectId,
   onResetPassword,
+  onUnlockPoints,
 }: {
   user: AdminUser;
   draft: MemberDraft;
@@ -442,10 +488,12 @@ function MemberProfilePanel({
   onVerifyId: () => void;
   onRejectId: (reason: string) => void;
   onResetPassword: (newPassword: string) => void;
+  onUnlockPoints: (amount?: number) => void;
 }) {
   const redeemable = Math.max(0, draft.loyaltyPoints - draft.lockedLoyaltyPoints);
   const idStatus = user.idVerification?.status ?? (user.idVerified ? 'verified' : 'none');
   const [rejectReason, setRejectReason] = useState('');
+  const [partialUnlock, setPartialUnlock] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -790,6 +838,44 @@ function MemberProfilePanel({
             </button>
           ))}
         </div>
+        {draft.lockedLoyaltyPoints > 0 && (
+          <div className="mt-5 p-4 rounded-2xl border border-amber-900/50 bg-amber-950/20">
+            <p className="text-sm text-amber-200/90 mb-3">
+              {draft.lockedLoyaltyPoints.toLocaleString()} pts are locked (usually signup bonus until first purchase).
+              Unlock them so this member can redeem at checkout right away.
+            </p>
+            <div className="flex flex-wrap gap-2 items-end">
+              <button
+                type="button"
+                onClick={() => onUnlockPoints()}
+                disabled={saving || deleting}
+                className="px-4 py-2 bg-[#00ff9d] text-black rounded-xl text-sm font-bold disabled:opacity-40"
+              >
+                {saving ? 'Unlocking...' : `Unlock all ${draft.lockedLoyaltyPoints.toLocaleString()} pts`}
+              </button>
+              <div className="flex gap-2 items-end">
+                <Field
+                  label="Or unlock amount"
+                  type="number"
+                  value={partialUnlock}
+                  onChange={setPartialUnlock}
+                  placeholder="e.g. 1000"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const amount = Math.max(0, Math.floor(Number(partialUnlock) || 0));
+                    if (amount > 0) onUnlockPoints(amount);
+                  }}
+                  disabled={saving || deleting || !partialUnlock}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm mb-1 disabled:opacity-40"
+                >
+                  Unlock partial
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {(user.pointsEarnedFromReferrals ?? 0) > 0 && (
           <p className="text-xs text-zinc-500 mt-4">
             Referral points earned: {user.pointsEarnedFromReferrals?.toLocaleString()} · claimed:{' '}

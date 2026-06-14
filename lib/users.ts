@@ -281,13 +281,38 @@ export async function redeemLoyaltyPoints(
   return { success: true, remaining: getRedeemableLoyaltyPoints(users[index]) };
 }
 
-export async function unlockLoyaltyPointsAfterPurchase(userId: string): Promise<void> {
+export async function unlockLoyaltyPoints(
+  userId: string,
+  points?: number
+): Promise<{ success: boolean; unlocked: number; remainingLocked: number; error?: string }> {
   const users = await readUsers();
   const index = users.findIndex((u) => u.id === userId);
-  if (index === -1 || !(users[index].lockedLoyaltyPoints ?? 0)) return;
+  if (index === -1) {
+    return { success: false, unlocked: 0, remainingLocked: 0, error: 'User not found' };
+  }
 
-  users[index].lockedLoyaltyPoints = 0;
+  const locked = users[index].lockedLoyaltyPoints ?? 0;
+  if (locked <= 0) {
+    return { success: true, unlocked: 0, remainingLocked: 0 };
+  }
+
+  const unlockAmount =
+    points === undefined || points === null
+      ? locked
+      : Math.min(locked, Math.max(0, Math.floor(points)));
+
+  users[index].lockedLoyaltyPoints = locked - unlockAmount;
   await writeUsers(users);
+
+  return {
+    success: true,
+    unlocked: unlockAmount,
+    remainingLocked: users[index].lockedLoyaltyPoints ?? 0,
+  };
+}
+
+export async function unlockLoyaltyPointsAfterPurchase(userId: string): Promise<void> {
+  await unlockLoyaltyPoints(userId);
 }
 
 export function toPublicProfile(user: UserProfile, referralStats?: PublicUserProfile['referralStats']): PublicUserProfile {

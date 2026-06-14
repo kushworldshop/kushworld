@@ -289,6 +289,19 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    let unlockedPoints = 0;
+    if (body.unlockLoyaltyPoints !== undefined) {
+      const locked = users[index].lockedLoyaltyPoints ?? 0;
+      if (locked > 0) {
+        const unlockAmount =
+          body.unlockLoyaltyPoints === true || body.unlockLoyaltyPoints === 'all'
+            ? locked
+            : Math.min(locked, Math.max(0, Math.floor(Number(body.unlockLoyaltyPoints))));
+        users[index].lockedLoyaltyPoints = locked - unlockAmount;
+        unlockedPoints = unlockAmount;
+      }
+    }
+
     if (body.promoCode !== undefined) {
       const trimmed = String(body.promoCode).trim();
       if (!trimmed) {
@@ -323,7 +336,11 @@ export async function PATCH(request: NextRequest) {
     const refreshed = await readUsers();
     const saved = refreshed.find((user) => user.id === userId) ?? users[index];
     const user = await toAdminSummary(saved);
-    return NextResponse.json({ success: true, user });
+    return NextResponse.json({
+      success: true,
+      user,
+      unlockedPoints: unlockedPoints > 0 ? unlockedPoints : undefined,
+    });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to update user' }, { status: 500 });
   }
