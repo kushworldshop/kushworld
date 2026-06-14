@@ -2,6 +2,20 @@ export interface FeatureToggle {
   enabled: boolean;
 }
 
+/** Customer-facing checkout copy for a payment method */
+export interface CheckoutPaymentConfig extends FeatureToggle {
+  /** Button label on checkout */
+  label: string;
+  /** Subtitle under the payment button */
+  subtitle?: string;
+  /** Detail panel heading (manual payments) */
+  payToLabel?: string;
+  /** Detail panel value shown to customer (manual payments) */
+  payToValue?: string;
+  /** Optional extra instructions below pay-to info */
+  instructions?: string;
+}
+
 export interface HowItWorksStep {
   icon: string;
   title: string;
@@ -51,14 +65,18 @@ export interface SiteFeatures {
   };
   ageGate: FeatureToggle;
   idVerification: FeatureToggle;
-  paymentCard: FeatureToggle;
-  paymentBitcoin: FeatureToggle & {
+  paymentCard: CheckoutPaymentConfig;
+  paymentBitcoin: CheckoutPaymentConfig & {
     /** Optional YouTube URL for “how to send BTC” (Cash App, etc.) */
     guideYoutubeUrl?: string;
+    /** BTC detail panel title */
+    detailTitle?: string;
+    /** BTC detail panel body copy */
+    detailBody?: string;
   };
-  paymentZelle: FeatureToggle;
-  paymentPaypal: FeatureToggle;
-  paymentChime: FeatureToggle;
+  paymentZelle: CheckoutPaymentConfig;
+  paymentPaypal: CheckoutPaymentConfig;
+  paymentChime: CheckoutPaymentConfig;
   auctions: FeatureToggle;
   raffles: FeatureToggle;
   mysteryBoxes: FeatureToggle;
@@ -115,14 +133,38 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
   customerReviews: { enabled: true, requirePurchase: false, rewardPoints: 25 },
   ageGate: { enabled: true },
   idVerification: { enabled: true },
-  paymentCard: { enabled: true },
+  paymentCard: {
+    enabled: true,
+    label: 'Credit / Debit Card',
+    subtitle: 'Secure checkout via Authorize.net',
+  },
   paymentBitcoin: {
     enabled: true,
+    label: 'Bitcoin (BTC)',
+    subtitle: 'Scan QR · live rate · auto-detected',
     guideYoutubeUrl: 'https://www.youtube.com/results?search_query=how+to+send+bitcoin+cash+app',
+    detailTitle: 'Pay with Bitcoin only',
+    detailBody:
+      "After you place the order, you'll get a QR code and exact BTC amount. Most customers use Cash App — payment is detected automatically on the blockchain.",
   },
-  paymentZelle: { enabled: true },
-  paymentPaypal: { enabled: true },
-  paymentChime: { enabled: true },
+  paymentZelle: {
+    enabled: true,
+    label: 'Zelle',
+    payToLabel: 'Send Zelle payment to:',
+    payToValue: 'kushworldshop@gmail.com',
+  },
+  paymentPaypal: {
+    enabled: true,
+    label: 'PayPal',
+    payToLabel: 'PayPal Friends & Family:',
+    payToValue: '@kushworldshop',
+  },
+  paymentChime: {
+    enabled: true,
+    label: 'Chime',
+    payToLabel: 'Chime payment to:',
+    payToValue: '$KushWorldShop',
+  },
   auctions: { enabled: false },
   raffles: { enabled: false },
   mysteryBoxes: { enabled: false },

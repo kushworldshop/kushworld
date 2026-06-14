@@ -634,11 +634,13 @@ export default function Checkout() {
 
   const cardConfigured = (paymentConfig?.configured ?? false) && features.paymentCard.enabled;
   const showBitcoin = btcEnabled && features.paymentBitcoin.enabled;
-  const manualPayments = (['zelle', 'paypal', 'chime'] as const).filter((method) => {
-    if (method === 'zelle') return features.paymentZelle.enabled;
-    if (method === 'paypal') return features.paymentPaypal.enabled;
-    return features.paymentChime.enabled;
-  });
+  const manualPaymentOptions = (
+    [
+      { id: 'zelle' as const, config: features.paymentZelle },
+      { id: 'paypal' as const, config: features.paymentPaypal },
+      { id: 'chime' as const, config: features.paymentChime },
+    ] as const
+  ).filter((option) => option.config.enabled);
 
   return (
     <SiteLayout>
@@ -888,8 +890,10 @@ export default function Checkout() {
                     onClick={() => setPaymentMethod('card')}
                     className={`p-6 rounded-3xl border transition col-span-2 ${paymentMethod === 'card' ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
                   >
-                    <p className="font-semibold">Credit / Debit Card</p>
-                    <p className="text-xs text-zinc-400 mt-1">Secure checkout via Authorize.net</p>
+                    <p className="font-semibold">{features.paymentCard.label}</p>
+                    {features.paymentCard.subtitle && (
+                      <p className="text-xs text-zinc-400 mt-1">{features.paymentCard.subtitle}</p>
+                    )}
                   </button>
                 )}
                 {showBitcoin && (
@@ -897,17 +901,20 @@ export default function Checkout() {
                     onClick={() => setPaymentMethod('btc')}
                     className={`p-6 rounded-3xl border transition col-span-2 ${paymentMethod === 'btc' ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
                   >
-                    <p className="font-semibold">Bitcoin (BTC)</p>
-                    <p className="text-xs text-zinc-400 mt-1">Scan QR · live rate · auto-detected</p>
+                    <p className="font-semibold">{features.paymentBitcoin.label}</p>
+                    {features.paymentBitcoin.subtitle && (
+                      <p className="text-xs text-zinc-400 mt-1">{features.paymentBitcoin.subtitle}</p>
+                    )}
                   </button>
                 )}
-                {manualPayments.map((method) => (
+                {manualPaymentOptions.map(({ id, config }) => (
                   <button
-                    key={method}
-                    onClick={() => setPaymentMethod(method)}
-                    className={`p-6 rounded-3xl border transition ${paymentMethod === method ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
+                    key={id}
+                    onClick={() => setPaymentMethod(id)}
+                    className={`p-6 rounded-3xl border transition ${paymentMethod === id ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
                   >
-                    <p className="font-semibold capitalize">{method}</p>
+                    <p className="font-semibold">{config.label}</p>
+                    {config.subtitle && <p className="text-xs text-zinc-400 mt-1">{config.subtitle}</p>}
                   </button>
                 ))}
               </div>
@@ -929,36 +936,57 @@ export default function Checkout() {
               </div>
             )}
 
-            {paymentMethod === 'zelle' && (
+            {paymentMethod === 'zelle' && features.paymentZelle.enabled && (
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-                <p className="font-semibold mb-2">Send Zelle payment to:</p>
-                <p className="text-[#00ff9d]">kushworldshop@gmail.com</p>
+                {features.paymentZelle.payToLabel && (
+                  <p className="font-semibold mb-2">{features.paymentZelle.payToLabel}</p>
+                )}
+                {features.paymentZelle.payToValue && (
+                  <p className="text-[#00ff9d]">{features.paymentZelle.payToValue}</p>
+                )}
+                {features.paymentZelle.instructions && (
+                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentZelle.instructions}</p>
+                )}
               </div>
             )}
 
-            {paymentMethod === 'paypal' && (
+            {paymentMethod === 'paypal' && features.paymentPaypal.enabled && (
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-                <p className="font-semibold mb-2">PayPal Friends & Family:</p>
-                <p className="text-[#00ff9d]">@kushworldshop</p>
+                {features.paymentPaypal.payToLabel && (
+                  <p className="font-semibold mb-2">{features.paymentPaypal.payToLabel}</p>
+                )}
+                {features.paymentPaypal.payToValue && (
+                  <p className="text-[#00ff9d]">{features.paymentPaypal.payToValue}</p>
+                )}
+                {features.paymentPaypal.instructions && (
+                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentPaypal.instructions}</p>
+                )}
               </div>
             )}
 
-            {paymentMethod === 'chime' && (
+            {paymentMethod === 'chime' && features.paymentChime.enabled && (
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-                <p className="font-semibold mb-2">Chime payment to:</p>
-                <p className="text-[#00ff9d]">$KushWorldShop</p>
+                {features.paymentChime.payToLabel && (
+                  <p className="font-semibold mb-2">{features.paymentChime.payToLabel}</p>
+                )}
+                {features.paymentChime.payToValue && (
+                  <p className="text-[#00ff9d]">{features.paymentChime.payToValue}</p>
+                )}
+                {features.paymentChime.instructions && (
+                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentChime.instructions}</p>
+                )}
               </div>
             )}
 
             {paymentMethod === 'btc' && (
               <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30 text-sm text-zinc-400 space-y-4">
                 <div>
-                  <p className="font-semibold text-white mb-2">Pay with Bitcoin only</p>
-                  <p>
-                    After you place the order, you&apos;ll get a QR code and exact BTC amount. Most
-                    customers use <strong className="text-zinc-200">Cash App</strong> — payment is
-                    detected automatically on the blockchain.
-                  </p>
+                  {features.paymentBitcoin.detailTitle && (
+                    <p className="font-semibold text-white mb-2">{features.paymentBitcoin.detailTitle}</p>
+                  )}
+                  {features.paymentBitcoin.detailBody && (
+                    <p className="whitespace-pre-line">{features.paymentBitcoin.detailBody}</p>
+                  )}
                 </div>
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-1">
                   <Link

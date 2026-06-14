@@ -16,10 +16,112 @@ type SectionKey =
   | 'contact'
   | 'homepage'
   | 'homepage-sections'
+  | 'payments'
   | 'ageGate'
   | 'shipping'
   | 'policies'
   | 'shop';
+
+type PaymentFeatureKey =
+  | 'paymentCard'
+  | 'paymentBitcoin'
+  | 'paymentZelle'
+  | 'paymentPaypal'
+  | 'paymentChime';
+
+function PaymentMethodEditor({
+  title,
+  featureKey,
+  features,
+  patchFeatures,
+  showSubtitle = false,
+  showPayTo = false,
+  showBitcoinDetails = false,
+}: {
+  title: string;
+  featureKey: PaymentFeatureKey;
+  features: SiteFeatures;
+  patchFeatures: (patch: FeaturePatch) => void;
+  showSubtitle?: boolean;
+  showPayTo?: boolean;
+  showBitcoinDetails?: boolean;
+}) {
+  const config = features[featureKey];
+
+  return (
+    <div className="border border-zinc-800 rounded-2xl p-4 space-y-4">
+      <label className="flex items-center gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={config.enabled}
+          onChange={(e) => patchFeatures({ [featureKey]: { enabled: e.target.checked } })}
+          className="w-4 h-4 accent-[#00ff9d]"
+        />
+        <span className="font-semibold text-[#00ff9d]">{title}</span>
+      </label>
+
+      {config.enabled && (
+        <div className="space-y-4 pl-2 border-l border-zinc-800">
+          <Field
+            label="Checkout button label"
+            value={config.label}
+            onChange={(v) => patchFeatures({ [featureKey]: { label: v } })}
+          />
+          {showSubtitle && (
+            <Field
+              label="Button subtitle"
+              value={config.subtitle || ''}
+              onChange={(v) => patchFeatures({ [featureKey]: { subtitle: v } })}
+            />
+          )}
+          {showPayTo && (
+            <>
+              <Field
+                label="Pay-to heading"
+                value={config.payToLabel || ''}
+                onChange={(v) => patchFeatures({ [featureKey]: { payToLabel: v } })}
+                hint='e.g. "Send Zelle payment to:"'
+              />
+              <Field
+                label="Pay-to value"
+                value={config.payToValue || ''}
+                onChange={(v) => patchFeatures({ [featureKey]: { payToValue: v } })}
+                hint="Email, @handle, or $Cashtag shown to the customer"
+              />
+              <Field
+                label="Extra instructions (optional)"
+                value={config.instructions || ''}
+                onChange={(v) => patchFeatures({ [featureKey]: { instructions: v } })}
+                multiline
+              />
+            </>
+          )}
+          {showBitcoinDetails && featureKey === 'paymentBitcoin' && (
+            <>
+              <Field
+                label="Detail panel title"
+                value={features.paymentBitcoin.detailTitle || ''}
+                onChange={(v) => patchFeatures({ paymentBitcoin: { detailTitle: v } })}
+              />
+              <Field
+                label="Detail panel body"
+                value={features.paymentBitcoin.detailBody || ''}
+                onChange={(v) => patchFeatures({ paymentBitcoin: { detailBody: v } })}
+                multiline
+              />
+              <Field
+                label="YouTube guide URL"
+                value={features.paymentBitcoin.guideYoutubeUrl || ''}
+                onChange={(v) => patchFeatures({ paymentBitcoin: { guideYoutubeUrl: v } })}
+                hint="Optional video or search link on checkout and the BTC guide page"
+              />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Field({
   label,
@@ -141,6 +243,7 @@ export default function SiteContentTab({
     { key: 'announcement', label: 'Top Banner' },
     { key: 'hero', label: 'Hero' },
     { key: 'homepage-sections', label: 'Homepage Sections' },
+    { key: 'payments', label: 'Checkout Payments' },
     { key: 'homepage', label: 'Merch, Loyalty & FAQ' },
     { key: 'footer', label: 'Footer' },
     { key: 'contact', label: 'Contact & Social' },
@@ -370,6 +473,52 @@ export default function SiteContentTab({
                   reviewsSection: { ...content.reviewsSection, socialCtaLabel: v },
                 })
               }
+            />
+          </>
+        )}
+
+        {section === 'payments' && (
+          <>
+            <p className="text-sm text-zinc-400">
+              Turn payment methods on or off and edit what customers see at checkout — button labels,
+              pay-to info for Zelle/PayPal/Chime, and Bitcoin guide copy.
+            </p>
+
+            <PaymentMethodEditor
+              title="Credit / debit card (Authorize.net)"
+              featureKey="paymentCard"
+              features={features}
+              patchFeatures={patchFeatures}
+              showSubtitle
+            />
+            <PaymentMethodEditor
+              title="Bitcoin (BTC)"
+              featureKey="paymentBitcoin"
+              features={features}
+              patchFeatures={patchFeatures}
+              showSubtitle
+              showBitcoinDetails
+            />
+            <PaymentMethodEditor
+              title="Zelle"
+              featureKey="paymentZelle"
+              features={features}
+              patchFeatures={patchFeatures}
+              showPayTo
+            />
+            <PaymentMethodEditor
+              title="PayPal"
+              featureKey="paymentPaypal"
+              features={features}
+              patchFeatures={patchFeatures}
+              showPayTo
+            />
+            <PaymentMethodEditor
+              title="Chime"
+              featureKey="paymentChime"
+              features={features}
+              patchFeatures={patchFeatures}
+              showPayTo
             />
           </>
         )}
