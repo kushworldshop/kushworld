@@ -296,6 +296,7 @@ export const PUBLIC_PAGES: {
   { path: '/wholesale', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/contact', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/delivery-zones', priority: 0.6, changeFrequency: 'monthly' },
+  { path: '/pay-with-bitcoin', priority: 0.65, changeFrequency: 'monthly' },
   { path: '/shipping-policy', priority: 0.5, changeFrequency: 'yearly' },
   { path: '/returns', priority: 0.5, changeFrequency: 'yearly' },
   { path: '/privacy-policy', priority: 0.4, changeFrequency: 'yearly' },

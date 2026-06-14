@@ -2,10 +2,13 @@
 
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
+import BtcPaymentGuide from '@/app/components/BtcPaymentGuide';
+import { normalizeYoutubeGuideUrl } from '@/lib/btcPaymentGuide';
 
 interface BtcPaymentScreenProps {
   orderId: string;
   orderAccessToken: string;
+  guideYoutubeUrl?: string;
   payment: {
     address: string;
     amountBtc: number;
@@ -20,9 +23,11 @@ interface BtcPaymentScreenProps {
 export default function BtcPaymentScreen({
   orderId,
   orderAccessToken,
+  guideYoutubeUrl,
   payment,
   onPaid,
 }: BtcPaymentScreenProps) {
+  const youtubeUrl = normalizeYoutubeGuideUrl(guideYoutubeUrl);
   const [status, setStatus] = useState<'awaiting' | 'confirming' | 'paid' | 'expired'>('awaiting');
   const [confirmations, setConfirmations] = useState(0);
   const [txid, setTxid] = useState('');
@@ -159,8 +164,12 @@ export default function BtcPaymentScreen({
         </div>
       </div>
 
+      <div className="mb-6">
+        <BtcPaymentGuide youtubeUrl={youtubeUrl} compact />
+      </div>
+
       <div className="rounded-2xl bg-zinc-950 border border-zinc-800 p-4 mb-6 text-sm text-zinc-400 space-y-2">
-        <p>1. Open your Bitcoin wallet and scan the QR code.</p>
+        <p>1. Open your app (Cash App, Coinbase, etc.) and scan the QR code above.</p>
         <p>2. Send the <strong className="text-white">exact BTC amount</strong> shown above.</p>
         <p>3. Payment is detected automatically — no need to email us.</p>
         <p className="text-yellow-400">Send only BTC. Other coins sent to this address may be lost.</p>

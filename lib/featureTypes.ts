@@ -52,7 +52,10 @@ export interface SiteFeatures {
   ageGate: FeatureToggle;
   idVerification: FeatureToggle;
   paymentCard: FeatureToggle;
-  paymentBitcoin: FeatureToggle;
+  paymentBitcoin: FeatureToggle & {
+    /** Optional YouTube URL for “how to send BTC” (Cash App, etc.) */
+    guideYoutubeUrl?: string;
+  };
   paymentZelle: FeatureToggle;
   paymentPaypal: FeatureToggle;
   paymentChime: FeatureToggle;
@@ -113,7 +116,10 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
   ageGate: { enabled: true },
   idVerification: { enabled: true },
   paymentCard: { enabled: true },
-  paymentBitcoin: { enabled: true },
+  paymentBitcoin: {
+    enabled: true,
+    guideYoutubeUrl: 'https://www.youtube.com/results?search_query=how+to+send+bitcoin+cash+app',
+  },
   paymentZelle: { enabled: true },
   paymentPaypal: { enabled: true },
   paymentChime: { enabled: true },

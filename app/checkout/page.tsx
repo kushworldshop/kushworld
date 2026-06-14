@@ -552,6 +552,7 @@ export default function Checkout() {
         <BtcPaymentScreen
           orderId={btcPayment.orderId}
           orderAccessToken={btcPayment.orderAccessToken}
+          guideYoutubeUrl={features.paymentBitcoin.guideYoutubeUrl}
           payment={btcPayment}
           onPaid={() => setBtcPaymentComplete(true)}
         />
@@ -950,9 +951,39 @@ export default function Checkout() {
             )}
 
             {paymentMethod === 'btc' && (
-              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30 text-sm text-zinc-400">
-                <p className="font-semibold text-white mb-2">Pay with Bitcoin only</p>
-                <p>After you place the order, you&apos;ll get a QR code and exact BTC amount based on the live exchange rate. Payment is detected automatically on the blockchain.</p>
+              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30 text-sm text-zinc-400 space-y-4">
+                <div>
+                  <p className="font-semibold text-white mb-2">Pay with Bitcoin only</p>
+                  <p>
+                    After you place the order, you&apos;ll get a QR code and exact BTC amount. Most
+                    customers use <strong className="text-zinc-200">Cash App</strong> — payment is
+                    detected automatically on the blockchain.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-1">
+                  <Link
+                    href="/pay-with-bitcoin"
+                    className="inline-flex items-center justify-center bg-[#00ff9d] text-black px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#00ff9d]/90"
+                  >
+                    How to pay with Cash App & more
+                  </Link>
+                  <Link
+                    href="/pay-with-bitcoin?print=1"
+                    className="inline-flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm"
+                  >
+                    Print / Save guide as PDF
+                  </Link>
+                  {features.paymentBitcoin.guideYoutubeUrl && (
+                    <a
+                      href={features.paymentBitcoin.guideYoutubeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm"
+                    >
+                      Watch video guide ↗
+                    </a>
+                  )}
+                </div>
               </div>
             )}
 

@@ -281,6 +281,14 @@ export default function FeaturesTab({
           <>
             <Toggle label="Credit / debit card (Authorize.net)" checked={features.paymentCard.enabled} onChange={(enabled) => patchFeatures({ paymentCard: { enabled } })} />
             <Toggle label="Bitcoin" checked={features.paymentBitcoin.enabled} onChange={(enabled) => patchFeatures({ paymentBitcoin: { enabled } })} />
+            {features.paymentBitcoin.enabled && (
+              <Field
+                label="BTC guide YouTube URL"
+                value={features.paymentBitcoin.guideYoutubeUrl || ''}
+                onChange={(v) => patchFeatures({ paymentBitcoin: { guideYoutubeUrl: v } })}
+                hint="Paste a YouTube video or search results link shown on checkout"
+              />
+            )}
             <Toggle label="Zelle" checked={features.paymentZelle.enabled} onChange={(enabled) => patchFeatures({ paymentZelle: { enabled } })} />
             <Toggle label="PayPal" checked={features.paymentPaypal.enabled} onChange={(enabled) => patchFeatures({ paymentPaypal: { enabled } })} />
             <Toggle label="Chime" checked={features.paymentChime.enabled} onChange={(enabled) => patchFeatures({ paymentChime: { enabled } })} />
