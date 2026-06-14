@@ -13,14 +13,12 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
   return (
     <section className="min-h-[75vh] flex items-center relative overflow-hidden">
       {/* Sleek animated video as the homepage hero background — exactly replacing the old static logo.png.
-          The mascot guy smoking his joint, framed the same way (center 30% cover).
-          Added a subtle, sleek dark gradient overlay that fades to let the animation show through
-          while keeping text/CTAs readable and fitting the site's black/dark minimalist vibe.
-          No heavy blackouts, no clashing elements, clean and on-brand. */}
+          Recreated the video tightly framed on the mascot (no white sides or bars), positioned higher (center 15%) so the guy smoking is visible right at the top of the site for everyone.
+          Subtle sleek gradient overlay to blend perfectly with the dark site, fresh and high-end like a hot drop. */}
       <video
         src="/mascot-smoking-loop.mp4"
         className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ objectPosition: 'center 30%' }}
+        style={{ objectPosition: 'center 15%' }}
         autoPlay
         loop
         muted
