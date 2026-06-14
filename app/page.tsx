@@ -1,10 +1,7 @@
 import HomeClient from './HomeClient';
 import JsonLd from './components/JsonLd';
-import { getSiteContent } from '@/lib/siteContent';
 import {
   buildPageMetadata,
-  faqJsonLd,
-  HOME_FAQS,
   onlineStoreJsonLd,
   organizationJsonLd,
   websiteJsonLd,
@@ -30,14 +27,6 @@ export const metadata = {
 };
 
 export default async function Home() {
-  const content = await getSiteContent();
-  const dynamicFaqs = content.faq?.items?.length
-    ? content.faq.items.map((item: { question: string; answer: string }) => ({
-        question: item.question,
-        answer: item.answer,
-      }))
-    : HOME_FAQS;
-
   return (
     <>
       <JsonLd
@@ -45,7 +34,6 @@ export default async function Home() {
           organizationJsonLd(),
           websiteJsonLd(),
           onlineStoreJsonLd(),
-          faqJsonLd(dynamicFaqs),
         ]}
       />
       <HomeClient />

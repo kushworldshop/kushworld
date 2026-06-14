@@ -54,6 +54,9 @@ export default function Footer() {
               <Link href="/delivery-zones" className="block text-zinc-400 hover:text-[#00ff9d] transition">Delivery Zones</Link>
               <Link href="/contact" className="block text-zinc-400 hover:text-[#00ff9d] transition">Contact Us</Link>
               <Link href="/account" className="block text-zinc-400 hover:text-[#00ff9d] transition">My Account</Link>
+              {content.features.faqSection.enabled && (
+                <Link href="/faq" className="block text-zinc-400 hover:text-[#00ff9d] transition">FAQ</Link>
+              )}
             </div>
           </div>
 

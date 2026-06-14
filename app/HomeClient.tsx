@@ -5,7 +5,7 @@ import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import LoyaltySection from './components/LoyaltySection';
 import ReviewsSection from './components/ReviewsSection';
-import SeoFaq from './components/SeoFaq';
+
 import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
 import ProductCollectionSection from './components/ProductCollectionSection';
@@ -49,8 +49,6 @@ export default function HomeClient() {
             body={features.communityBlock.body}
           />
         )}
-
-        {features.faqSection.enabled && <SeoFaq />}
 
         {!isMerchOnly && features.loyaltySection.enabled && <LoyaltySection />}
       </main>

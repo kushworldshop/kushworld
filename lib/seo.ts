@@ -319,6 +319,7 @@ export const PUBLIC_PAGES: {
   { path: '/shop/accessories', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/mushrooms', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/reviews', priority: 0.8, changeFrequency: 'weekly' },
+  { path: '/faq', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/coa', priority: 0.8, changeFrequency: 'weekly' },
   { path: '/referral', priority: 0.7, changeFrequency: 'monthly' },
   { path: '/wholesale', priority: 0.7, changeFrequency: 'monthly' },

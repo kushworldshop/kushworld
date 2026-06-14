@@ -120,6 +120,9 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               {content.features.customerReviews.enabled && (
                 <Link href="/reviews" className="hover:text-[#00ff9d] transition">Reviews</Link>
               )}
+              {content.features.faqSection.enabled && (
+                <Link href="/faq" className="hover:text-[#00ff9d] transition">FAQ</Link>
+              )}
             </div>
 
             <div className="flex items-center gap-4">
@@ -174,6 +177,9 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               )}
               {content.features.customerReviews.enabled && (
                 <Link href="/reviews" className="block hover:text-[#00ff9d]">Reviews</Link>
+              )}
+              {content.features.faqSection.enabled && (
+                <Link href="/faq" className="block hover:text-[#00ff9d]">FAQ</Link>
               )}
             </div>
           )}
