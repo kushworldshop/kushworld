@@ -16,6 +16,8 @@ interface AdminUser {
   redeemableLoyaltyPoints: number;
   idVerified?: boolean;
   signupBonusClaimed?: boolean;
+  freeEighthReceivedAt?: string;
+  freeEighthOrderId?: string;
   emailVerified?: boolean;
   phoneVerified?: boolean;
   idVerification?: {
@@ -532,6 +534,7 @@ function MemberProfilePanel({
             {user.phoneVerified && <Badge label="Phone verified" tone="green" />}
             {user.idVerified && <Badge label="ID verified" tone="green" />}
             {user.signupBonusClaimed && <Badge label="Signup bonus" tone="amber" />}
+            {user.freeEighthReceivedAt && <Badge label="Free 1/8th" tone="green" />}
             {draft.blocked && <Badge label="Blocked" tone="red" />}
             {idStatus === 'verified' && <Badge label="ID verified" tone="green" />}
             {idStatus === 'uploaded' && <Badge label="ID pending" tone="amber" />}

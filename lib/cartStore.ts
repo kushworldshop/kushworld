@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import {
+  createFirstOrderBonusCartItem,
+  isFirstOrderBonusLineItem,
+} from '@/lib/firstOrderBonus';
 import { cartItemsMatchVariant, type SelectedProductOptions } from '@/lib/productOptions';
 
 export interface CartItem {
@@ -13,11 +17,15 @@ export interface CartItem {
   /** Snapshot of option SKUs at add-to-cart time — shown in admin orders */
   optionSkus?: string;
   category?: string;
+  isFirstOrderBonus?: boolean;
 }
 
 interface CartStore {
   items: CartItem[];
   addToCart: (product: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
+  addFirstOrderBonus: () => void;
+  removeFirstOrderBonus: () => void;
+  hasFirstOrderBonus: () => boolean;
   removeItem: (index: number) => void;
   updateQuantity: (index: number, quantity: number) => void;
   clearCart: () => void;
@@ -25,13 +33,35 @@ interface CartStore {
   totalItems: () => number;
 }
 
+function isPaidCartItem(item: CartItem): boolean {
+  return !isFirstOrderBonusLineItem(item);
+}
+
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
 
+      addFirstOrderBonus: () =>
+        set((state) => {
+          if (state.items.some(isFirstOrderBonusLineItem)) return state;
+          return { items: [...state.items, createFirstOrderBonusCartItem()] };
+        }),
+
+      removeFirstOrderBonus: () =>
+        set((state) => ({
+          items: state.items.filter((item) => !isFirstOrderBonusLineItem(item)),
+        })),
+
+      hasFirstOrderBonus: () => get().items.some(isFirstOrderBonusLineItem),
+
       addToCart: (product) =>
         set((state) => {
+          if (isFirstOrderBonusLineItem(product)) {
+            if (state.items.some(isFirstOrderBonusLineItem)) return state;
+            return { items: [...state.items, createFirstOrderBonusCartItem()] };
+          }
+
           const existingIndex = state.items.findIndex(
             (item) => item.id === product.id && cartItemsMatchVariant(item, product)
           );
@@ -48,13 +78,17 @@ export const useCartStore = create<CartStore>()(
         }),
 
       removeItem: (index) =>
-        set((state) => ({
-          items: state.items.filter((_, i) => i !== index),
-        })),
+        set((state) => {
+          const item = state.items[index];
+          if (item && isFirstOrderBonusLineItem(item)) return state;
+          return { items: state.items.filter((_, i) => i !== index) };
+        }),
 
       updateQuantity: (index, quantity) =>
         set((state) => {
           if (quantity < 1) return state;
+          const item = state.items[index];
+          if (item && isFirstOrderBonusLineItem(item)) return state;
           const updatedItems = [...state.items];
           updatedItems[index].quantity = quantity;
           return { items: updatedItems };
@@ -63,10 +97,14 @@ export const useCartStore = create<CartStore>()(
       clearCart: () => set({ items: [] }),
 
       subtotal: () =>
-        get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+        get()
+          .items.filter(isPaidCartItem)
+          .reduce((sum, item) => sum + item.price * item.quantity, 0),
 
       totalItems: () =>
-        get().items.reduce((sum, item) => sum + item.quantity, 0),
+        get()
+          .items.filter(isPaidCartItem)
+          .reduce((sum, item) => sum + item.quantity, 0),
     }),
     { name: 'kushworld-cart' }
   )

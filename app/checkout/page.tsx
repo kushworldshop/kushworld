@@ -20,6 +20,7 @@ import {
   FEDEX_ALTERNATIVE_NOTE,
   type ShippingMethod,
 } from '@/lib/checkout';
+import { isFirstOrderBonusLineItem } from '@/lib/firstOrderBonus';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
@@ -37,7 +38,7 @@ import {
 type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
 
 export default function Checkout() {
-  const { items, subtotal, clearCart } = useCartStore();
+  const { items, subtotal, clearCart, addFirstOrderBonus, removeFirstOrderBonus } = useCartStore();
   const { isMerchOnly } = useAgeAccess();
   const { content } = useSiteContent();
   const { features } = content;
@@ -135,6 +136,16 @@ export default function Checkout() {
           setIsLoggedIn(true);
           setAvailablePoints(data.user.redeemableLoyaltyPoints ?? data.user.loyaltyPoints ?? 0);
           setLockedPoints(data.user.lockedLoyaltyPoints ?? 0);
+          setCustomerInfo((prev) => ({
+            ...prev,
+            name: prev.name || data.user.name || '',
+            email: prev.email || data.user.email || '',
+            phone: prev.phone || data.user.phone || '',
+            address: prev.address || data.user.shippingAddress?.address || '',
+            city: prev.city || data.user.shippingAddress?.city || '',
+            state: prev.state || data.user.shippingAddress?.state || '',
+            zip: prev.zip || data.user.shippingAddress?.zip || '',
+          }));
           const coupons = (data.user.savedSpinCoupons ?? []).filter((coupon: SpinPrize) =>
             isSpinPrizeActive(coupon)
           );
@@ -154,6 +165,49 @@ export default function Checkout() {
         setLockedPoints(0);
       });
   }, []);
+
+  useEffect(() => {
+    const paidItems = items.filter((item) => !isFirstOrderBonusLineItem(item));
+    const hasHempItems = orderRequiresIdVerification(paidItems);
+
+    if (isMerchOnly || !hasHempItems || paidItems.length === 0) {
+      removeFirstOrderBonus();
+      return;
+    }
+
+    const email = customerInfo.email.trim();
+    if (!email.includes('@')) {
+      removeFirstOrderBonus();
+      return;
+    }
+
+    let cancelled = false;
+    fetch(
+      `/api/first-order-bonus?email=${encodeURIComponent(email)}&hasHempItems=true`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.eligible) {
+          addFirstOrderBonus();
+        } else {
+          removeFirstOrderBonus();
+        }
+      })
+      .catch(() => {
+        if (!cancelled) removeFirstOrderBonus();
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    items,
+    customerInfo.email,
+    isMerchOnly,
+    addFirstOrderBonus,
+    removeFirstOrderBonus,
+  ]);
 
   const handleIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -658,10 +712,21 @@ export default function Checkout() {
                 <Image src={item.image} alt={item.name} width={80} height={80} className="rounded-xl object-cover" />
                 <div className="flex-1">
                   <p className="font-semibold">{item.name}</p>
+                  {isFirstOrderBonusLineItem(item) && (
+                    <p className="text-xs text-[#00ff9d] mt-1">
+                      First-order bonus · strain selected at fulfillment
+                    </p>
+                  )}
                   {formatCartItemOptions(item) && (
                     <p className="text-sm text-zinc-400">{formatCartItemOptions(item)}</p>
                   )}
-                  <p>${item.price} × {item.quantity}</p>
+                  <p>
+                    {isFirstOrderBonusLineItem(item) ? (
+                      <span className="text-[#00ff9d]">FREE</span>
+                    ) : (
+                      <>${item.price} × {item.quantity}</>
+                    )}
+                  </p>
                 </div>
               </div>
             ))}

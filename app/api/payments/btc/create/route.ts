@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createBtcPaymentDetails, type BtcPaymentRecord } from '@/lib/bitcoinCheckout';
 import { buildCheckoutOrder } from '@/lib/checkoutOrderBuilder';
+import { markFreeEighthGranted } from '@/lib/firstOrderBonusServer';
+import { getSessionUserId } from '@/lib/auth';
 import { createOrderAccessToken } from '@/lib/orderAccessToken';
 import { generateOrderId } from '@/lib/orderIds';
 import { readOrders, writeOrders } from '@/lib/ordersStore';
@@ -75,6 +77,11 @@ export async function POST(request: NextRequest) {
     }
 
     const orderEmail = customer.email || (orderData.email as string | undefined);
+
+    if (orderData.freeEighthBonus) {
+      const userId = await getSessionUserId();
+      await markFreeEighthGranted(orderEmail, orderId, userId ?? undefined);
+    }
 
     return NextResponse.json({
       success: true,

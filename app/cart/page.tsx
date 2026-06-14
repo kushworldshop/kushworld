@@ -5,6 +5,7 @@ import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import { useCartStore } from '@/lib/cartStore';
 import { calculateTotals, FREE_SHIPPING_THRESHOLD, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import { isFirstOrderBonusLineItem } from '@/lib/firstOrderBonus';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { formatCartItemOptions } from '@/lib/productOptions';
 import { useAgeAccess } from '@/lib/useAgeAccess';
@@ -42,12 +43,22 @@ export default function CartPage() {
                     {formatCartItemOptions(item) && (
                       <p className="text-sm text-zinc-400">{formatCartItemOptions(item)}</p>
                     )}
-                    <p className="text-[#00ff9d]">${item.price}</p>
+                    {isFirstOrderBonusLineItem(item) ? (
+                      <p className="text-[#00ff9d]">FREE — first order bonus</p>
+                    ) : (
+                      <p className="text-[#00ff9d]">${item.price}</p>
+                    )}
                     <div className="flex items-center gap-3 mt-2">
-                      <button onClick={() => updateQuantity(index, item.quantity - 1)} className="w-8 h-8 bg-zinc-800 rounded-lg">−</button>
-                      <span>{item.quantity}</span>
-                      <button onClick={() => updateQuantity(index, item.quantity + 1)} className="w-8 h-8 bg-zinc-800 rounded-lg">+</button>
-                      <button onClick={() => removeItem(index)} className="ml-auto text-red-400 text-sm">Remove</button>
+                      {isFirstOrderBonusLineItem(item) ? (
+                        <span className="text-xs text-zinc-500">Added automatically at checkout for new customers</span>
+                      ) : (
+                        <>
+                          <button onClick={() => updateQuantity(index, item.quantity - 1)} className="w-8 h-8 bg-zinc-800 rounded-lg">−</button>
+                          <span>{item.quantity}</span>
+                          <button onClick={() => updateQuantity(index, item.quantity + 1)} className="w-8 h-8 bg-zinc-800 rounded-lg">+</button>
+                          <button onClick={() => removeItem(index)} className="ml-auto text-red-400 text-sm">Remove</button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

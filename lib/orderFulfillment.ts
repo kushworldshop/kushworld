@@ -1,3 +1,5 @@
+import { orderIncludesFreeEighth } from '@/lib/firstOrderBonus';
+import { markFreeEighthGranted } from '@/lib/firstOrderBonusServer';
 import { sendOrderConfirmation } from '@/lib/email';
 import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
 import { recordReferralConversion } from '@/lib/referrals';
@@ -17,7 +19,8 @@ interface FulfillmentOrder {
   email?: string;
   customer?: { email?: string };
   paymentMethod?: string;
-  items?: { name: string; quantity: number; price: number }[];
+  items?: { name: string; quantity: number; price: number; id?: string; isFirstOrderBonus?: boolean }[];
+  freeEighthBonus?: boolean;
 }
 
 export async function fulfillPaidOrder(order: FulfillmentOrder) {
@@ -42,6 +45,10 @@ export async function fulfillPaidOrder(order: FulfillmentOrder) {
     }
     await awardPurchaseLoyalty(userId, subtotal);
     await unlockLoyaltyPointsAfterPurchase(userId);
+  }
+
+  if (order.freeEighthBonus || orderIncludesFreeEighth(order.items)) {
+    await markFreeEighthGranted(email, order.id, userId ?? undefined);
   }
 
   if (email) {

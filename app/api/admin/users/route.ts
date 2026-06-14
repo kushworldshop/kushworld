@@ -35,6 +35,8 @@ export interface AdminUserSummary {
   redeemableLoyaltyPoints: number;
   idVerified?: boolean;
   signupBonusClaimed?: boolean;
+  freeEighthReceivedAt?: string;
+  freeEighthOrderId?: string;
   emailVerified?: boolean;
   phoneVerified?: boolean;
   idVerification?: Pick<
@@ -117,6 +119,8 @@ async function toAdminSummary(
     redeemableLoyaltyPoints: getRedeemableLoyaltyPoints(user),
     idVerified: user.idVerified,
     signupBonusClaimed: user.signupBonusClaimed,
+    freeEighthReceivedAt: user.freeEighthReceivedAt,
+    freeEighthOrderId: user.freeEighthOrderId,
     emailVerified: !!user.emailVerifiedAt,
     phoneVerified: !!user.phoneVerifiedAt,
     idVerification: user.idVerification

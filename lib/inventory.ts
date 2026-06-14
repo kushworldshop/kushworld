@@ -1,3 +1,4 @@
+import { isFirstOrderBonusLineItem } from '@/lib/firstOrderBonus';
 import { getAllProducts, updateProductOverride } from '@/lib/productCatalog';
 
 export interface OrderLineItem {
@@ -20,7 +21,7 @@ export function isInventoryTracked(inventory: number | undefined): boolean {
 function aggregateQuantities(items: OrderLineItem[]): Map<string, number> {
   const qtyByProduct = new Map<string, number>();
   for (const item of items) {
-    if (!item.id) continue;
+    if (!item.id || isFirstOrderBonusLineItem(item)) continue;
     const qty = Math.max(1, Number(item.quantity) || 1);
     qtyByProduct.set(item.id, (qtyByProduct.get(item.id) || 0) + qty);
   }

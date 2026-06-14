@@ -1,4 +1,9 @@
 import { getTierPrice } from '@/lib/checkout';
+import {
+  createFirstOrderBonusCartItem,
+  isFirstOrderBonusLineItem,
+} from '@/lib/firstOrderBonus';
+import { isEligibleForFreeEighth } from '@/lib/firstOrderBonusServer';
 import { getAllProducts, isProductHidden } from '@/lib/productCatalog';
 import {
   getSelectedOptionsUnitPrice,
@@ -6,7 +11,7 @@ import {
   type SelectedProductOptions,
 } from '@/lib/productOptions';
 import { getTierPricing } from '@/lib/products';
-import { readOrders } from '@/lib/ordersStore';
+import { isEmailFirstOrder } from '@/lib/firstOrder';
 
 export interface CheckoutLineItem {
   id: string;
@@ -26,32 +31,19 @@ export interface ValidatedLineItem {
   category?: string;
   selectedOptions?: SelectedProductOptions;
   selectedSize?: string;
+  isFirstOrderBonus?: boolean;
 }
 
 export interface ValidatedCheckout {
   items: ValidatedLineItem[];
   subtotal: number;
   isFirstOrder: boolean;
+  freeEighthBonus: boolean;
 }
 
 const SUBTOTAL_TOLERANCE = 0.05;
 
-export async function isEmailFirstOrder(email: string | undefined): Promise<boolean> {
-  const normalized = email?.trim().toLowerCase();
-  if (!normalized) return true;
-
-  const orders = await readOrders<{
-    status?: string;
-    email?: string;
-    customer?: { email?: string };
-  }>();
-
-  return !orders.some((order) => {
-    const orderEmail = (order.customer?.email || order.email || '').trim().toLowerCase();
-    if (orderEmail !== normalized) return false;
-    return order.status !== 'cancelled';
-  });
-}
+export { isEmailFirstOrder } from '@/lib/firstOrder';
 
 export async function validateCheckoutItems(
   items: CheckoutLineItem[],
@@ -66,10 +58,16 @@ export async function validateCheckoutItems(
   const productMap = new Map(products.map((product) => [product.id, product]));
   const validated: ValidatedLineItem[] = [];
   let subtotal = 0;
+  let bonusItemCount = 0;
 
   for (const item of items) {
     if (!item?.id) {
       throw new Error('Invalid cart item');
+    }
+
+    if (isFirstOrderBonusLineItem(item)) {
+      bonusItemCount += Math.max(1, Math.floor(Number(item.quantity) || 1));
+      continue;
     }
 
     const product = productMap.get(item.id);
@@ -117,6 +115,29 @@ export async function validateCheckoutItems(
   }
 
   const isFirstOrder = await isEmailFirstOrder(email);
+  const hasHempItems = validated.some((item) => item.category !== 'merch');
 
-  return { items: validated, subtotal, isFirstOrder };
+  if (bonusItemCount > 1) {
+    throw new Error('Only one free 1/8th bonus is allowed per order');
+  }
+
+  let freeEighthBonus = false;
+  if (bonusItemCount === 1) {
+    if (!(await isEligibleForFreeEighth(email, hasHempItems))) {
+      throw new Error('Free 1/8th first-order bonus is not available for this customer');
+    }
+
+    const bonus = createFirstOrderBonusCartItem();
+    validated.push({
+      id: bonus.id,
+      name: bonus.name,
+      price: 0,
+      quantity: 1,
+      category: bonus.category,
+      isFirstOrderBonus: true,
+    });
+    freeEighthBonus = true;
+  }
+
+  return { items: validated, subtotal, isFirstOrder, freeEighthBonus };
 }

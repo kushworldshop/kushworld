@@ -1,4 +1,5 @@
 import { RESTRICTED_STATES, MIN_ORDER_AMOUNT, type ShippingCarrier } from '@/lib/checkout';
+import { FREE_EIGHTH_FULFILLMENT_NOTE } from '@/lib/firstOrderBonus';
 import { resolveOrderTotals } from '@/lib/orderCheckout';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { resolvePromoForOrder } from '@/lib/orderPromo';
@@ -36,7 +37,7 @@ export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: stri
     email
   );
 
-  const { items, subtotal, isFirstOrder } = validated;
+  const { items, subtotal, isFirstOrder, freeEighthBonus } = validated;
 
   const promoMeta = await resolvePromoForOrder({
     promoCode: body.promoCode,
@@ -93,6 +94,8 @@ export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: stri
     spinPrizeId,
     spinPrizeLabel,
     freeTshirtNote: freeTshirt ? 'Wheel prize: Free T-Shirt — include in shipment' : undefined,
+    freeEighthBonus: freeEighthBonus || undefined,
+    freeEighthNote: freeEighthBonus ? FREE_EIGHTH_FULFILLMENT_NOTE : undefined,
     promoCode: promoMeta.promoCode,
     promoSource: promoMeta.promoSource,
     referrerCode: promoMeta.referrerCode,

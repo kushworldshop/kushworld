@@ -1,3 +1,4 @@
+import { FREE_EIGHTH_FULFILLMENT_NOTE, orderIncludesFreeEighth } from '@/lib/firstOrderBonus';
 import type { ValidatedLineItem } from '@/lib/validateCheckout';
 import type { ResolvedOrderTotals } from '@/lib/orderCheckout';
 import type { resolvePromoForOrder } from '@/lib/orderPromo';
@@ -46,6 +47,7 @@ export function buildOrderRecord(input: BuildOrderRecordInput) {
   } = input;
 
   const email = customer.email?.trim();
+  const freeEighthBonus = orderIncludesFreeEighth(items);
 
   return {
     id,
@@ -61,6 +63,8 @@ export function buildOrderRecord(input: BuildOrderRecordInput) {
     freeTshirtNote: resolved.freeTshirt
       ? 'Wheel prize: Free T-Shirt — include in shipment'
       : undefined,
+    freeEighthBonus: freeEighthBonus || undefined,
+    freeEighthNote: freeEighthBonus ? FREE_EIGHTH_FULFILLMENT_NOTE : undefined,
     promoCode: promoMeta.promoCode,
     promoSource: promoMeta.promoSource,
     referrerCode: promoMeta.referrerCode,

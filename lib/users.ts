@@ -68,6 +68,8 @@ export interface UserProfile {
   /** @deprecated Migrated into savedSpinCoupons */
   activeSpinPrize?: SpinPrize;
   savedSpinCoupons?: SpinPrize[];
+  freeEighthReceivedAt?: string;
+  freeEighthOrderId?: string;
   shippingAddress?: {
     address: string;
     city: string;
@@ -101,6 +103,8 @@ export interface PublicUserProfile {
   savedSpinCoupons: SpinPrize[];
   /** @deprecated Use savedSpinCoupons */
   activeSpinPrize?: SpinPrize | null;
+  freeEighthReceivedAt?: string;
+  freeEighthOrderId?: string;
   shippingAddress?: UserProfile['shippingAddress'];
   referralStats?: {
     clicks: number;
@@ -347,6 +351,35 @@ export async function unlockLoyaltyPointsAfterPurchase(userId: string): Promise<
   await unlockLoyaltyPoints(userId);
 }
 
+export async function markUserFreeEighthGranted(
+  userId: string,
+  orderId: string,
+  grantedAt = new Date().toISOString()
+): Promise<void> {
+  const users = await readUsers();
+  const index = users.findIndex((user) => user.id === userId);
+  if (index === -1 || users[index].freeEighthReceivedAt) return;
+
+  users[index].freeEighthReceivedAt = grantedAt;
+  users[index].freeEighthOrderId = orderId;
+  await writeUsers(users);
+}
+
+export async function markUserFreeEighthGrantedByEmail(
+  email: string,
+  orderId: string,
+  grantedAt = new Date().toISOString()
+): Promise<void> {
+  const normalized = email.trim().toLowerCase();
+  const users = await readUsers();
+  const index = users.findIndex((user) => user.email.trim().toLowerCase() === normalized);
+  if (index === -1 || users[index].freeEighthReceivedAt) return;
+
+  users[index].freeEighthReceivedAt = grantedAt;
+  users[index].freeEighthOrderId = orderId;
+  await writeUsers(users);
+}
+
 export function toPublicProfile(user: UserProfile, referralStats?: PublicUserProfile['referralStats']): PublicUserProfile {
   const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://kushworld.shop';
   const emailVerified = !!user.emailVerifiedAt;
@@ -384,6 +417,8 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     pendingSpinPrize: user.pendingSpinPrize ?? null,
     savedSpinCoupons: resolveSavedSpinCoupons(user),
     activeSpinPrize: resolveSavedSpinCoupons(user)[0] ?? null,
+    freeEighthReceivedAt: user.freeEighthReceivedAt,
+    freeEighthOrderId: user.freeEighthOrderId,
     shippingAddress: user.shippingAddress,
     referralStats,
   };

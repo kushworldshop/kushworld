@@ -434,6 +434,12 @@ function OrderDetailPanel({
               {order.referrerName && ` (by ${order.referrerName})`}
             </p>
           )}
+          {order.freeEighthNote && (
+            <p className="text-sm mt-2 text-amber-300">{order.freeEighthNote}</p>
+          )}
+          {order.freeTshirtNote && (
+            <p className="text-sm mt-1 text-pink-300">{order.freeTshirtNote}</p>
+          )}
           <p className="text-sm mt-1">
             ID Verification:{' '}
             <span

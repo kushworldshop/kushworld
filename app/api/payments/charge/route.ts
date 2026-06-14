@@ -11,6 +11,7 @@ import { recordReferralConversion } from '@/lib/referrals';
 import { creditReferrerForConversion } from '@/lib/referralRewards';
 import { getSessionUserId } from '@/lib/auth';
 import { awardPurchaseLoyalty, finalizeLoyaltyRedemption } from '@/lib/loyalty';
+import { markFreeEighthGranted } from '@/lib/firstOrderBonusServer';
 import { markUserSpinPrizeUsed, unlockLoyaltyPointsAfterPurchase } from '@/lib/users';
 import { resolvePromoForOrder } from '@/lib/orderPromo';
 import { deductInventoryForOrder, InventoryError } from '@/lib/inventory';
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: message }, { status: 400 });
     }
 
-    const { items, subtotal, isFirstOrder } = validated;
+    const { items, subtotal, isFirstOrder, freeEighthBonus } = validated;
 
     if (subtotal < MIN_ORDER_AMOUNT) {
       return NextResponse.json({ success: false, error: `Minimum order is $${MIN_ORDER_AMOUNT}` }, { status: 400 });
@@ -173,6 +174,10 @@ export async function POST(request: NextRequest) {
       }
       await awardPurchaseLoyalty(userId, subtotal);
       await unlockLoyaltyPointsAfterPurchase(userId);
+    }
+
+    if (freeEighthBonus) {
+      await markFreeEighthGranted(email, orderId, userId ?? undefined);
     }
 
     await sendOrderConfirmation(email, {
