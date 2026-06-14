@@ -12,21 +12,21 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
 
   return (
     <section className="min-h-[75vh] flex items-center relative overflow-hidden">
-      {/* Sleek animated video as the homepage hero background — exactly replacing the old static logo.png.
-          Rerendered with perfect tight framing (no white borders/sides whatsoever), smoke only from the joint hand and mouth as it should be, subtle premium animation that doesn't look fake and fits the site's dark sleek modern vibe like a fresh hot drop.
-          Positioned higher (center 10%) with minimal gradient at top so the full mascot is clearly visible and dominant right at the top of the site for everyone. */}
+      {/* Sleek animated video as the homepage hero background — replacing the static logo.png.
+          Latest render with tight framing, no white borders, correct smoke from joint hand only, premium subtle animation.
+          Scaled up (1.15x) + center 10% position + light top gradient to crop borders and make the mascot fit and visible at the top of the hero area. Sleek integration with the dark site. */}
       <video
         src="/mascot-smoking-loop.mp4"
         className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ objectPosition: 'center 10%' }}
+        style={{ objectPosition: 'center 10%', transform: 'scale(1.15)' }}
         autoPlay
         loop
         muted
         playsInline
       />
 
-      {/* Sleek, subtle gradient overlay — very light at the top so the full mascot (smoking joint) is clearly visible and prominent right at the top of the site for everyone. Darker toward the bottom for text/CTAs readability and to blend seamlessly with the dark site. Designed to look premium, fresh and like a hot drop — no heavy overlays, no borders, perfect cover fit. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/75 z-10" />
+      {/* Sleek gradient overlay — minimal at the top (light opacity) so the mascot is fully visible and fits prominently at the top of the hero. Stronger at bottom for text readability. The scale on video crops any borders. Looks fresh and integrated with the site. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/15 to-black/80 z-10" />
 
       <BrandLogoLink overlay />
       <div className="relative z-20 max-w-4xl mx-auto px-6 text-center py-20">
