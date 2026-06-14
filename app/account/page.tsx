@@ -352,6 +352,34 @@ export default function Account() {
     setTimeout(() => setCopiedPromo(false), 2000);
   };
 
+  const switchToEmailVerification = async () => {
+    setMessage('');
+    setError('');
+    setSendingPhone(true);
+    try {
+      const res = await fetch('/api/auth/verify/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'use-email' }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || 'Could not switch to email verification');
+        return;
+      }
+      const profileRes = await fetch('/api/users/me');
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        if (profileData.user) setUser(profileData.user);
+      }
+      setMessage(data.message || 'Switched to email verification.');
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setSendingPhone(false);
+    }
+  };
+
   const sendVerificationCode = async (channel: 'email' | 'phone') => {
     setMessage('');
     setError('');
@@ -375,7 +403,12 @@ export default function Account() {
             : data.message || `Verification code sent to your ${channel}.`
         );
       } else {
-        setError(data.error || 'Could not send code');
+        const err = data.error || 'Could not send code';
+        setError(
+          channel === 'phone' && !user?.emailVerified
+            ? `${err} You can verify by email instead.`
+            : err
+        );
       }
     } catch {
       setError('Network error. Please try again.');
@@ -692,18 +725,30 @@ export default function Account() {
               {SIGNUP_BONUS_POINTS.toLocaleString()} points (${SIGNUP_BONUS_DOLLARS} off). Complete your first purchase to use them at checkout.
             </p>
             {user.signupVerificationChannel === 'phone' ? (
-              <VerificationBlock
-                label="Phone"
-                value={user.phone || 'Add a phone number in your profile'}
-                verified={!!user.phoneVerified}
-                code={phoneCode}
-                onCodeChange={setPhoneCode}
-                onSend={() => sendVerificationCode('phone')}
-                onConfirm={() => confirmVerificationCode('phone')}
-                sending={sendingPhone}
-                confirming={confirmingPhone}
-                disabled={!user.phone?.trim()}
-              />
+              <div className="space-y-4">
+                <VerificationBlock
+                  label="Phone"
+                  value={user.phone || 'Add a phone number in your profile'}
+                  verified={!!user.phoneVerified}
+                  code={phoneCode}
+                  onCodeChange={setPhoneCode}
+                  onSend={() => sendVerificationCode('phone')}
+                  onConfirm={() => confirmVerificationCode('phone')}
+                  sending={sendingPhone}
+                  confirming={confirmingPhone}
+                  disabled={!user.phone?.trim()}
+                />
+                {!user.phoneVerified && !user.emailVerified && (
+                  <button
+                    type="button"
+                    onClick={switchToEmailVerification}
+                    disabled={sendingPhone}
+                    className="text-sm text-[#00ff9d] hover:underline disabled:opacity-50"
+                  >
+                    Text not coming through? Verify by email instead
+                  </button>
+                )}
+              </div>
             ) : (
               <VerificationBlock
                 label="Email"

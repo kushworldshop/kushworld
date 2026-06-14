@@ -2,6 +2,16 @@ const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER;
 
+const DELIVERY_OK = new Set(['delivered', 'sent', 'accepted', 'queued', 'sending']);
+const DELIVERY_FAILED = new Set(['undelivered', 'failed', 'canceled']);
+
+type TwilioMessageRecord = {
+  sid?: string;
+  status?: string;
+  error_code?: number | string;
+  error_message?: string;
+};
+
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
   if (digits.length === 10) return `+1${digits}`;
@@ -10,26 +20,78 @@ function normalizePhone(phone: string): string {
   return `+${digits}`;
 }
 
+function twilioAuthHeader(): string {
+  return `Basic ${Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64')}`;
+}
+
 export function isSmsVerificationConfigured(): boolean {
   return !!(TWILIO_SID && TWILIO_TOKEN && TWILIO_FROM);
+}
+
+function formatTwilioErrorCode(code?: number | string, fallback?: string): string {
+  const numeric = typeof code === 'string' ? Number(code) : code;
+  if (numeric === 21608) {
+    return 'This number is not verified on your Twilio trial account. Add it under Verified Caller IDs in Twilio.';
+  }
+  if (numeric === 21610) {
+    return 'This number is on the do-not-contact list and cannot receive SMS.';
+  }
+  if (numeric === 30034) {
+    return 'Text verification is temporarily unavailable. Please verify with email instead, or contact support.';
+  }
+  return fallback || 'Failed to send SMS';
 }
 
 function parseTwilioError(body: string): string {
   try {
     const data = JSON.parse(body) as { message?: string; code?: number };
     if (data.message) {
-      if (data.code === 21608) {
-        return 'This number is not verified on your Twilio trial account. Add it under Verified Caller IDs in Twilio.';
-      }
-      if (data.code === 21610) {
-        return 'This number is on the do-not-contact list and cannot receive SMS.';
-      }
-      return data.message;
+      return formatTwilioErrorCode(data.code, data.message);
     }
   } catch {
     // fall through
   }
   return 'Failed to send SMS';
+}
+
+function parseTwilioDeliveryError(message: TwilioMessageRecord): string {
+  return formatTwilioErrorCode(
+    message.error_code,
+    message.error_message || 'SMS could not be delivered to this number.'
+  );
+}
+
+async function waitForTwilioDelivery(
+  messageSid: string
+): Promise<{ delivered: boolean; error?: string }> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, attempt === 0 ? 600 : 1000));
+
+    const res = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages/${messageSid}.json`,
+      { headers: { Authorization: twilioAuthHeader() } }
+    );
+
+    if (!res.ok) continue;
+
+    const message = (await res.json()) as TwilioMessageRecord;
+    const status = message.status || '';
+
+    if (DELIVERY_FAILED.has(status)) {
+      console.error('[Twilio] SMS undelivered:', messageSid, message.error_code, message.error_message);
+      return { delivered: false, error: parseTwilioDeliveryError(message) };
+    }
+
+    if (DELIVERY_OK.has(status) && status !== 'queued' && status !== 'sending') {
+      return { delivered: true };
+    }
+  }
+
+  return {
+    delivered: false,
+    error:
+      'SMS could not be confirmed as delivered. Try email verification instead, or wait a minute and request another code.',
+  };
 }
 
 export async function sendVerificationSms(
@@ -44,13 +106,12 @@ export async function sendVerificationSms(
   }
 
   try {
-    const auth = Buffer.from(`${TWILIO_SID}:${TWILIO_TOKEN}`).toString('base64');
     const res = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Basic ${auth}`,
+          Authorization: twilioAuthHeader(),
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
@@ -65,6 +126,16 @@ export async function sendVerificationSms(
       const err = await res.text();
       console.error('Twilio error:', err);
       return { sent: false, error: parseTwilioError(err) };
+    }
+
+    const created = (await res.json()) as TwilioMessageRecord;
+    if (!created.sid) {
+      return { sent: false, error: 'SMS provider did not return a message id.' };
+    }
+
+    const delivery = await waitForTwilioDelivery(created.sid);
+    if (!delivery.delivered) {
+      return { sent: false, error: delivery.error };
     }
 
     return { sent: true };

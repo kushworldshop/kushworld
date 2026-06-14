@@ -3,6 +3,7 @@ import { getSessionUserId } from '@/lib/auth';
 import {
   sendEmailVerificationCode,
   sendPhoneVerificationCode,
+  switchSignupVerificationToEmail,
 } from '@/lib/accountVerification';
 
 export async function POST(request: NextRequest) {
@@ -12,7 +13,21 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { channel } = await request.json();
+    const body = await request.json();
+
+    if (body.action === 'use-email') {
+      const switched = await switchSignupVerificationToEmail(userId);
+      if (!switched.success) {
+        return NextResponse.json({ success: false, error: switched.error }, { status: 400 });
+      }
+      return NextResponse.json({
+        success: true,
+        message: 'Switched to email verification. Request a code below.',
+        channel: 'email',
+      });
+    }
+
+    const { channel } = body;
 
     if (channel !== 'email' && channel !== 'phone') {
       return NextResponse.json(

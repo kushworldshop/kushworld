@@ -283,6 +283,24 @@ export async function confirmPhoneCode(
   };
 }
 
+export async function switchSignupVerificationToEmail(
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getUserById(userId);
+  if (!user) return { success: false, error: 'User not found' };
+  if (user.signupBonusClaimed) return { success: false, error: 'Signup bonus already claimed' };
+  if (user.emailVerifiedAt) return { success: true };
+
+  await updateUserRecord(userId, (u) => ({
+    ...u,
+    signupVerificationChannel: 'email',
+    pendingPhoneCode: undefined,
+    pendingPhoneCodeExp: undefined,
+  }));
+
+  return { success: true };
+}
+
 export async function handlePhoneChange(userId: string, newPhone: string): Promise<void> {
   const user = await getUserById(userId);
   if (!user) return;
