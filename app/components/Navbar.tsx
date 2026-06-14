@@ -9,7 +9,6 @@ import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
 import { getEnabledShopCategories, MERCH_SHOP_ID } from '@/lib/shopNavigation';
 import BrandLogoLink from '@/app/components/BrandLogoLink';
-import AnimatedMascot from '@/app/components/AnimatedMascot';
 
 export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const totalItems = useCartStore((state) => state.totalItems());
@@ -61,7 +60,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-20 gap-4">
             <BrandLogoLink className="flex items-center gap-3 flex-shrink-0 hover:opacity-90 transition">
-              <AnimatedMascot className="h-12 w-auto" width={48} height={48} />
+              <Image src={content.brand.logoUrl} alt={content.brand.name} width={48} height={48} className="h-12 w-auto" />
               <span className="text-xl md:text-2xl font-bold text-white tracking-tight hidden sm:inline">
                 {content.brand.name.toUpperCase()}
               </span>
