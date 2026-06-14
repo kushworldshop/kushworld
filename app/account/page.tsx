@@ -80,17 +80,23 @@ export default function Account() {
   const [promoTerms, setPromoTerms] = useState<PromoTerms | null>(null);
   const [markingNotificationsRead, setMarkingNotificationsRead] = useState(false);
   const loadProfile = async () => {
-    const res = await fetch('/api/users/me');
-    if (!res.ok) {
+    try {
+      const res = await fetch('/api/users/me');
+      if (!res.ok) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      const data = await res.json();
+      setUser(data.user);
+      hydrateForm(data.user);
+      await loadOrders();
+      setLoading(false);
+    } catch (e) {
+      setError('Failed to load profile. Please refresh or sign in again.');
       setUser(null);
       setLoading(false);
-      return;
     }
-    const data = await res.json();
-    setUser(data.user);
-    hydrateForm(data.user);
-    await loadOrders();
-    setLoading(false);
   };
 
   const hydrateForm = (profile: PublicUserProfile) => {
@@ -446,6 +452,19 @@ export default function Account() {
       setConfirming(false);
     }
   };
+
+  if (loading) {
+    return (
+      <SiteLayout>
+        <div className="min-h-[80vh] flex items-center justify-center p-6">
+          <div className="text-center">
+            <p className="text-xl text-zinc-400">Loading account...</p>
+            <div className="mt-4 w-8 h-8 border-4 border-[#00ff9d] border-t-transparent rounded-full animate-spin mx-auto"></div>
+          </div>
+        </div>
+      </SiteLayout>
+    );
+  }
 
   if (!user) {
     return (
@@ -1032,9 +1051,7 @@ export default function Account() {
           >
             <div>
               <h2 className="text-2xl font-bold mb-6">Order History</h2>
-              {loading ? (
-                <p className="text-zinc-400">Loading orders...</p>
-              ) : orders.length === 0 ? (
+              {orders.length === 0 ? (
                 <div className="bg-zinc-900 p-12 rounded-3xl text-center border border-zinc-800">
                   <p className="text-xl mb-4">No orders yet</p>
                   <Link href="/shop" className="text-[#00ff9d] hover:underline">Start shopping</Link>
