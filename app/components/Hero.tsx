@@ -11,28 +11,17 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
   const headlineLines = splitHeadline(variant.headline);
 
   return (
-    <section className="min-h-[75vh] flex items-center relative overflow-hidden bg-black">
-      {/* Sleek animated video as the homepage hero background — replacing the static logo.png.
-          Latest render with tight framing, no white borders, correct smoke from joint hand only, premium subtle animation.
-          Scaled up (1.15x) + center 10% position + light top gradient to crop borders and make the mascot fit and visible at the top of the hero area. Sleek integration with the dark site. */}
-      <video
-        src="/mascot-smoking-loop.mp4"
-        className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ objectPosition: 'center 0%', transform: 'scale(1.25)', backgroundColor: '#000' }}
-        autoPlay
-        loop
-        muted
-        playsInline
-      />
-
-      {/* Sleek gradient overlay — very light at top so mascot is raised high and visible at the very top of the hero (cropping the white top of the video frame). Black background fill on video and section to cover any possible white. Mascot centered. Looks fresh and sleek like the original static but animated and prominent at top. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/5 to-black/90 z-10" />
-
+    <section className="hero-bg min-h-[75vh] flex items-center relative">
       <BrandLogoLink overlay />
-      <div className="relative z-20 max-w-4xl mx-auto px-6 text-center py-20">
-        <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-6">
-          {variant.eyebrow}
-        </p>
+      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center py-20">
+        {/* Raised & Centered KUSH WORLD Logo */}
+        <div className="pt-12 pb-8 flex justify-center items-center">
+          <div className="text-center">
+            <p className="text-[#00ff9d] font-black text-5xl md:text-6xl tracking-[0.6em] drop-shadow-sm">
+              KUSH WORLD
+            </p>
+          </div>
+        </div>
 
         <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6 tracking-tight">
           {headlineLines.map((line, index) => (
