@@ -11,22 +11,22 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
   const headlineLines = splitHeadline(variant.headline);
 
   return (
-    <section className="min-h-[75vh] flex items-center relative overflow-hidden">
+    <section className="min-h-[75vh] flex items-center relative overflow-hidden bg-black">
       {/* Sleek animated video as the homepage hero background — replacing the static logo.png.
           Latest render with tight framing, no white borders, correct smoke from joint hand only, premium subtle animation.
           Scaled up (1.15x) + center 10% position + light top gradient to crop borders and make the mascot fit and visible at the top of the hero area. Sleek integration with the dark site. */}
       <video
         src="/mascot-smoking-loop.mp4"
         className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ objectPosition: 'center 10%', transform: 'scale(1.15)', backgroundColor: '#000' }}
+        style={{ objectPosition: 'center 5%', transform: 'scale(1.2)', backgroundColor: '#000' }}
         autoPlay
         loop
         muted
         playsInline
       />
 
-      {/* Sleek gradient overlay — minimal at the top (light opacity) so the mascot is fully visible and fits prominently at the top of the hero. Stronger at bottom for text readability. The scale on video crops any borders. Looks fresh and integrated with the site. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/15 to-black/80 z-10" />
+      {/* Sleek gradient overlay — even lighter at top to raise the mascot higher and eliminate any white at the top of the hero. Black fills everywhere. Mascot centered and prominent at top like the original static logo but animated. Fresh/sleek hot drop feel. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/85 z-10" />
 
       <BrandLogoLink overlay />
       <div className="relative z-20 max-w-4xl mx-auto px-6 text-center py-20">
