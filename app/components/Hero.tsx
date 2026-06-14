@@ -18,7 +18,7 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
       <video
         src="/mascot-smoking-loop.mp4"
         className="absolute inset-0 w-full h-full object-cover z-0"
-        style={{ objectPosition: 'center 10%', transform: 'scale(1.15)' }}
+        style={{ objectPosition: 'center 10%', transform: 'scale(1.15)', backgroundColor: '#000' }}
         autoPlay
         loop
         muted
