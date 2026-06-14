@@ -37,6 +37,8 @@ import {
 
 type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
 
+export const dynamic = 'force-dynamic';
+
 export default function Checkout() {
   const { items, subtotal, clearCart, addFirstOrderBonus, removeFirstOrderBonus } = useCartStore();
   const { isMerchOnly } = useAgeAccess();
