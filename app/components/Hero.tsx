@@ -12,8 +12,11 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
 
   return (
     <section className="min-h-[75vh] flex items-center relative overflow-hidden">
-      {/* Animated video as the homepage background, replacing the old static logo.png exactly.
-          Matches original positioning: center 30% cover. No extra overlays or giant elements. */}
+      {/* Sleek animated video as the homepage hero background — exactly replacing the old static logo.png.
+          The mascot guy smoking his joint, framed the same way (center 30% cover).
+          Added a subtle, sleek dark gradient overlay that fades to let the animation show through
+          while keeping text/CTAs readable and fitting the site's black/dark minimalist vibe.
+          No heavy blackouts, no clashing elements, clean and on-brand. */}
       <video
         src="/mascot-smoking-loop.mp4"
         className="absolute inset-0 w-full h-full object-cover z-0"
@@ -24,8 +27,11 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
         playsInline
       />
 
+      {/* Sleek gradient overlay for integration: darker at edges for the site aesthetic and text pop, transparent in middle so the animated mascot remains prominent. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/25 to-black/70 z-10" />
+
       <BrandLogoLink overlay />
-      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center py-20">
+      <div className="relative z-20 max-w-4xl mx-auto px-6 text-center py-20">
         <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-6">
           {variant.eyebrow}
         </p>
