@@ -39,9 +39,13 @@ export default function Account() {
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const loadingRef = useRef(loading);
+  const authCheckedRef = useRef(authChecked);
   useEffect(() => {
     loadingRef.current = loading;
   }, [loading]);
+  useEffect(() => {
+    authCheckedRef.current = authChecked;
+  }, [authChecked]);
   const [tab, setTab] = useState<Tab>('profile');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -87,7 +91,7 @@ export default function Account() {
   // Force exit loading to prevent infinite loading / crash - run once on mount
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (loadingRef.current) {
+      if (loadingRef.current || !authCheckedRef.current) {
         console.warn('Account load timeout - forcing end of loading state');
         setError('Loading account timed out. This may be a temporary network issue. Please refresh the page or try signing in again.');
         setUser(null);
@@ -109,6 +113,7 @@ export default function Account() {
     try {
       const res = await fetch('/api/users/me');
       if (!res.ok) {
+        localStorage.removeItem('currentUser');
         setUser(null);
         return;
       }
@@ -116,11 +121,14 @@ export default function Account() {
       if (data.user) {
         setUser(data.user);
         hydrateForm(data.user);
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
         await loadOrders();
       } else {
+        localStorage.removeItem('currentUser');
         setUser(null);
       }
     } catch (e) {
+      localStorage.removeItem('currentUser');
       setError('Failed to load profile. Please refresh or sign in again.');
       setUser(null);
     } finally {
@@ -145,14 +153,8 @@ export default function Account() {
   };
 
   useEffect(() => {
-    // Quick client-side check to avoid loading spinner for guests
-    const hasLocalUser = !!localStorage.getItem('currentUser');
-    if (!hasLocalUser) {
-      setUser(null);
-      setLoading(false);
-      setAuthChecked(true);
-      return;
-    }
+    // Always verify auth with server (via httpOnly session cookie) so account icon click
+    // always works for logged-in users and guests. Brief "Loading account..." is expected and fast.
     loadProfile();
     fetch('/api/settings/public')
       .then((res) => (res.ok ? res.json() : null))
@@ -305,6 +307,9 @@ export default function Account() {
       if (data.success) {
         setUser(data.user);
         hydrateForm(data.user);
+        if (data.user) {
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+        }
         await loadOrders();
         if (isLogin) {
           setMessage('Welcome back!');

@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   },
 };
 
-// Mobile + PWA viewport polish (for future app readiness)
+// Mobile viewport (PWA app-specific like standalone removed until launch; kept for future)
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -49,10 +49,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           crossOrigin="anonymous"
           referrerPolicy="no-referrer"
         />
-        {/* Mobile web app / PWA polish for future app */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="mobile-web-app-capable" content="yes" />
+        {/* Mobile web app / PWA metas commented - public app install not ready, code kept for future launch */}
+        {/* <meta name="apple-mobile-web-app-capable" content="yes" /> */}
+        {/* <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" /> */}
+        {/* <meta name="mobile-web-app-capable" content="yes" /> */}
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className="font-sans antialiased">

@@ -128,7 +128,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
             </div>
 
             <div className="flex items-center gap-4">
-              <Link href="/account" aria-label="My account" className="hover:text-[#00ff9d] transition text-lg">
+              <Link href="/account" aria-label="My account" className="hover:text-[#00ff9d] transition text-lg p-2 -m-2 md:p-1 md:-m-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl active:bg-zinc-900">
                 <i className="fa-solid fa-user" />
               </Link>
 
@@ -139,7 +139,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
                 </div>
               )}
 
-              <button onClick={onCartClick} aria-label="Open cart" className="relative hover:text-[#00ff9d] transition text-xl">
+              <button onClick={onCartClick} aria-label="Open cart" className="relative hover:text-[#00ff9d] transition text-xl p-2 -m-2 md:p-1 md:-m-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl active:bg-zinc-900">
                 <i className="fa-solid fa-shopping-cart" />
                 {totalItems > 0 && (
                   <span className="absolute -top-2 -right-2 bg-[#00ff9d] text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
@@ -188,6 +188,7 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               {content.features.faqSection.enabled && (
                 <Link href="/faq" onClick={closeMobileMenu} className="block hover:text-[#00ff9d]">FAQ</Link>
               )}
+              <Link href="/account" onClick={closeMobileMenu} className="block hover:text-[#00ff9d] font-medium pt-2 border-t border-zinc-800 mt-2">My Account</Link>
             </div>
           )}
         </div>

@@ -7,12 +7,13 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'Kush World',
     description: SITE_TAGLINE,
     start_url: SITE_URL,
-    display: 'standalone',
-    display_override: ['standalone', 'minimal-ui'],
+    // 'standalone' + shortcuts disabled: public install-as-app not ready (full code kept in this file for future launch)
+    display: 'browser',
+    // display_override: ['standalone', 'minimal-ui'],
     background_color: '#000000',
     theme_color: '#00ff9d',
-    orientation: 'portrait',
-    categories: ['shopping', 'lifestyle', 'health'],
+    // orientation: 'portrait',
+    // categories: ['shopping', 'lifestyle', 'health'],
     lang: 'en',
     scope: SITE_URL,
     icons: [
@@ -20,22 +21,7 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: '/logo.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
       { src: '/logo.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
-    shortcuts: [
-      {
-        name: 'Shop',
-        short_name: 'Shop',
-        description: 'Browse premium hemp and merch',
-        url: '/shop',
-        icons: [{ src: '/logo.png', sizes: '96x96' }],
-      },
-      {
-        name: 'My Account',
-        short_name: 'Account',
-        description: 'View orders, loyalty, and profile',
-        url: '/account',
-        icons: [{ src: '/logo.png', sizes: '96x96' }],
-      },
-    ],
+    // shortcuts: [ {Shop}, {My Account} ],  // restored on app launch
     // Note: Add real screenshots in public/screenshots/ for full app store readiness
     // screenshots: [
     //   { src: '/screenshots/mobile-home.png', sizes: '540x720', type: 'image/png', form_factor: 'narrow' },
