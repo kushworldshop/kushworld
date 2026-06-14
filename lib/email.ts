@@ -31,6 +31,10 @@ Shipping: $${order.shipping.toFixed(2)}
 Total: $${order.total.toFixed(2)}
 
 We'll notify you when your order ships.
+
+Track the full journey live (garden → discreet delivery) at:
+https://kushworld.shop/track/${order.id}
+
 — Kush World Team`;
 
   if (!RESEND_API_KEY) {
@@ -202,6 +206,7 @@ Order ID: ${order.id}
 ${trackingBlock}
 
 View all order details: ${accountUrl}
+Live Kush Tracker (full progress): ${siteUrl}/track/${order.id}
 
 — Kush World Team`
       : `${greeting}
@@ -213,6 +218,7 @@ Order ID: ${order.id}
 ${trackingBlock || 'Tracking will be added to your account as soon as it is available.'}
 
 View shipping status anytime: ${accountUrl}
+Live Kush Tracker (full progress): ${siteUrl}/track/${order.id}
 
 — Kush World Team`;
 

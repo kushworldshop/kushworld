@@ -67,6 +67,10 @@ export function getShippingStatusLabel(order: OrderShippingFields): string {
   }
   if (status === 'delivered') return 'Delivered';
 
+  if (status === 'packing' || status === 'sealed' || status === 'quality') {
+    return 'Packing & quality check — almost ready to ship';
+  }
+
   if (order.paymentStatus === 'paid' || status === 'processing') {
     return 'Processing — tracking will appear here once your order ships';
   }
@@ -90,6 +94,7 @@ export function getStatusBadgeTone(
   const normalized = status?.toLowerCase();
   if (normalized === 'cancelled' || normalized === 'refunded') return 'red';
   if (normalized === 'shipped' || normalized === 'delivered') return 'green';
+  if (normalized === 'packing' || normalized === 'sealed' || normalized === 'quality') return 'green';
   if (paymentStatus === 'paid' || normalized === 'processing') return 'blue';
   if (paymentStatus === 'awaiting_btc') return 'yellow';
   return 'zinc';

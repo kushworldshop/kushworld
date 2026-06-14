@@ -107,6 +107,9 @@ export async function PATCH(request: NextRequest) {
       if (status === 'shipped' && !orders[index].shippedAt) {
         orders[index].shippedAt = new Date().toISOString();
       }
+      if (status === 'delivered' && !orders[index].deliveredAt) {
+        orders[index].deliveredAt = new Date().toISOString();
+      }
     }
 
     if (trackingNumber !== undefined) {

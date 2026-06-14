@@ -1058,6 +1058,16 @@ export default function Account() {
                       ))}
                     </div>
                     <OrderShippingStatus order={order} />
+
+                    <div className="mt-4">
+                      <Link
+                        href={`/track/${order.id}`}
+                        className="inline-flex items-center gap-2 text-sm font-medium text-[#00ff9d] hover:underline"
+                      >
+                        🌱 View full Kush Tracker →
+                      </Link>
+                      <span className="text-xs text-zinc-500 ml-2">(live progress like Domino’s but for your buds)</span>
+                    </div>
                   </div>
                 ))}
               </div>

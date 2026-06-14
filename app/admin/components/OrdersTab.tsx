@@ -365,6 +365,32 @@ function OrderDetailPanel({
               Mark Processing
             </button>
           )}
+
+        {/* Kush Tracker stage controls (pizza-tracker style but weed themed) */}
+        {order.status !== 'packing' && order.status !== 'shipped' && order.status !== 'delivered' && order.status !== 'cancelled' && order.status !== 'refunded' && (
+          <button
+            onClick={() => onUpdateStatus(order.id, 'packing')}
+            className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 rounded-xl text-sm font-medium"
+          >
+            Mark Packing
+          </button>
+        )}
+        {order.status !== 'sealed' && order.status !== 'shipped' && order.status !== 'delivered' && order.status !== 'cancelled' && order.status !== 'refunded' && (
+          <button
+            onClick={() => onUpdateStatus(order.id, 'sealed')}
+            className="px-4 py-2.5 bg-emerald-800 hover:bg-emerald-700 rounded-xl text-sm font-medium"
+          >
+            Mark Sealed / QC
+          </button>
+        )}
+        {order.status === 'shipped' && order.status !== 'delivered' && order.status !== 'cancelled' && order.status !== 'refunded' && (
+          <button
+            onClick={() => onUpdateStatus(order.id, 'delivered')}
+            className="px-4 py-2.5 bg-green-700 hover:bg-green-600 rounded-xl text-sm font-medium"
+          >
+            Mark Delivered
+          </button>
+        )}
         {order.inventoryDeducted &&
           !order.inventoryRestored &&
           order.status !== 'cancelled' &&
@@ -428,6 +454,19 @@ function OrderDetailPanel({
               Shipping: <span className="text-white">{order.shippingMethod}</span>
             </p>
           )}
+
+          {/* Quick link to the customer-facing tracker (great for support) */}
+          <p className="mt-3">
+            <a
+              href={`/track/${order.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs underline text-[#00ff9d] hover:text-[#00ff9d]/80"
+            >
+              Open customer Kush Tracker (live view) ↗
+            </a>
+            <span className="text-[10px] text-zinc-500 ml-2">— what they see</span>
+          </p>
           {order.promoCode && (
             <p className="text-sm mt-1 text-zinc-400">
               Promo: <span className="text-[#00ff9d]">{order.promoCode}</span>

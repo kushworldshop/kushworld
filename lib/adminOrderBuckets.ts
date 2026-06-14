@@ -45,7 +45,7 @@ export function getAdminOrderBucket(order: {
     return 'completed';
   }
 
-  if (status === 'processing') {
+  if (status === 'processing' || status === 'packing' || status === 'sealed' || status === 'quality') {
     return 'pending';
   }
 

@@ -68,6 +68,16 @@ export default function OrderShippingStatus({ order }: { order: OrderShippingFie
           )}
         </div>
       )}
+
+      {/* Always offer the fun full visual tracker */}
+      {'id' in order && (order as any).id && (
+        <a
+          href={`/track/${(order as any).id}`}
+          className="inline-block mt-1 text-xs text-[#00ff9d] hover:underline"
+        >
+          🌱 Open full Kush Tracker (visual steps)
+        </a>
+      )}
     </div>
   );
 }

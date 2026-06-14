@@ -691,6 +691,18 @@ export default function Checkout() {
               ? `Confirmation sent to ${customerInfo.email}.`
               : `We will contact you at ${customerInfo.email} once payment is verified.`}
           </p>
+
+          {/* Prominent Kush Tracker link (like Domino's pizza tracker) */}
+          <div className="mb-6">
+            <Link
+              href={`/track/${orderId}${orderAccessToken ? `?token=${encodeURIComponent(orderAccessToken)}` : ''}`}
+              className="inline-flex items-center justify-center gap-2 w-full sm:w-auto bg-white text-black px-8 py-4 rounded-2xl font-bold hover:bg-zinc-200 transition"
+            >
+              🌿 Track my order live <span className="text-xs opacity-70">(Kush Tracker)</span>
+            </Link>
+            <p className="text-[10px] text-zinc-500 mt-2">See every step from garden to your door — updates as we pack &amp; ship.</p>
+          </div>
+
           <Link href="/" className="inline-block bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold">
             Back to Shop
           </Link>
