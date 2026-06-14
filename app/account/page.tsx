@@ -37,6 +37,10 @@ export default function Account() {
   const [user, setUser] = useState<PublicUserProfile | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(loading);
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
   const [tab, setTab] = useState<Tab>('profile');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -82,7 +86,7 @@ export default function Account() {
   // Force exit loading to prevent infinite loading / crash - run once on mount
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (loading) {
+      if (loadingRef.current) {
         console.warn('Account load timeout - forcing end of loading state');
         setError('Loading account timed out. This may be a temporary network issue. Please refresh the page or try signing in again.');
         setUser(null);
@@ -91,22 +95,33 @@ export default function Account() {
     }, 15000);
     return () => clearTimeout(timeout);
   }, []);
+  const loadOrders = async () => {
+    const res = await fetch('/api/orders/me');
+    if (res.ok) {
+      const data = await res.json();
+      setOrders(data.orders || []);
+    }
+  };
+
   const loadProfile = async () => {
     try {
       const res = await fetch('/api/users/me');
       if (!res.ok) {
         setUser(null);
-        setLoading(false);
         return;
       }
       const data = await res.json();
-      setUser(data.user);
-      hydrateForm(data.user);
-      await loadOrders();
-      setLoading(false);
+      if (data.user) {
+        setUser(data.user);
+        hydrateForm(data.user);
+        await loadOrders();
+      } else {
+        setUser(null);
+      }
     } catch (e) {
       setError('Failed to load profile. Please refresh or sign in again.');
       setUser(null);
+    } finally {
       setLoading(false);
     }
   };
@@ -124,14 +139,6 @@ export default function Account() {
       state: profile.shippingAddress?.state || '',
       zip: profile.shippingAddress?.zip || '',
     });
-  };
-
-  const loadOrders = async () => {
-    const res = await fetch('/api/orders/me');
-    if (res.ok) {
-      const data = await res.json();
-      setOrders(data.orders || []);
-    }
   };
 
   useEffect(() => {
