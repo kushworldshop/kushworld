@@ -37,6 +37,7 @@ export default function Account() {
   const [user, setUser] = useState<PublicUserProfile | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
   const loadingRef = useRef(loading);
   useEffect(() => {
     loadingRef.current = loading;
@@ -91,8 +92,9 @@ export default function Account() {
         setError('Loading account timed out. This may be a temporary network issue. Please refresh the page or try signing in again.');
         setUser(null);
         setLoading(false);
+        setAuthChecked(true);
       }
-    }, 15000);
+    }, 10000);
     return () => clearTimeout(timeout);
   }, []);
   const loadOrders = async () => {
@@ -123,6 +125,7 @@ export default function Account() {
       setUser(null);
     } finally {
       setLoading(false);
+      setAuthChecked(true);
     }
   };
 
@@ -142,6 +145,14 @@ export default function Account() {
   };
 
   useEffect(() => {
+    // Quick client-side check to avoid loading spinner for guests
+    const hasLocalUser = !!localStorage.getItem('currentUser');
+    if (!hasLocalUser) {
+      setUser(null);
+      setLoading(false);
+      setAuthChecked(true);
+      return;
+    }
     loadProfile();
     fetch('/api/settings/public')
       .then((res) => (res.ok ? res.json() : null))
@@ -472,7 +483,7 @@ export default function Account() {
     }
   };
 
-  if (loading) {
+  if (!authChecked) {
     return (
       <SiteLayout>
         <div className="min-h-[80vh] flex items-center justify-center p-6">

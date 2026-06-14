@@ -5,9 +5,10 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 import CartDrawer from './CartDrawer';
 import SiteBranding from './SiteBranding';
-import MobileBottomNav from './MobileBottomNav';
-// import InstallPrompt from './InstallPrompt'; // kept for future app launch
-import OfflineIndicator from './OfflineIndicator';
+// MobileBottomNav, OfflineIndicator, InstallPrompt commented out - app features not ready for public, kept in files for future launch
+// import MobileBottomNav from './MobileBottomNav';
+// import InstallPrompt from './InstallPrompt';
+// import OfflineIndicator from './OfflineIndicator';
 import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useReferralStore } from '@/lib/referralStore';
@@ -28,12 +29,10 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
     <>
       <SiteBranding />
       <Navbar onCartClick={() => setIsCartOpen(true)} />
-      <main className="min-h-screen bg-black text-white pb-16 md:pb-0">{children}</main>
+      <main className="min-h-screen bg-black text-white">{children}</main>
       <Footer />
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-      <MobileBottomNav />
-      {/* <InstallPrompt /> */} {/* disabled for now - not ready for public install, kept in files for future launch */}
-      <OfflineIndicator />
+      {/* App features (MobileBottomNav, OfflineIndicator, InstallPrompt) commented out - not ready for public display/use, files kept for future app launch */}
     </>
   );
 }

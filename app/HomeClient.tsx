@@ -8,9 +8,10 @@ import ReviewsSection from './components/ReviewsSection';
 
 import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
-import MobileBottomNav from './components/MobileBottomNav';
-// import InstallPrompt from './components/InstallPrompt'; // kept for future app launch
-import OfflineIndicator from './components/OfflineIndicator';
+// MobileBottomNav, OfflineIndicator, InstallPrompt commented out - app features not ready for public, kept in files for future launch
+// import MobileBottomNav from './components/MobileBottomNav';
+// import InstallPrompt from './components/InstallPrompt';
+// import OfflineIndicator from './components/OfflineIndicator';
 import ProductCollectionSection from './components/ProductCollectionSection';
 import HowItWorksSection from './components/HowItWorksSection';
 import CommunitySection from './components/CommunitySection';
@@ -27,7 +28,7 @@ export default function HomeClient() {
     <>
       <Navbar onCartClick={() => setIsCartOpen(true)} />
 
-      <main className="pb-16 md:pb-0">
+      <main>
         <Hero merchOnly={isMerchOnly} />
 
         {features.bestSellers.enabled && (
@@ -59,9 +60,7 @@ export default function HomeClient() {
       <Footer />
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-      <MobileBottomNav />
-      {/* <InstallPrompt /> */} {/* disabled for now - not ready for public install, kept in files for future launch */}
-      <OfflineIndicator />
+      {/* App features (MobileBottomNav, OfflineIndicator, InstallPrompt) commented out - not ready for public display/use, files kept for future app launch */}
     </>
   );
 }
