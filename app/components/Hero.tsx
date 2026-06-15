@@ -8,24 +8,25 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/55"></div>
 
       <div className="relative z-10 text-center px-6 max-w-5xl mx-auto">
-        {/* Animated mascot as pure site design element — no video thumbnail look, no frames, no shadows, no accent lines, no rounded box. Black merges with hero bg so only the character graphic appears directly in the layout like the original logo. New render: correct joint movement from exact logo grip/angle + tight frame fill. Position kept as preferred. */}
+        {/* Animated mascot logo with transparent background (pure black fill removed in render, clean cutout edges, no white borders or framing). Bare element so it blends as native site graphic. Position kept perfect. */}
         <div className="flex justify-center mb-5 -mt-14">
           <video
             autoPlay
             loop
             muted
             playsInline
-            className="w-[96%] max-w-[740px] md:max-w-[900px] h-auto bg-black"
+            className="w-[96%] max-w-[740px] md:max-w-[900px] h-auto"
           >
             <source src="/mascot-video.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
         </div>
 
-        {/* Tagline below as part of the overall branding lockup */}
-        <p className="text-[#00ff9d] text-lg md:text-xl font-medium tracking-[0.2em] mt-2">
-          PREMIUM GOODS • DISCREET DELIVERY
-        </p>
+        {/* Big headline text like before — just the logo + the words */}
+        <div className="mt-6">
+          <h1 className="text-white text-[52px] md:text-[68px] font-black tracking-[-0.04em] leading-[0.9]">Premium Goods,</h1>
+          <h2 className="text-white text-[52px] md:text-[68px] font-black tracking-[-0.04em] leading-[0.9] -mt-2">Delivered Right</h2>
+        </div>
       </div>
     </section>
   );
