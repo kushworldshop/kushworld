@@ -72,13 +72,8 @@ export default function ReviewCard({ review }: { review: ReviewCardData }) {
               className="flex items-center gap-1 px-2 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-full text-[10px] transition border border-zinc-700 hover:border-[#00ff9d]/50"
               title={emote.label}
             >
-              <img 
-                src={`/emotes/${emote.file}`} 
-                alt={emote.label} 
-                className="w-3.5 h-3.5" 
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} 
-              />
-              {count > 0 && <span className="text-zinc-400">{count}</span>}
+              <span className="text-[9px] leading-none font-bold text-[#00ff9d]">{emote.label.split(' ').map(w => w[0]).join('')}</span>
+              {count > 0 && <span className="text-zinc-400 text-[10px]">{count}</span>}
             </button>
           );
         })}
