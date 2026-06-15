@@ -11,53 +11,31 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
   const headlineLines = splitHeadline(variant.headline);
 
   return (
-    <section className="hero-bg min-h-[75vh] flex items-center relative">
-      <BrandLogoLink overlay />
-      <div className="relative z-10 max-w-4xl mx-auto px-6 text-center py-20">
-        {/* Raised & Centered KUSH WORLD Logo */}
-        <div className="pt-12 pb-8 flex justify-center items-center">
-          <div className="text-center">
-            <p className="text-[#00ff9d] font-black text-5xl md:text-6xl tracking-[0.6em] drop-shadow-sm">
-              KUSH WORLD
-            </p>
-          </div>
+    <section className="relative min-h-[90vh] flex items-center justify-center bg-black overflow-hidden">
+      {/* Subtle background effect if you want */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-zinc-950 to-black opacity-90"></div>
+
+      <div className="relative z-10 text-center px-6 max-w-5xl mx-auto">
+        {/* Animated Mascot Video - Centered, No White Borders */}
+        <div className="flex justify-center mb-8">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full max-w-[420px] md:max-w-[520px] h-auto rounded-3xl border-4 border-black shadow-2xl"
+          >
+            <source src="/mascot-video.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
         </div>
 
-        <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6 tracking-tight">
-          {headlineLines.map((line, index) => (
-            <span key={line}>
-              {index > 0 && <br />}
-              {line}
-            </span>
-          ))}
-        </h1>
-
-        <p className="text-lg md:text-xl text-zinc-400 max-w-xl mx-auto mb-10 leading-relaxed">
-          {variant.subtitle}
+        {/* Optional Tagline Below Logo */}
+        <p className="text-[#00ff9d] text-xl md:text-2xl font-medium tracking-widest mt-4">
+          PREMIUM GOODS • DISCREET DELIVERY
         </p>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            href="/shop/merch"
-            className="w-full sm:w-auto px-10 py-5 bg-[#00ff9d] text-black text-lg font-semibold rounded-2xl hover:scale-[1.02] active:scale-[0.985] transition text-center"
-          >
-            {variant.primaryCtaLabel}
-          </Link>
-          {!merchOnly && variant.secondaryCtaLabel && (
-            <Link
-              href="/shop"
-              className="w-full sm:w-auto px-10 py-5 border border-zinc-600 text-zinc-200 text-lg font-semibold rounded-2xl hover:border-[#00ff9d] hover:text-[#00ff9d] active:bg-zinc-900 transition text-center"
-            >
-              {variant.secondaryCtaLabel}
-            </Link>
-          )}
-        </div>
 
-        <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 mt-12 text-xs text-zinc-500 uppercase tracking-wider">
-          {variant.badges.map((badge) => (
-            <span key={badge}>{badge}</span>
-          ))}
-        </div>
       </div>
     </section>
   );
