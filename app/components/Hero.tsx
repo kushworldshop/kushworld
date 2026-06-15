@@ -8,21 +8,13 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/55"></div>
 
       <div className="relative z-10 text-center px-6 max-w-5xl mx-auto">
-        {/* Bare animated mascot logo — pure black only. Wrapper is black overflow-hidden with scaled video inside to crop any edge border from the render. No visible frame, border, padding or white surrounding the mascot. Blends seamlessly as the logo on the hero black. */}
+        {/* Static mascot logo - reverted to pre-video version. Centered logo graphic on black with the headline text below. Clean, no animation, no video element, no borders or surrounding issues. */}
         <div className="flex justify-center mb-2 -mt-12">
-          <div className="bg-black overflow-hidden max-w-[680px] w-[96%]" style={{ border: 'none', outline: 'none', padding: 0, margin: 0 }}>
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="w-full h-auto bg-black border-0 outline-none"
-              style={{ backgroundColor: '#000000', border: 'none', outline: 'none', display: 'block', transform: 'scale(1.2)', transformOrigin: 'center', padding: 0, margin: 0 }}
-            >
-              <source src="/mascot-video.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-          </div>
+          <img
+            src="/logo.png"
+            alt="Kush World Mascot"
+            className="w-[96%] max-w-[680px] md:max-w-[780px] h-auto"
+          />
         </div>
 
         {/* Big headline text like before — just the logo + the words, perfectly balanced in hero */}
