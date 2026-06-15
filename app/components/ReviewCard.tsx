@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { StarDisplay } from './StarRating';
+import { EMOTES } from '@/lib/emotes';
 
 export interface ReviewCardData {
   id: string;
@@ -15,6 +17,7 @@ export interface ReviewCardData {
   xHandle?: string;
   xUrl?: string;
   createdAt: string;
+  reactions?: Record<string, number>;
 }
 
 export default function ReviewCard({ review }: { review: ReviewCardData }) {

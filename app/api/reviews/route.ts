@@ -6,6 +6,7 @@ import {
   customerHasPurchasedProduct,
 } from '@/lib/purchaseVerification';
 import {
+  addReaction,
   addReview,
   getAllReviews,
   getReviewStats,
@@ -89,6 +90,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    if (body.reviewId && body.emote) {
+      const updated = await addReaction(body.reviewId, body.emote);
+      if (!updated) {
+        return NextResponse.json({ error: 'Review not found' }, { status: 404 });
+      }
+      return NextResponse.json({ success: true, reactions: updated.reactions });
+    }
+
     const { productId, author, rating, comment } = body;
 
     const validation = validateReviewInput(author, comment, Number(rating));

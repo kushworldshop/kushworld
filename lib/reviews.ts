@@ -19,6 +19,7 @@ export interface Review {
   xHandle?: string;
   xUrl?: string;
   createdAt: string;
+  reactions?: Record<string, number>;
 }
 
 export interface ReviewStats {
@@ -149,9 +150,25 @@ export async function addReview(
     xUrl: review.xUrl,
     id: `rev_${Date.now()}`,
     createdAt: new Date().toISOString(),
+    reactions: review.reactions ?? {},
   };
 
   reviews.unshift(newReview);
   await fs.writeFile(REVIEWS_FILE, JSON.stringify(reviews, null, 2));
   return newReview;
+}
+
+export async function addReaction(reviewId: string, emote: string): Promise<Review | null> {
+  await ensureReviewsFile();
+  const reviews = await readCustomerReviews();
+  const idx = reviews.findIndex((r) => r.id === reviewId);
+  if (idx === -1) return null;
+
+  const review = { ...reviews[idx] };
+  if (!review.reactions) review.reactions = {};
+  review.reactions[emote] = (review.reactions[emote] || 0) + 1;
+
+  reviews[idx] = review;
+  await fs.writeFile(REVIEWS_FILE, JSON.stringify(reviews, null, 2));
+  return review;
 }

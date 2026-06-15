@@ -1,11 +1,12 @@
 'use client';
 
 import Image from 'next/image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCartStore } from '@/lib/cartStore';
 import { useWishlistStore } from '@/lib/wishlistStore';
 import Link from 'next/link';
 import { getCoaPdfPath, getProductSlug, isProductInStock, type Product } from '@/lib/products';
+import { EMOTES } from '@/lib/emotes';
 import {
   formatSelectedOptionSkus,
   formatSelectedOptionsLabel,
@@ -28,6 +29,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const isMerch = product.category === 'merch';
   const [selectedOptions, setSelectedOptions] = useState(() => getDefaultSelectedOptions(product));
   const [added, setAdded] = useState(false);
+  const [reactions, setReactions] = useState<Record<string, number>>({});
 
   const addToCart = useCartStore((state) => state.addToCart);
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
@@ -39,6 +41,13 @@ export default function ProductCard({ product }: { product: Product }) {
     () => getSelectedOptionsUnitPrice(product, selectedOptions),
     [product, selectedOptions]
   );
+
+  useEffect(() => {
+    fetch(`/api/products/reactions?productId=${product.id}`)
+      .then((r) => r.json())
+      .then((d) => setReactions(d.reactions || {}))
+      .catch(() => {});
+  }, [product.id]);
 
   const handleAddToCart = () => {
     if (!inStock) return;
@@ -75,6 +84,24 @@ export default function ProductCard({ product }: { product: Product }) {
       image: product.image,
       category: product.category,
     });
+  };
+
+  const handleReact = async (emoteName: string) => {
+    const current = reactions[emoteName] || 0;
+    setReactions({ ...reactions, [emoteName]: current + 1 });
+    try {
+      const res = await fetch('/api/products/reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.id, emote: emoteName }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.reactions) setReactions(data.reactions);
+      }
+    } catch {
+      setReactions(reactions);
+    }
   };
 
   return (
@@ -138,6 +165,23 @@ export default function ProductCard({ product }: { product: Product }) {
         {!isMerch && features.coaLinks.enabled && (
           <CoaLink coaPdf={getCoaPdfPath(product)} productName={product.name} />
         )}
+
+        <div className="mt-3 flex flex-wrap gap-1 border-t border-zinc-800 pt-3">
+          {EMOTES.slice(0, 6).map((emote) => {
+            const count = reactions[emote.name] || 0;
+            return (
+              <button
+                key={emote.name}
+                onClick={() => handleReact(emote.name)}
+                className="flex items-center gap-1 px-1.5 py-0.5 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] transition"
+                title={emote.label}
+              >
+                <img src={`/emotes/${emote.file}`} alt="" className="w-3 h-3" />
+                {count > 0 && <span className="text-zinc-400">{count}</span>}
+              </button>
+            );
+          })}
+        </div>
 
         <button
           onClick={handleAddToCart}
