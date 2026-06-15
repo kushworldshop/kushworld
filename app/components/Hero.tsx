@@ -8,19 +8,21 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/55"></div>
 
       <div className="relative z-10 text-center px-6 max-w-5xl mx-auto">
-        {/* Bare animated mascot logo — pure black only. No CSS borders, no outlines, no frames, no padding, no white. Video element forced borderless + black bg so it blends as the logo graphic with zero visible border or surrounding white. */}
+        {/* Bare animated mascot logo — pure black only. Wrapper is black overflow-hidden with scaled video inside to crop any edge border from the render. No visible frame, border, padding or white surrounding the mascot. Blends seamlessly as the logo on the hero black. */}
         <div className="flex justify-center mb-2 -mt-12">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-[96%] max-w-[680px] md:max-w-[780px] h-auto bg-black border-0 outline-none"
-            style={{ backgroundColor: '#000000', border: 'none', outline: 'none', display: 'block' }}
-          >
-            <source src="/mascot-video.mp4" type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
+          <div className="bg-black overflow-hidden max-w-[680px] w-[96%]">
+            <video
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-auto bg-black border-0 outline-none"
+              style={{ backgroundColor: '#000000', border: 'none', outline: 'none', display: 'block', transform: 'scale(1.08)', transformOrigin: 'center' }}
+            >
+              <source src="/mascot-video.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
         </div>
 
         {/* Big headline text like before — just the logo + the words, perfectly balanced in hero */}
