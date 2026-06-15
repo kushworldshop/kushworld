@@ -17,7 +17,7 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
               muted
               playsInline
               className="w-full h-auto bg-black border-0 outline-none"
-              style={{ backgroundColor: '#000000', border: 'none', outline: 'none', display: 'block', transform: 'scale(1.08)', transformOrigin: 'center' }}
+              style={{ backgroundColor: '#000000', border: 'none', outline: 'none', display: 'block', transform: 'scale(1.15)', transformOrigin: 'center' }}
             >
               <source src="/mascot-video.mp4" type="video/mp4" />
               Your browser does not support the video tag.
