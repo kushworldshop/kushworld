@@ -325,20 +325,19 @@ const hempProducts: Product[] = [
   },
   {
     "id": "28",
-    "name": "Blinkers Blend 2g",
+    "name": "Blinkers Flip 2G",
     "price": 28,
-    "slug": "blinkers-blend-2g",
-    "image": "/products/blinkers-blend-device.jpg",
+    "slug": "blinkers-flip-2g",
+    "image": "/products/blinkers-flip-device.jpg",
     "images": [
-      "/products/blinkers-blend-device.jpg",
-      "/products/blinkers-blend-packaging.jpg",
-      "/products/blinkers-blend-lifestyle.jpg",
-      "/products/blinkers-blend-closeup.jpg",
-      "/products/blinkers-blend-variants.jpg"
+      "/products/blinkers-flip-device.jpg",
+      "/products/blinkers-flip-packaging.jpg",
+      "/products/blinkers-flip-lifestyle.jpg",
+      "/products/blinkers-flip-closeup.jpg"
     ],
     "sizes": [],
     "category": "vapes",
-    "description": "Premium 2g live resin disposable vape devices from Blinkers Blend. Lab-tested hemp with smooth, flavorful hits. Discreet, portable, and potent. Choose from classic strains."
+    "description": "Innovative 2g dual-chamber disposable vape from Blinkers. Features two 1g tanks with strain-specific terpenes. Flip the switch to switch between flavors or mix them. Rechargeable USB-C, LED display, premium live resin THCA blend. Discreet and versatile."
   }
 ];
 
