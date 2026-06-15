@@ -8,27 +8,21 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/55"></div>
 
       <div className="relative z-10 text-center px-6 max-w-5xl mx-auto">
-        {/* Animated Mascot Logo — position perfect per feedback. Integrated as premium brand mark (not a boxed video player): soft glow + elegant thin neon accent line below for site design lockup. New render uses actual mouth + realistic smoke. */}
+        {/* Animated mascot as pure site design element — no video thumbnail look, no frames, no shadows, no accent lines, no rounded box. Black merges with hero bg so only the character graphic appears directly in the layout like the original logo. New render: correct joint movement from exact logo grip/angle + tight frame fill. Position kept as preferred. */}
         <div className="flex justify-center mb-5 -mt-14">
-          <div className="relative">
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="w-[96%] max-w-[740px] md:max-w-[900px] h-auto rounded-3xl bg-black"
-              style={{ filter: 'contrast(1.06) brightness(1.03)', boxShadow: '0 25px 70px -20px rgba(0,0,0,0.9), 0 0 55px -8px rgba(0,255,157,0.18)' }}
-            >
-              <source src="/mascot-video.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-
-            {/* Thin elegant neon accent line — turns the animated mascot into a designed logo lockup, not a YouTube-style video embed */}
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-px w-3/4 bg-gradient-to-r from-transparent via-[#00ff9d]/65 to-transparent rounded-full" />
-          </div>
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-[96%] max-w-[740px] md:max-w-[900px] h-auto bg-black"
+          >
+            <source src="/mascot-video.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
         </div>
 
-        {/* Tagline — part of the logo lockup */}
+        {/* Tagline below as part of the overall branding lockup */}
         <p className="text-[#00ff9d] text-lg md:text-xl font-medium tracking-[0.2em] mt-2">
           PREMIUM GOODS • DISCREET DELIVERY
         </p>
