@@ -322,6 +322,23 @@ const hempProducts: Product[] = [
     "image": "/products/wm-havana.jpg",
     "sizes": [],
     "category": "concentrates"
+  },
+  {
+    "id": "28",
+    "name": "Blinkers Blend 2g",
+    "price": 28,
+    "slug": "blinkers-blend-2g",
+    "image": "/products/blinkers-blend-device.jpg",
+    "images": [
+      "/products/blinkers-blend-device.jpg",
+      "/products/blinkers-blend-packaging.jpg",
+      "/products/blinkers-blend-lifestyle.jpg",
+      "/products/blinkers-blend-closeup.jpg",
+      "/products/blinkers-blend-variants.jpg"
+    ],
+    "sizes": [],
+    "category": "vapes",
+    "description": "Premium 2g live resin disposable vape devices from Blinkers Blend. Lab-tested hemp with smooth, flavorful hits. Discreet, portable, and potent. Choose from classic strains."
   }
 ];
 
