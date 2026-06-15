@@ -176,7 +176,7 @@ export default function ProductCard({ product }: { product: Product }) {
                 className="flex items-center gap-1 px-1.5 py-0.5 bg-zinc-800 hover:bg-zinc-700 rounded text-[10px] transition"
                 title={emote.label}
               >
-                <span className="text-[9px] leading-none font-bold text-[#00ff9d]">{emote.label.split(' ').map(w => w[0]).join('')}</span>
+                <span className="inline-flex items-center justify-center w-3.5 h-3.5 text-[8px] leading-none font-bold bg-[#00ff9d] text-black rounded-full">{emote.label.split(' ').map(w => w[0]).join('')}</span>
                 {count > 0 && <span className="text-zinc-400">{count}</span>}
               </button>
             );
