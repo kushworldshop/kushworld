@@ -33,14 +33,7 @@ body {
 .bg-zinc-900 { background-color: #18181b; }
 .bg-zinc-950 { background-color: #09090b; }
 
-/* Force video elements (hero mascot) to be completely borderless and black-backed so no white border or frame shows around the logo animation */
-video {
-  border: 0 !important;
-  outline: 0 !important;
-  box-shadow: none !important;
-  background-color: #000000;
-  display: block;
-}
+/* (video mascot styles removed - project scrapped and reverted to static logo) */
 
 .studio-section {
   background: linear-gradient(180deg, #09090b 0%, #0a0f0d 50%, #000 100%);
