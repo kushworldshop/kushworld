@@ -8,14 +8,15 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/55"></div>
 
       <div className="relative z-10 text-center px-6 max-w-5xl mx-auto">
-        {/* Bare animated mascot logo — pure solid black bg only (no borders, no extra color, no framing, no padding). New gen: tight frame fill so mascot dominates, exact original look, joint contacts mouth properly. Blends as native logo graphic in hero. */}
+        {/* Bare animated mascot logo on pure black — no borders, no extra color, no framing, no padding, no white. Explicit bg-black on the element + pure black video frames to ensure the rect blends seamlessly into the hero black with zero visible white or surrounding. Tight gen so just the mascot shows as the logo graphic. */}
         <div className="flex justify-center mb-2 -mt-12">
           <video
             autoPlay
             loop
             muted
             playsInline
-            className="w-[96%] max-w-[680px] md:max-w-[780px] h-auto"
+            className="w-[96%] max-w-[680px] md:max-w-[780px] h-auto bg-black"
+            style={{ backgroundColor: '#000000' }}
           >
             <source src="/mascot-video.mp4" type="video/mp4" />
             Your browser does not support the video tag.
