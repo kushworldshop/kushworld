@@ -27,6 +27,27 @@ export default function ReviewCard({ review }: { review: ReviewCardData }) {
     year: 'numeric',
   });
 
+  const [reactions, setReactions] = useState<Record<string, number>>(review.reactions || {});
+
+  const handleReact = async (emoteName: string) => {
+    const current = reactions[emoteName] || 0;
+    setReactions({ ...reactions, [emoteName]: current + 1 });
+
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId: review.id, emote: emoteName }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.reactions) setReactions(data.reactions);
+      }
+    } catch {
+      setReactions(reactions);
+    }
+  };
+
   return (
     <article className="bg-zinc-900 rounded-2xl p-6 border border-zinc-800 flex flex-col h-full">
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -40,6 +61,28 @@ export default function ReviewCard({ review }: { review: ReviewCardData }) {
       </div>
 
       <p className="text-zinc-300 text-sm leading-relaxed flex-1">&ldquo;{review.comment}&rdquo;</p>
+
+      <div className="flex flex-wrap gap-1 mt-3">
+        {EMOTES.map((emote) => {
+          const count = reactions[emote.name] || 0;
+          return (
+            <button
+              key={emote.name}
+              onClick={() => handleReact(emote.name)}
+              className="flex items-center gap-1 px-2 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-full text-[10px] transition border border-zinc-700 hover:border-[#00ff9d]/50"
+              title={emote.label}
+            >
+              <img 
+                src={`/emotes/${emote.file}`} 
+                alt={emote.label} 
+                className="w-3.5 h-3.5" 
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} 
+              />
+              {count > 0 && <span className="text-zinc-400">{count}</span>}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800 text-xs text-zinc-500">
         <span>{date}</span>
