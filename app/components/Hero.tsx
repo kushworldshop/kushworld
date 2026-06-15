@@ -8,22 +8,22 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/55"></div>
 
       <div className="relative z-10 text-center px-6 max-w-5xl mx-auto">
-        {/* Bare animated mascot logo — pure black bg only, no borders, no extra color, no framing. Tight gen so mascot fills and blends seamlessly as the logo graphic in the hero. Exact original mascot appearance. */}
-        <div className="flex justify-center mb-3 -mt-10">
+        {/* Bare animated mascot logo — pure solid black bg only (no borders, no extra color, no framing, no padding). New gen: tight frame fill so mascot dominates, exact original look, joint contacts mouth properly. Blends as native logo graphic in hero. */}
+        <div className="flex justify-center mb-2 -mt-12">
           <video
             autoPlay
             loop
             muted
             playsInline
-            className="w-[94%] max-w-[620px] md:max-w-[720px] h-auto"
+            className="w-[96%] max-w-[680px] md:max-w-[780px] h-auto"
           >
             <source src="/mascot-video.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
         </div>
 
-        {/* Big headline text like before — just the logo + the words, fits the hero perfectly */}
-        <div className="mt-4">
+        {/* Big headline text like before — just the logo + the words, perfectly balanced in hero */}
+        <div className="mt-3">
           <h1 className="text-white text-[48px] md:text-[64px] font-black tracking-[-0.04em] leading-[0.9]">Premium Goods,</h1>
           <h2 className="text-white text-[48px] md:text-[64px] font-black tracking-[-0.04em] leading-[0.9] -mt-2">Delivered Right</h2>
         </div>
