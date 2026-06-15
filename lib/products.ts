@@ -323,22 +323,6 @@ const hempProducts: Product[] = [
     "sizes": [],
     "category": "concentrates"
   },
-  {
-    "id": "28",
-    "name": "Blinkers Flip 2G",
-    "price": 28,
-    "slug": "blinkers-flip-2g",
-    "image": "/products/blinkers-flip-device.jpg",
-    "images": [
-      "/products/blinkers-flip-device.jpg",
-      "/products/blinkers-flip-packaging.jpg",
-      "/products/blinkers-flip-lifestyle.jpg",
-      "/products/blinkers-flip-closeup.jpg"
-    ],
-    "sizes": [],
-    "category": "vapes",
-    "description": "Innovative 2g dual-chamber disposable vape from Blinkers. Features two 1g tanks with strain-specific terpenes. Flip the switch to switch between flavors or mix them. Rechargeable USB-C, LED display, premium live resin THCA blend. Discreet and versatile."
-  }
 ];
 
 import { getMerchProducts } from '@/lib/merch';
