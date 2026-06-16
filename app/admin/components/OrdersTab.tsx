@@ -681,7 +681,7 @@ function OrderDetailPanel({
             <p className="text-sm text-zinc-400">Phone: {order.customer?.phone || order.phone}</p>
           )}
           <p className="text-sm text-zinc-400 mt-1">
-            {order.customer?.address || order.address}, {order.customer?.city || order.city}{' '}
+            {order.customer?.address || order.address}{order.customer?.address2 ? ', ' + order.customer.address2 : ''}, {order.customer?.city || order.city}{' '}
             {order.customer?.state || order.state} {order.customer?.zip || order.zip}
           </p>
           <p className="text-sm mt-2">
