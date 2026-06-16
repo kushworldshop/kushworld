@@ -41,6 +41,12 @@ interface AdminUser {
     state: string;
     zip: string;
   };
+  secondaryAddress?: {
+    address: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
   promoCode?: string;
   referralLink?: string;
   commissionPercent?: number;
@@ -79,6 +85,10 @@ type MemberDraft = {
   city: string;
   state: string;
   zip: string;
+  secondaryAddress: string;
+  secondaryCity: string;
+  secondaryState: string;
+  secondaryZip: string;
 };
 
 const emptySocials: UserSocials = {
@@ -213,6 +223,10 @@ export default function CustomersTab() {
       city: patch?.city ?? user.shippingAddress?.city ?? '',
       state: patch?.state ?? user.shippingAddress?.state ?? '',
       zip: patch?.zip ?? user.shippingAddress?.zip ?? '',
+      secondaryAddress: patch?.secondaryAddress ?? user.secondaryAddress?.address ?? '',
+      secondaryCity: patch?.secondaryCity ?? user.secondaryAddress?.city ?? '',
+      secondaryState: patch?.secondaryState ?? user.secondaryAddress?.state ?? '',
+      secondaryZip: patch?.secondaryZip ?? user.secondaryAddress?.zip ?? '',
     };
   };
 
@@ -255,6 +269,12 @@ export default function CustomersTab() {
         state: draft.state,
         zip: draft.zip,
       },
+      secondaryAddress: draft.secondaryAddress || draft.secondaryCity || draft.secondaryState || draft.secondaryZip ? {
+        address: draft.secondaryAddress,
+        city: draft.secondaryCity,
+        state: draft.secondaryState,
+        zip: draft.secondaryZip,
+      } : undefined,
     };
 
     const normalizedPromo = draft.promoCode.trim().toUpperCase();
@@ -1118,6 +1138,14 @@ function MemberProfilePanel({
           <Field label="City" value={draft.city} onChange={(v) => onDraftChange({ city: v })} />
           <Field label="State" value={draft.state} onChange={(v) => onDraftChange({ state: v })} />
           <Field label="Zip Code" value={draft.zip} onChange={(v) => onDraftChange({ zip: v })} />
+        </div>
+
+        <h4 className="text-md font-semibold text-[#00ff9d] mt-4 mb-2">Secondary Address (optional)</h4>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Street Address" value={draft.secondaryAddress} onChange={(v) => onDraftChange({ secondaryAddress: v })} />
+          <Field label="City" value={draft.secondaryCity} onChange={(v) => onDraftChange({ secondaryCity: v })} />
+          <Field label="State" value={draft.secondaryState} onChange={(v) => onDraftChange({ secondaryState: v })} />
+          <Field label="Zip Code" value={draft.secondaryZip} onChange={(v) => onDraftChange({ secondaryZip: v })} />
         </div>
         <div className="flex flex-wrap gap-6 mt-4 text-sm">
           <Checkbox

@@ -56,6 +56,12 @@ export interface AdminUserSummary {
     state: string;
     zip: string;
   };
+  secondaryAddress?: {
+    address: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
   referralCode?: string;
   promoCode?: string;
   referralLink?: string;
@@ -154,6 +160,7 @@ async function toAdminSummary(
     avatarUrl: user.avatarUrl,
     socials: user.socials ?? {},
     shippingAddress: user.shippingAddress,
+    secondaryAddress: user.secondaryAddress,
     referralCode: user.referralCode,
     promoCode,
     referralLink: promoCode ? getReferralLink(promoCode) : undefined,
@@ -289,6 +296,10 @@ export async function PATCH(request: NextRequest) {
         body.shippingAddress !== undefined
           ? sanitizeShippingAddress(body.shippingAddress)
           : current.shippingAddress,
+      secondaryAddress:
+        body.secondaryAddress !== undefined
+          ? sanitizeShippingAddress(body.secondaryAddress)
+          : current.secondaryAddress,
     };
 
     if (body.commissionPercent !== undefined) {
