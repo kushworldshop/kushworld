@@ -56,12 +56,7 @@ export interface AdminUserSummary {
     state: string;
     zip: string;
   };
-  secondaryAddress?: {
-    address: string;
-    city: string;
-    state: string;
-    zip: string;
-  };
+
   referralCode?: string;
   promoCode?: string;
   referralLink?: string;
@@ -92,15 +87,16 @@ function sanitizeSocials(socials: unknown): UserSocials | undefined {
   return Object.keys(cleaned).length > 0 ? cleaned : {};
 }
 
-function sanitizeShippingAddress(addr: unknown): { address: string; city: string; state: string; zip: string } | undefined {
+function sanitizeShippingAddress(addr: unknown): { address: string; address2?: string; city: string; state: string; zip: string } | undefined {
   if (!addr || typeof addr !== 'object') return undefined;
   const input = addr as Record<string, unknown>;
   const address = String(input.address || '').trim();
+  const address2 = String(input.address2 || '').trim() || undefined;
   const city = String(input.city || '').trim();
   const state = String(input.state || '').trim();
   const zip = String(input.zip || '').trim();
   if (!address && !city && !state && !zip) return undefined;
-  return { address, city, state, zip };
+  return { address, address2, city, state, zip };
 }
 
 async function countOrdersByEmail(email: string): Promise<number> {
@@ -160,7 +156,6 @@ async function toAdminSummary(
     avatarUrl: user.avatarUrl,
     socials: user.socials ?? {},
     shippingAddress: user.shippingAddress,
-    secondaryAddress: user.secondaryAddress,
     referralCode: user.referralCode,
     promoCode,
     referralLink: promoCode ? getReferralLink(promoCode) : undefined,
@@ -296,10 +291,7 @@ export async function PATCH(request: NextRequest) {
         body.shippingAddress !== undefined
           ? sanitizeShippingAddress(body.shippingAddress)
           : current.shippingAddress,
-      secondaryAddress:
-        body.secondaryAddress !== undefined
-          ? sanitizeShippingAddress(body.secondaryAddress)
-          : current.secondaryAddress,
+
     };
 
     if (body.commissionPercent !== undefined) {

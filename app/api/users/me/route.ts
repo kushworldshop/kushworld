@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const allowed = ['name', 'phone', 'bio', 'avatarUrl', 'socials', 'shippingAddress', 'secondaryAddress'] as const;
+    const allowed = ['name', 'phone', 'bio', 'avatarUrl', 'socials', 'shippingAddress'] as const;
     const updates: Record<string, unknown> = {};
 
     for (const key of allowed) {

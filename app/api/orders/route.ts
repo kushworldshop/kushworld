@@ -287,6 +287,7 @@ export async function POST(request: NextRequest) {
         email,
         name: customer.name,
         address: customer.address,
+        address2: customer.address2,
         city: customer.city,
         state: customer.state,
         zip: customer.zip,

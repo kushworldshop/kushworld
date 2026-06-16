@@ -79,13 +79,10 @@ export default function Account() {
     promoCode: '',
     socials: { ...emptySocials },
     address: '',
+    address2: '',
     city: '',
     state: '',
     zip: '',
-    secondaryAddress: '',
-    secondaryCity: '',
-    secondaryState: '',
-    secondaryZip: '',
   });
 
   const [copied, setCopied] = useState(false);
@@ -151,13 +148,10 @@ export default function Account() {
       promoCode: profile.referralCode || '',
       socials: { ...emptySocials, ...profile.socials },
       address: profile.shippingAddress?.address || '',
+      address2: profile.shippingAddress?.address2 || '',
       city: profile.shippingAddress?.city || '',
       state: profile.shippingAddress?.state || '',
       zip: profile.shippingAddress?.zip || '',
-      secondaryAddress: profile.secondaryAddress?.address || '',
-      secondaryCity: profile.secondaryAddress?.city || '',
-      secondaryState: profile.secondaryAddress?.state || '',
-      secondaryZip: profile.secondaryAddress?.zip || '',
     });
   };
 
@@ -359,16 +353,11 @@ export default function Account() {
         socials: profileForm.socials,
         shippingAddress: {
           address: profileForm.address,
+          address2: profileForm.address2,
           city: profileForm.city,
           state: profileForm.state,
           zip: profileForm.zip,
         },
-        secondaryAddress: profileForm.secondaryAddress || profileForm.secondaryCity || profileForm.secondaryState || profileForm.secondaryZip ? {
-          address: profileForm.secondaryAddress,
-          city: profileForm.secondaryCity,
-          state: profileForm.secondaryState,
-          zip: profileForm.secondaryZip,
-        } : undefined,
       };
 
       const nextPromo = profileForm.promoCode.trim().toUpperCase();
@@ -986,19 +975,11 @@ export default function Account() {
 
             <h3 className="text-lg font-semibold pt-2">Default Shipping</h3>
             <Field label="Street Address" value={profileForm.address} onChange={(v) => setProfileForm({ ...profileForm, address: v })} />
+            <Field label="Address Line 2 (Apt, Suite, Unit, etc.)" value={profileForm.address2} onChange={(v) => setProfileForm({ ...profileForm, address2: v })} />
             <div className="grid md:grid-cols-3 gap-4">
               <Field label="City" value={profileForm.city} onChange={(v) => setProfileForm({ ...profileForm, city: v })} />
               <Field label="State" value={profileForm.state} onChange={(v) => setProfileForm({ ...profileForm, state: v })} />
               <Field label="ZIP" value={profileForm.zip} onChange={(v) => setProfileForm({ ...profileForm, zip: v })} />
-            </div>
-
-            <h3 className="text-lg font-semibold pt-2">Secondary Address (optional)</h3>
-            <p className="text-sm text-zinc-500 mb-2">Add an alternate address (e.g. work, PO box, or different delivery location).</p>
-            <Field label="Street Address" value={profileForm.secondaryAddress} onChange={(v) => setProfileForm({ ...profileForm, secondaryAddress: v })} />
-            <div className="grid md:grid-cols-3 gap-4">
-              <Field label="City" value={profileForm.secondaryCity} onChange={(v) => setProfileForm({ ...profileForm, secondaryCity: v })} />
-              <Field label="State" value={profileForm.secondaryState} onChange={(v) => setProfileForm({ ...profileForm, secondaryState: v })} />
-              <Field label="ZIP" value={profileForm.secondaryZip} onChange={(v) => setProfileForm({ ...profileForm, secondaryZip: v })} />
             </div>
 
             <button

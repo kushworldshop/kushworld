@@ -9,6 +9,7 @@ export interface BuildOrderRecordInput {
     name?: string;
     email?: string;
     address?: string;
+    address2?: string;
     city?: string;
     state?: string;
     zip?: string;
@@ -81,6 +82,7 @@ export function buildOrderRecord(input: BuildOrderRecordInput) {
     email,
     name: customer.name,
     address: customer.address,
+    address2: customer.address2,
     city: customer.city,
     state: customer.state,
     zip: customer.zip,

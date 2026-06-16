@@ -102,10 +102,7 @@ export default function Checkout() {
     orderId: string;
     orderAccessToken: string;
     address: string;
-    secondaryAddress?: string;
-    secondaryCity?: string;
-    secondaryState?: string;
-    secondaryZip?: string;
+    address2?: string;
     amountBtc: number;
     amountUsd: number;
     rateUsd: number;
@@ -117,10 +114,8 @@ export default function Checkout() {
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('usps_ground');
 
   const [customerInfo, setCustomerInfo] = useState({
-    name: '', email: '', address: '', city: '', state: '', zip: '', phone: '',
-    secondaryAddress: '', secondaryCity: '', secondaryState: '', secondaryZip: ''
+    name: '', email: '', address: '', address2: '', city: '', state: '', zip: '', phone: ''
   });
-  const [useSecondaryAddress, setUseSecondaryAddress] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomerInfo({ ...customerInfo, [e.target.name]: e.target.value });
@@ -156,13 +151,10 @@ export default function Checkout() {
             email: prev.email || data.user.email || '',
             phone: prev.phone || data.user.phone || '',
             address: prev.address || data.user.shippingAddress?.address || '',
+            address2: prev.address2 || data.user.shippingAddress?.address2 || '',
             city: prev.city || data.user.shippingAddress?.city || '',
             state: prev.state || data.user.shippingAddress?.state || '',
             zip: prev.zip || data.user.shippingAddress?.zip || '',
-            secondaryAddress: prev.secondaryAddress || data.user.secondaryAddress?.address || '',
-            secondaryCity: prev.secondaryCity || data.user.secondaryAddress?.city || '',
-            secondaryState: prev.secondaryState || data.user.secondaryAddress?.state || '',
-            secondaryZip: prev.secondaryZip || data.user.secondaryAddress?.zip || '',
           }));
           const coupons = (data.user.savedSpinCoupons ?? []).filter((coupon: SpinPrize) =>
             isSpinPrizeActive(coupon)
@@ -808,36 +800,12 @@ export default function Checkout() {
             <input type="email" name="email" placeholder="Email" value={customerInfo.email} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
             <input type="tel" name="phone" placeholder="Phone" value={customerInfo.phone} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" />
             <input type="text" name="address" placeholder="Street Address" value={customerInfo.address} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" required />
+            <input type="text" name="address2" placeholder="Address Line 2 (Apt, Suite, Unit, etc. - optional)" value={customerInfo.address2} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-4" />
             <div className="grid grid-cols-2 gap-4 mb-4">
               <input type="text" name="city" placeholder="City" value={customerInfo.city} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl" required />
               <input type="text" name="state" placeholder="State" value={customerInfo.state} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl" required />
             </div>
             <input type="text" name="zip" placeholder="ZIP Code" value={customerInfo.zip} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-6" required />
-
-            {(customerInfo.secondaryAddress || customerInfo.secondaryCity || customerInfo.secondaryState || customerInfo.secondaryZip) && (
-              <div className="mb-6">
-                <label className="flex items-center gap-2 text-sm mb-2">
-                  <input
-                    type="checkbox"
-                    checked={useSecondaryAddress}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setUseSecondaryAddress(checked);
-                      if (checked) {
-                        setCustomerInfo((prev) => ({
-                          ...prev,
-                          address: prev.secondaryAddress || prev.address,
-                          city: prev.secondaryCity || prev.city,
-                          state: prev.secondaryState || prev.state,
-                          zip: prev.secondaryZip || prev.zip,
-                        }));
-                      }
-                    }}
-                  />
-                  Use secondary shipping address
-                </label>
-              </div>
-            )}
 
             <h3 className="text-lg font-semibold mb-1">Shipping Method</h3>
             <p className="text-xs text-zinc-500 mb-3">{SHIPPING_DIMENSION_NOTE}</p>

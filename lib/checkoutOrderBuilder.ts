@@ -11,6 +11,7 @@ export interface CheckoutOrderInput {
     name?: string;
     email?: string;
     address?: string;
+    address2?: string;
     city?: string;
     state?: string;
     zip?: string;
@@ -109,6 +110,7 @@ export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: stri
     email,
     name: customer.name,
     address: customer.address,
+    address2: customer.address2,
     city: customer.city,
     state: customer.state,
     zip: customer.zip,

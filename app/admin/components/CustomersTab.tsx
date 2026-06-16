@@ -37,16 +37,12 @@ interface AdminUser {
   socials?: UserSocials;
   shippingAddress?: {
     address: string;
+    address2?: string;
     city: string;
     state: string;
     zip: string;
   };
-  secondaryAddress?: {
-    address: string;
-    city: string;
-    state: string;
-    zip: string;
-  };
+
   promoCode?: string;
   referralLink?: string;
   commissionPercent?: number;
@@ -85,10 +81,7 @@ type MemberDraft = {
   city: string;
   state: string;
   zip: string;
-  secondaryAddress: string;
-  secondaryCity: string;
-  secondaryState: string;
-  secondaryZip: string;
+  address2: string;
 };
 
 const emptySocials: UserSocials = {
@@ -220,13 +213,10 @@ export default function CustomersTab() {
             ? String(user.referrerRewardPointsOverride)
             : String(user.defaultReferrerRewardPoints ?? 100),
       address: patch?.address ?? user.shippingAddress?.address ?? '',
+      address2: patch?.address2 ?? user.shippingAddress?.address2 ?? '',
       city: patch?.city ?? user.shippingAddress?.city ?? '',
       state: patch?.state ?? user.shippingAddress?.state ?? '',
       zip: patch?.zip ?? user.shippingAddress?.zip ?? '',
-      secondaryAddress: patch?.secondaryAddress ?? user.secondaryAddress?.address ?? '',
-      secondaryCity: patch?.secondaryCity ?? user.secondaryAddress?.city ?? '',
-      secondaryState: patch?.secondaryState ?? user.secondaryAddress?.state ?? '',
-      secondaryZip: patch?.secondaryZip ?? user.secondaryAddress?.zip ?? '',
     };
   };
 
@@ -265,16 +255,11 @@ export default function CustomersTab() {
       referrerRewardPoints: draft.useDefaultRewardPoints ? null : Number(draft.referrerRewardPoints),
       shippingAddress: {
         address: draft.address,
+        address2: draft.address2,
         city: draft.city,
         state: draft.state,
         zip: draft.zip,
       },
-      secondaryAddress: draft.secondaryAddress || draft.secondaryCity || draft.secondaryState || draft.secondaryZip ? {
-        address: draft.secondaryAddress,
-        city: draft.secondaryCity,
-        state: draft.secondaryState,
-        zip: draft.secondaryZip,
-      } : undefined,
     };
 
     const normalizedPromo = draft.promoCode.trim().toUpperCase();
@@ -457,6 +442,7 @@ export default function CustomersTab() {
         email: user.email,
         name: user.name,
         address: user.shippingAddress?.address || '',
+        address2: user.shippingAddress?.address2 || '',
         city: user.shippingAddress?.city || '',
         state: user.shippingAddress?.state || '',
         zip: user.shippingAddress?.zip || '',
@@ -1135,17 +1121,10 @@ function MemberProfilePanel({
             <Field label="Avatar URL" value={draft.avatarUrl} onChange={(v) => onDraftChange({ avatarUrl: v })} />
           </div>
           <Field label="Street Address" value={draft.address} onChange={(v) => onDraftChange({ address: v })} />
+          <Field label="Address Line 2 (Apt, Suite, etc.)" value={draft.address2} onChange={(v) => onDraftChange({ address2: v })} />
           <Field label="City" value={draft.city} onChange={(v) => onDraftChange({ city: v })} />
           <Field label="State" value={draft.state} onChange={(v) => onDraftChange({ state: v })} />
           <Field label="Zip Code" value={draft.zip} onChange={(v) => onDraftChange({ zip: v })} />
-        </div>
-
-        <h4 className="text-md font-semibold text-[#00ff9d] mt-4 mb-2">Secondary Address (optional)</h4>
-        <div className="grid md:grid-cols-2 gap-4">
-          <Field label="Street Address" value={draft.secondaryAddress} onChange={(v) => onDraftChange({ secondaryAddress: v })} />
-          <Field label="City" value={draft.secondaryCity} onChange={(v) => onDraftChange({ secondaryCity: v })} />
-          <Field label="State" value={draft.secondaryState} onChange={(v) => onDraftChange({ secondaryState: v })} />
-          <Field label="Zip Code" value={draft.secondaryZip} onChange={(v) => onDraftChange({ secondaryZip: v })} />
         </div>
         <div className="flex flex-wrap gap-6 mt-4 text-sm">
           <Checkbox

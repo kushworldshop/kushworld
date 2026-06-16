@@ -73,12 +73,7 @@ export interface UserProfile {
   freeEighthOrderId?: string;
   shippingAddress?: {
     address: string;
-    city: string;
-    state: string;
-    zip: string;
-  };
-  secondaryAddress?: {
-    address: string;
+    address2?: string;
     city: string;
     state: string;
     zip: string;
@@ -113,7 +108,6 @@ export interface PublicUserProfile {
   freeEighthReceivedAt?: string;
   freeEighthOrderId?: string;
   shippingAddress?: UserProfile['shippingAddress'];
-  secondaryAddress?: UserProfile['secondaryAddress'];
   referralStats?: {
     clicks: number;
     conversions: number;
@@ -266,7 +260,7 @@ export async function createUser(input: {
 export async function updateUser(
   id: string,
   updates: Partial<
-    Pick<UserProfile, 'name' | 'phone' | 'bio' | 'avatarUrl' | 'socials' | 'shippingAddress' | 'secondaryAddress' | 'loyaltyPoints' | 'referralCode'>
+    Pick<UserProfile, 'name' | 'phone' | 'bio' | 'avatarUrl' | 'socials' | 'shippingAddress' | 'loyaltyPoints' | 'referralCode'>
   >
 ): Promise<UserProfile | null> {
   const users = await readUsers();
@@ -432,7 +426,6 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     freeEighthReceivedAt: user.freeEighthReceivedAt,
     freeEighthOrderId: user.freeEighthOrderId,
     shippingAddress: user.shippingAddress,
-    secondaryAddress: user.secondaryAddress,
     referralStats,
   };
 }
