@@ -86,6 +86,17 @@ function sanitizeSocials(socials: unknown): UserSocials | undefined {
   return Object.keys(cleaned).length > 0 ? cleaned : {};
 }
 
+function sanitizeShippingAddress(addr: unknown): { address: string; city: string; state: string; zip: string } | undefined {
+  if (!addr || typeof addr !== 'object') return undefined;
+  const input = addr as Record<string, unknown>;
+  const address = String(input.address || '').trim();
+  const city = String(input.city || '').trim();
+  const state = String(input.state || '').trim();
+  const zip = String(input.zip || '').trim();
+  if (!address && !city && !state && !zip) return undefined;
+  return { address, city, state, zip };
+}
+
 async function countOrdersByEmail(email: string): Promise<number> {
   const orders = await readOrders<{ email?: string; customer?: { email?: string } }>();
   const normalized = email.toLowerCase();
@@ -274,6 +285,10 @@ export async function PATCH(request: NextRequest) {
             ? String(body.freeEighthOrderId)
             : undefined
           : current.freeEighthOrderId,
+      shippingAddress:
+        body.shippingAddress !== undefined
+          ? sanitizeShippingAddress(body.shippingAddress)
+          : current.shippingAddress,
     };
 
     if (body.commissionPercent !== undefined) {

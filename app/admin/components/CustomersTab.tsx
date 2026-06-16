@@ -75,6 +75,10 @@ type MemberDraft = {
   commissionPercent: string;
   useDefaultRewardPoints: boolean;
   referrerRewardPoints: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
 };
 
 const emptySocials: UserSocials = {
@@ -205,6 +209,10 @@ export default function CustomersTab() {
           : hasRewardOverride
             ? String(user.referrerRewardPointsOverride)
             : String(user.defaultReferrerRewardPoints ?? 100),
+      address: patch?.address ?? user.shippingAddress?.address ?? '',
+      city: patch?.city ?? user.shippingAddress?.city ?? '',
+      state: patch?.state ?? user.shippingAddress?.state ?? '',
+      zip: patch?.zip ?? user.shippingAddress?.zip ?? '',
     };
   };
 
@@ -241,6 +249,12 @@ export default function CustomersTab() {
       blockReason: draft.blockReason,
       commissionPercent: draft.useDefaultCommission ? null : Number(draft.commissionPercent),
       referrerRewardPoints: draft.useDefaultRewardPoints ? null : Number(draft.referrerRewardPoints),
+      shippingAddress: {
+        address: draft.address,
+        city: draft.city,
+        state: draft.state,
+        zip: draft.zip,
+      },
     };
 
     const normalizedPromo = draft.promoCode.trim().toUpperCase();
@@ -1100,13 +1114,11 @@ function MemberProfilePanel({
           <div className="md:col-span-2">
             <Field label="Avatar URL" value={draft.avatarUrl} onChange={(v) => onDraftChange({ avatarUrl: v })} />
           </div>
+          <Field label="Street Address" value={draft.address} onChange={(v) => onDraftChange({ address: v })} />
+          <Field label="City" value={draft.city} onChange={(v) => onDraftChange({ city: v })} />
+          <Field label="State" value={draft.state} onChange={(v) => onDraftChange({ state: v })} />
+          <Field label="Zip Code" value={draft.zip} onChange={(v) => onDraftChange({ zip: v })} />
         </div>
-        {user.shippingAddress && (
-          <p className="text-sm text-zinc-500 mt-3">
-            Shipping: {user.shippingAddress.address}, {user.shippingAddress.city}{' '}
-            {user.shippingAddress.state} {user.shippingAddress.zip}
-          </p>
-        )}
         <div className="flex flex-wrap gap-6 mt-4 text-sm">
           <Checkbox
             label="Email verified"
