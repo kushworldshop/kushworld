@@ -65,6 +65,7 @@ export default function Footer() {
             <div className="space-y-3 text-sm">
               <Link href="/privacy-policy" className="block text-zinc-400 hover:text-[#00ff9d] transition">Privacy Policy</Link>
               <Link href="/terms" className="block text-zinc-400 hover:text-[#00ff9d] transition">Terms of Use</Link>
+              <a href="/.well-known/security.txt" className="block text-zinc-400 hover:text-[#00ff9d] transition" target="_blank" rel="noopener noreferrer">Security</a>
               <Link href="/wishlist" className="flex items-center gap-2 text-zinc-400 hover:text-[#00ff9d] transition">
                 Wishlist {wishlistCount > 0 && <span className="text-[#00ff9d]">({wishlistCount})</span>}
               </Link>

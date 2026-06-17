@@ -1,0 +1,11 @@
+Contact: mailto:kushworldshop@gmail.com
+Expires: 2027-06-16T23:59:59.000Z
+Preferred-Languages: en
+Policy: https://kushworld.shop/privacy-policy
+Hiring: https://kushworld.shop/contact
+Acknowledgments: https://kushworld.shop/thanks (if any)
+Canonical: https://kushworld.shop/.well-known/security.txt
+
+# Kush World - Legal hemp & studio merch retailer.
+# We take security seriously. Report issues responsibly to the contact above.
+# All hemp products are lab-tested with COAs. 21+ only. We comply with applicable US laws for hemp-derived products.

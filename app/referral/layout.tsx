@@ -6,7 +6,7 @@ export const metadata: Metadata = buildPageMetadata({
   description:
     'Join the Kush World referral program. Share your link, earn loyalty points and commission when friends shop. Friends get $10 off their first order.',
   path: '/referral',
-  keywords: ['Kush World referral', 'hemp referral program', 'earn rewards cannabis shop'],
+  keywords: ['Kush World referral', 'hemp referral program', 'earn rewards hemp shop'],
 });
 
 export default function ReferralLayout({ children }: { children: React.ReactNode }) {

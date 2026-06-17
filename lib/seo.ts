@@ -37,9 +37,10 @@ export const DEFAULT_KEYWORDS = [
   'hemp concentrates',
   'exotic flower',
   'Kush World Studio merch',
-  'cannabis apparel',
+  'hemp apparel',
   'head shop online',
   'hemp delivery',
+  'legal hemp products',
 ];
 
 export const CATEGORY_SEO: Record<
@@ -50,7 +51,7 @@ export const CATEGORY_SEO: Record<
     title: 'Kush World Studio Merch — Hoodies, Tees, Hats & Apparel',
     description:
       'Shop official Kush World Studio merch. Custom hoodies, t-shirts, snapbacks, beanies, and accessories. Free shipping on orders $100+. Made to order.',
-    keywords: ['Kush World merch', 'cannabis apparel', 'hemp brand clothing', 'studio hoodie', 'Kush World hat'],
+    keywords: ['Kush World merch', 'hemp apparel', 'hemp brand clothing', 'studio hoodie', 'Kush World hat'],
   },
   vapes: {
     title: 'Hemp Vapes & Disposables — Lab-Tested | Kush World',

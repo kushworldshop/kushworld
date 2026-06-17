@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: nav.merchTitle,
       description: nav.merchSubtitle,
       path: `/shop/${MERCH_SHOP_ID}`,
-      keywords: ['Kush World merch', 'studio apparel', 'cannabis clothing'],
+      keywords: ['Kush World merch', 'studio apparel', 'hemp clothing'],
     });
   }
 

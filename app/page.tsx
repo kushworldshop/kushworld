@@ -17,7 +17,7 @@ export const metadata = {
       'buy hemp online',
       'Kush World shop',
       'hemp head shop',
-      'lab tested cannabis products',
+      'lab tested hemp products',
       'free shipping hemp',
     ],
   }),
