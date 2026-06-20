@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "discord:install": "npm install --prefix discord-bot",
+    "discord:setup": "npm run setup --prefix discord-bot",
+    "discord:start": "npm run start --prefix discord-bot",
+    "discord:status": "npm run status --prefix discord-bot"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
