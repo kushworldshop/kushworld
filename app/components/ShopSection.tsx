@@ -16,6 +16,8 @@ import {
   normalizeShopCategoryId,
 } from '@/lib/shopNavigation';
 
+const BUDGET_FILTER_MAX = 2000;
+
 const sortOptions = [
   { id: 'name-asc', label: 'Name A–Z' },
   { id: 'name-desc', label: 'Name Z–A' },
@@ -52,7 +54,7 @@ export default function ShopSection({
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('name-asc');
   const [minPrice, setMinPrice] = useState(0);
-  const [maxPrice, setMaxPrice] = useState(2000);
+  const [maxPrice, setMaxPrice] = useState(BUDGET_FILTER_MAX);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
@@ -117,20 +119,21 @@ export default function ShopSection({
   }, [activeFilter, activeSubsection, searchQuery, merchOnly, products, nav]);
 
   const priceBounds = useMemo(() => {
-    if (!categoryProducts.length) return { min: 0, max: 2000 };
+    if (!categoryProducts.length) return { min: 0, max: 0 };
     const prices = categoryProducts.map((product) => product.price);
     const min = Math.floor(Math.min(...prices));
     const max = Math.ceil(Math.max(...prices));
     return { min, max: Math.max(min, max) };
   }, [categoryProducts]);
 
+  const defaultMaxPrice = Math.min(priceBounds.max, BUDGET_FILTER_MAX);
+
   useEffect(() => {
     setMinPrice(priceBounds.min);
-    setMaxPrice(priceBounds.max);
-  }, [priceBounds.min, priceBounds.max]);
+    setMaxPrice(defaultMaxPrice);
+  }, [priceBounds.min, defaultMaxPrice]);
 
-  const budgetActive =
-    minPrice > priceBounds.min || maxPrice < priceBounds.max;
+  const budgetActive = minPrice > priceBounds.min || maxPrice < defaultMaxPrice;
 
   const filteredProducts = useMemo(() => {
     const result = categoryProducts.filter(
@@ -254,7 +257,7 @@ export default function ShopSection({
                     type="button"
                     onClick={() => {
                       setMinPrice(priceBounds.min);
-                      setMaxPrice(priceBounds.max);
+                      setMaxPrice(defaultMaxPrice);
                     }}
                     className="text-[#00ff9d] hover:underline"
                   >
@@ -267,7 +270,8 @@ export default function ShopSection({
             <p className="text-sm text-[#00ff9d]">
               ${minPrice} – ${maxPrice}
               <span className="text-zinc-500 ml-2">
-                (store range ${priceBounds.min} – ${priceBounds.max})
+                (store range ${priceBounds.min} – ${priceBounds.max}
+                {priceBounds.max > BUDGET_FILTER_MAX ? ` · filter capped at $${BUDGET_FILTER_MAX}` : ''})
               </span>
             </p>
 
@@ -291,7 +295,7 @@ export default function ShopSection({
                 <input
                   type="range"
                   min={priceBounds.min}
-                  max={priceBounds.max}
+                  max={BUDGET_FILTER_MAX}
                   step={1}
                   value={minPrice}
                   onChange={(e) => setMinPrice(Math.min(Number(e.target.value), maxPrice))}
@@ -304,12 +308,12 @@ export default function ShopSection({
                   <input
                     type="number"
                     min={minPrice}
-                    max={priceBounds.max}
+                    max={BUDGET_FILTER_MAX}
                     step={1}
                     value={maxPrice}
                     onChange={(e) => {
                       const next = Math.max(Number(e.target.value) || 0, minPrice);
-                      setMaxPrice(Math.min(priceBounds.max, Math.round(next)));
+                      setMaxPrice(Math.min(BUDGET_FILTER_MAX, Math.round(next)));
                     }}
                     className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-right text-zinc-200"
                   />
@@ -317,7 +321,7 @@ export default function ShopSection({
                 <input
                   type="range"
                   min={priceBounds.min}
-                  max={priceBounds.max}
+                  max={BUDGET_FILTER_MAX}
                   step={1}
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(Math.max(Number(e.target.value), minPrice))}
