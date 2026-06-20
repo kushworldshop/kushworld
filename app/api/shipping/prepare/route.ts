@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
     }
 
-    const result = await prepareGrokShippingLabel(order);
+    const result = await prepareGrokShippingLabel(order, body.fromAddress);
     if (result.error) {
       return NextResponse.json({ success: false, error: result.error }, { status: 502 });
     }

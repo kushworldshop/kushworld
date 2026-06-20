@@ -16,14 +16,8 @@ export async function GET(request: NextRequest) {
       missing: {
         apiKey: !config.apiKey,
         apiSecret: !config.apiSecret,
-        shipFrom: !config.shipFrom.street || !config.shipFrom.city || !config.shipFrom.state || !config.shipFrom.zip,
       },
-      shipFrom: {
-        name: config.shipFrom.name,
-        city: config.shipFrom.city,
-        state: config.shipFrom.state,
-        zip: config.shipFrom.zip,
-      },
+      defaultShipFrom: config.shipFrom,
       defaultPackageType: config.defaultPackageType,
       testMode: config.testMode,
     });
@@ -35,12 +29,7 @@ export async function GET(request: NextRequest) {
       success: true,
       configured: true,
       credits: credits.credits,
-      shipFrom: {
-        name: config.shipFrom.name,
-        city: config.shipFrom.city,
-        state: config.shipFrom.state,
-        zip: config.shipFrom.zip,
-      },
+      defaultShipFrom: config.shipFrom,
       defaultPackageType: config.defaultPackageType,
       testMode: config.testMode,
     });

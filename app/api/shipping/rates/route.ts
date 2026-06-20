@@ -8,6 +8,7 @@ import {
   type BtcPostagePackageType,
 } from '@/lib/btcPostage';
 import { getDefaultPackageProfile } from '@/lib/shippingPackage';
+import { resolveShipFrom } from '@/lib/shipFromAddress';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -81,8 +82,16 @@ export async function POST(request: NextRequest) {
       ...(body.dimensions || {}),
     };
 
+    const shipFrom = resolveShipFrom(body.fromAddress);
+    if (!shipFrom.complete) {
+      return NextResponse.json(
+        { success: false, error: 'Complete ship-from address is required' },
+        { status: 400 }
+      );
+    }
+
     const rates = await getBtcPostageRates({
-      from: config.shipFrom,
+      from: shipFrom.address,
       to: {
         name: toAddress.name || 'Customer',
         street: toAddress.street,

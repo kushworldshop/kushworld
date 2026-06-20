@@ -107,7 +107,7 @@ export function getBtcPostageConfig() {
     defaultDimensions,
     defaultPackageType,
     testMode: process.env.BTCPOSTAGE_TEST_MODE === 'true',
-    isConfigured: Boolean(apiKey && apiSecret && shipFrom.street && shipFrom.city && shipFrom.state && shipFrom.zip),
+    isConfigured: Boolean(apiKey && apiSecret),
   };
 }
 

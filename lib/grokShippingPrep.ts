@@ -1,10 +1,12 @@
 import {
   getBtcPostageConfig,
   getBtcPostageRates,
+  type BtcPostageAddress,
   type BtcPostageDimensions,
   type BtcPostagePackageType,
   type BtcPostageRate,
 } from '@/lib/btcPostage';
+import { resolveShipFrom } from '@/lib/shipFromAddress';
 import {
   summarizeOrderForGrok,
   validateOrderForShipping,
@@ -111,8 +113,10 @@ function pickRateByHint(rates: BtcPostageRate[], hint?: string | null): BtcPosta
   return rates[0];
 }
 
-async function grokSuggestPackage(order: OrderForShippingValidation): Promise<GrokPackageSuggestion | null> {
-  const config = getBtcPostageConfig();
+async function grokSuggestPackage(
+  order: OrderForShippingValidation,
+  shipFrom: BtcPostageAddress
+): Promise<GrokPackageSuggestion | null> {
   const orderSummary = summarizeOrderForGrok(order);
   const validation = validateOrderForShipping(order);
 
@@ -140,7 +144,7 @@ Rules:
 - weight_oz is remainder ounces, not total ounces (e.g. 1 lb 4 oz => weightLbs:1, weightOz:4).
 - Flag PO boxes, incomplete addresses, restricted-looking destinations, or unpaid orders in checks.
 - Match service hint to what customer likely paid for using shippingMethod when present.
-- Ship from: ${config.shipFrom.city}, ${config.shipFrom.state} ${config.shipFrom.zip}
+- Ship from: ${shipFrom.street}, ${shipFrom.city}, ${shipFrom.state} ${shipFrom.zip}
 
 Deterministic validation already run:
 ${JSON.stringify(validation.checks, null, 2)}
@@ -209,15 +213,23 @@ All rates: ${JSON.stringify(input.rates.map((r) => ({ service: r.service, displa
 }
 
 export async function prepareGrokShippingLabel(
-  order: OrderForShippingValidation
+  order: OrderForShippingValidation,
+  fromAddressInput?: Partial<BtcPostageAddress> | null
 ): Promise<{ error?: string; prep?: GrokShippingPrepResult }> {
   const config = getBtcPostageConfig();
   if (!config.isConfigured) {
-    return { error: 'BTC Postage is not configured (API key, secret, and ship-from address required)' };
+    return { error: 'BTC Postage is not configured (API key and secret required)' };
+  }
+
+  const shipFrom = resolveShipFrom(fromAddressInput);
+  if (!shipFrom.complete) {
+    return { error: 'Enter a complete ship-from address before preparing a label' };
   }
 
   const validation = validateOrderForShipping(order);
-  const grokSuggestion = isXaiConfigured() ? await grokSuggestPackage(order) : null;
+  const grokSuggestion = isXaiConfigured()
+    ? await grokSuggestPackage(order, shipFrom.address)
+    : null;
 
   const packageType = normalizePackageType(grokSuggestion?.packageType || config.defaultPackageType);
   const dimensions = clampDimensions({
@@ -231,7 +243,7 @@ export async function prepareGrokShippingLabel(
   let rates: BtcPostageRate[] = [];
   try {
     rates = await getBtcPostageRates({
-      from: config.shipFrom,
+      from: shipFrom.address,
       to: validation.address,
       packageType,
       dimensions,
@@ -272,6 +284,7 @@ export async function verifyGrokShippingPurchase(input: {
   service: string;
   packageType: BtcPostagePackageType;
   dimensions: BtcPostageDimensions;
+  fromAddress?: Partial<BtcPostageAddress> | null;
 }): Promise<{ approved: boolean; reason: string; checks: ShippingCheck[]; grokChecks: GrokRatePick['checks'] }> {
   const validation = validateOrderForShipping(input.order);
   const deterministicFailed = validation.checks.filter((check) => !check.passed);
@@ -285,11 +298,20 @@ export async function verifyGrokShippingPurchase(input: {
     };
   }
 
-  const config = getBtcPostageConfig();
+  const shipFrom = resolveShipFrom(input.fromAddress);
+  if (!shipFrom.complete) {
+    return {
+      approved: false,
+      reason: 'Ship-from address is incomplete',
+      checks: validation.checks,
+      grokChecks: [],
+    };
+  }
+
   let rates: BtcPostageRate[] = [];
   try {
     rates = await getBtcPostageRates({
-      from: config.shipFrom,
+      from: shipFrom.address,
       to: validation.address,
       packageType: input.packageType,
       dimensions: input.dimensions,

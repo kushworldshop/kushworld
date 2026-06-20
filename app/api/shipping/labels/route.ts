@@ -15,6 +15,7 @@ import { getDefaultPackageProfile } from '@/lib/shippingPackage';
 import { verifyGrokShippingPurchase } from '@/lib/grokShippingPrep';
 import { normalizeTrackingCarrier } from '@/lib/orderShipping';
 import type { OrderForShippingValidation } from '@/lib/shippingOrderValidation';
+import { resolveShipFrom } from '@/lib/shipFromAddress';
 import {
   applyShippingEmailTimestamps,
   maybeSendShippingEmail,
@@ -39,13 +40,33 @@ export async function POST(request: NextRequest) {
       service,
       packageType: packageTypeInput,
       dimensions: dimensionsInput,
+      fromAddress,
       testMode,
+      manualApproved,
       useGrokVerify = false,
     } = body;
+
+    if (!manualApproved) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Manual approval is required before purchasing a label',
+        },
+        { status: 400 }
+      );
+    }
 
     if (!orderId || !service) {
       return NextResponse.json(
         { success: false, error: 'orderId and service are required' },
+        { status: 400 }
+      );
+    }
+
+    const shipFrom = resolveShipFrom(fromAddress);
+    if (!shipFrom.complete) {
+      return NextResponse.json(
+        { success: false, error: 'Complete ship-from address is required' },
         { status: 400 }
       );
     }
@@ -80,6 +101,7 @@ export async function POST(request: NextRequest) {
         service,
         packageType,
         dimensions,
+        fromAddress: shipFrom.address,
       });
 
       if (!verification.approved) {
@@ -95,7 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     const purchase = await purchaseBtcPostageLabel({
-      from: config.shipFrom,
+      from: shipFrom.address,
       to: toAddress,
       packageType,
       dimensions,
@@ -128,6 +150,7 @@ export async function POST(request: NextRequest) {
       btcPostagePostageCost: Number(label.price || 0) || undefined,
       btcPostageService: label.service,
       btcPostageCarrier: label.carrier,
+      btcPostageShipFrom: shipFrom.address,
       btcPostagePurchasedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
