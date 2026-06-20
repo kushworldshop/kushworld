@@ -14,11 +14,13 @@ export type LegacyShippingCarrier = 'usps';
 export type ShippingCarrier = ShippingMethod | LegacyShippingCarrier;
 
 export interface ShippingOption {
-  id: ShippingMethod;
+  id: string;
   label: string;
   rate: number;
   eta: string;
-  carrier: 'usps' | 'fedex';
+  carrier: 'usps' | 'fedex' | 'ups';
+  btcPostageService?: string;
+  source?: 'static' | 'btcpostage';
 }
 
 export interface CheckoutTotals {
@@ -68,7 +70,7 @@ export function getShippingOptions(subtotal: number): ShippingOption[] {
   const free = subtotal >= FREE_SHIPPING_THRESHOLD;
   return SHIPPING_OPTIONS.map((option) => ({
     ...option,
-    rate: free ? 0 : SHIPPING_RATES[option.id],
+    rate: free ? 0 : SHIPPING_RATES[option.id as ShippingMethod],
   }));
 }
 
@@ -77,7 +79,7 @@ export function getShippingLabel(method: ShippingCarrier): string {
   return SHIPPING_OPTIONS.find((option) => option.id === normalized)?.label ?? 'USPS General Ground';
 }
 
-export function getShippingCarrier(method: ShippingCarrier): 'usps' | 'fedex' {
+export function getShippingCarrier(method: ShippingCarrier): 'usps' | 'fedex' | 'ups' {
   const normalized = normalizeShippingMethod(method);
   return SHIPPING_OPTIONS.find((option) => option.id === normalized)?.carrier ?? 'usps';
 }

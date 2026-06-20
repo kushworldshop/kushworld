@@ -371,6 +371,9 @@ export async function POST(request: NextRequest) {
         promoDiscount: promoMeta.promoDiscount,
         loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
         shippingCarrier: body.shippingCarrier,
+        shippingAmount: body.shippingAmount,
+        shippingMethodLabel: body.shippingMethodLabel,
+        shippingCarrierFamily: body.shippingCarrierFamily,
         spinPrizeId: body.spinPrizeId,
       });
     } catch (err) {

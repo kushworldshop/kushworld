@@ -3,6 +3,25 @@
 import { useEffect, useState } from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import { normalizeTrackingCarrier, type TrackingCarrier } from '@/lib/orderShipping';
+import type { BtcPostagePackageType } from '@/lib/btcPostage';
+
+type BtcPostageRate = {
+  service: string;
+  serviceDisplay: string;
+  rate: number;
+  carrier: string;
+  estDeliveryDays: string;
+  currency: string;
+};
+
+const PACKAGE_TYPES: { id: BtcPostagePackageType; label: string }[] = [
+  { id: 'Parcel', label: 'USPS Parcel' },
+  { id: 'FlatRateEnvelope', label: 'Flat Rate Envelope' },
+  { id: 'FlatRateLegalEnvelope', label: 'Flat Rate Legal Envelope' },
+  { id: 'SmallFlatRateBox', label: 'Small Flat Rate Box' },
+  { id: 'MediumFlatRateBox', label: 'Medium Flat Rate Box' },
+  { id: 'LargeFlatRateBox', label: 'Large Flat Rate Box' },
+];
 
 export default function OrderShippingControls({
   order,
@@ -16,6 +35,11 @@ export default function OrderShippingControls({
     shippedAt?: string;
     shippingNotificationSentAt?: string;
     trackingNotificationSentAt?: string;
+    btcPostageOrderId?: string;
+    btcPostageLabelUrl?: string;
+    btcPostagePostageCost?: number;
+    btcPostageService?: string;
+    items?: unknown[];
   };
   onUpdated: () => void;
 }) {
@@ -26,10 +50,33 @@ export default function OrderShippingControls({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
+  const [btcConfigured, setBtcConfigured] = useState<boolean | null>(null);
+  const [btcCredits, setBtcCredits] = useState<number | null>(null);
+  const [btcLoading, setBtcLoading] = useState(false);
+  const [btcRates, setBtcRates] = useState<BtcPostageRate[]>([]);
+  const [packageType, setPackageType] = useState<BtcPostagePackageType>('Parcel');
+  const [weightLbs, setWeightLbs] = useState('0');
+  const [weightOz, setWeightOz] = useState('16');
+  const [heightIn, setHeightIn] = useState('6');
+  const [widthIn, setWidthIn] = useState('8');
+  const [depthIn, setDepthIn] = useState('4');
+  const [buyingService, setBuyingService] = useState<string | null>(null);
+
   useEffect(() => {
     setTrackingNumber(order.trackingNumber || '');
     setTrackingCarrier(normalizeTrackingCarrier(order.trackingCarrier));
   }, [order.id, order.trackingNumber, order.trackingCarrier]);
+
+  useEffect(() => {
+    adminFetch('/api/shipping/config')
+      .then((res) => res.json())
+      .then((data) => {
+        setBtcConfigured(Boolean(data.configured));
+        if (typeof data.credits === 'number') setBtcCredits(data.credits);
+        if (data.defaultPackageType) setPackageType(data.defaultPackageType);
+      })
+      .catch(() => setBtcConfigured(false));
+  }, []);
 
   const patchOrder = async (payload: Record<string, unknown>) => {
     setSaving(true);
@@ -57,69 +104,296 @@ export default function OrderShippingControls({
     }
   };
 
+  const fetchRates = async () => {
+    setBtcLoading(true);
+    setMessage('');
+    setBtcRates([]);
+    try {
+      const res = await adminFetch('/api/shipping/rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          packageType,
+          dimensions: {
+            weightLbs: Number(weightLbs) || 0,
+            weightOz: Number(weightOz) || 0,
+            heightInches: Number(heightIn) || 1,
+            widthInches: Number(widthIn) || 1,
+            depthInches: Number(depthIn) || 1,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch rates');
+      setBtcRates(data.rates || []);
+      if (!data.rates?.length) setMessage('No rates returned for this package');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to fetch rates');
+    } finally {
+      setBtcLoading(false);
+    }
+  };
+
+  const buyLabel = async (service: string) => {
+    setBuyingService(service);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/shipping/labels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          service,
+          packageType,
+          dimensions: {
+            weightLbs: Number(weightLbs) || 0,
+            weightOz: Number(weightOz) || 0,
+            heightInches: Number(heightIn) || 1,
+            widthInches: Number(widthIn) || 1,
+            depthInches: Number(depthIn) || 1,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Label purchase failed');
+      setTrackingNumber(data.order?.trackingNumber || '');
+      setTrackingCarrier(normalizeTrackingCarrier(data.order?.trackingCarrier));
+      if (data.shippingEmailSent) {
+        setMessage('Label purchased — tracking saved and customer emailed');
+      } else if (data.shippingEmailError) {
+        setMessage(`Label purchased, but email failed: ${data.shippingEmailError}`);
+      } else {
+        setMessage('Label purchased and tracking saved');
+      }
+      onUpdated();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to purchase label');
+    } finally {
+      setBuyingService(null);
+    }
+  };
+
+  const syncTracking = async () => {
+    setBtcLoading(true);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/shipping/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+      setMessage(data.message || 'Tracking synced');
+      onUpdated();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to sync tracking');
+    } finally {
+      setBtcLoading(false);
+    }
+  };
+
   return (
-    <div className="bg-black/40 border border-zinc-800 rounded-2xl p-5 mb-6">
-      <p className="text-sm font-semibold mb-3">Shipping & Tracking</p>
-      {order.shippedAt && (
+    <div className="bg-black/40 border border-zinc-800 rounded-2xl p-5 mb-6 space-y-5">
+      <div>
+        <p className="text-sm font-semibold mb-1">BTC Postage — Buy Label</p>
         <p className="text-xs text-zinc-500 mb-3">
-          Shipped {new Date(order.shippedAt).toLocaleString()}
+          Get live USPS/UPS/FedEx rates, purchase a label with your BTC Postage credits, and auto-save tracking.
         </p>
-      )}
-      {order.shippingNotificationSentAt && (
-        <p className="text-xs text-[#00ff9d] mb-3">
-          Shipping email sent {new Date(order.shippingNotificationSentAt).toLocaleString()}
-        </p>
-      )}
-      <div className="grid md:grid-cols-[1fr_160px] gap-3 mb-3">
-        <input
-          value={trackingNumber}
-          onChange={(e) => setTrackingNumber(e.target.value)}
-          placeholder="Tracking number"
-          className="bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm font-mono"
-        />
-        <select
-          value={trackingCarrier}
-          onChange={(e) => setTrackingCarrier(e.target.value as TrackingCarrier)}
-          className="bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm"
-        >
-          <option value="auto">Auto-detect carrier</option>
-          <option value="usps">USPS</option>
-          <option value="ups">UPS</option>
-          <option value="fedex">FedEx</option>
-          <option value="other">Other (no track link)</option>
-        </select>
+
+        {btcConfigured === false && (
+          <p className="text-xs text-amber-400">
+            BTC Postage is not configured. Add API key, secret, and ship-from address in server env.
+          </p>
+        )}
+
+        {btcConfigured && (
+          <>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400 mb-3">
+              {btcCredits !== null && <span>Account credits: ${btcCredits.toFixed(2)}</span>}
+              {order.btcPostageOrderId && (
+                <span className="font-mono">Postage order: {order.btcPostageOrderId}</span>
+              )}
+              {order.btcPostagePostageCost !== undefined && (
+                <span>Label cost: ${Number(order.btcPostagePostageCost).toFixed(2)}</span>
+              )}
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-3 mb-3">
+              <select
+                value={packageType}
+                onChange={(e) => setPackageType(e.target.value as BtcPostagePackageType)}
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+              >
+                {PACKAGE_TYPES.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={weightLbs}
+                onChange={(e) => setWeightLbs(e.target.value)}
+                placeholder="Weight lbs"
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+              />
+              <input
+                value={weightOz}
+                onChange={(e) => setWeightOz(e.target.value)}
+                placeholder="Weight oz"
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+              />
+              <input
+                value={heightIn}
+                onChange={(e) => setHeightIn(e.target.value)}
+                placeholder="Height in"
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+              />
+              <input
+                value={widthIn}
+                onChange={(e) => setWidthIn(e.target.value)}
+                placeholder="Width in"
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+              />
+              <input
+                value={depthIn}
+                onChange={(e) => setDepthIn(e.target.value)}
+                placeholder="Depth in"
+                className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-3">
+              <button
+                type="button"
+                disabled={btcLoading}
+                onClick={fetchRates}
+                className="px-4 py-2 bg-[#00ff9d]/20 text-[#00ff9d] hover:bg-[#00ff9d]/30 rounded-xl text-sm disabled:opacity-50"
+              >
+                {btcLoading ? 'Loading...' : 'Get Rates'}
+              </button>
+              {order.btcPostageOrderId && (
+                <button
+                  type="button"
+                  disabled={btcLoading}
+                  onClick={syncTracking}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm disabled:opacity-50"
+                >
+                  Sync Tracking
+                </button>
+              )}
+              {order.btcPostageLabelUrl && (
+                <a
+                  href={order.btcPostageLabelUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm"
+                >
+                  Download Label
+                </a>
+              )}
+            </div>
+
+            {btcRates.length > 0 && (
+              <div className="space-y-2 mb-2">
+                {btcRates.map((rate) => (
+                  <div
+                    key={rate.service}
+                    className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-zinc-800 bg-zinc-950/60"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{rate.serviceDisplay || rate.service}</p>
+                      <p className="text-xs text-zinc-500">
+                        {rate.carrier.toUpperCase()}
+                        {rate.estDeliveryDays ? ` · ${rate.estDeliveryDays} days` : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-[#00ff9d]">
+                        ${rate.rate.toFixed(2)}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={Boolean(buyingService)}
+                        onClick={() => buyLabel(rate.service)}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs font-medium disabled:opacity-50"
+                      >
+                        {buyingService === rate.service ? 'Buying...' : 'Buy Label'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() =>
-            patchOrder({
-              status: 'shipped',
-              trackingNumber: trackingNumber.trim(),
-              trackingCarrier,
-            })
-          }
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-sm font-medium disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : 'Mark Shipped & Save Tracking'}
-        </button>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() =>
-            patchOrder({
-              trackingNumber: trackingNumber.trim(),
-              trackingCarrier,
-            })
-          }
-          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm disabled:opacity-50"
-        >
-          Save Tracking Only
-        </button>
+
+      <div className="border-t border-zinc-800 pt-4">
+        <p className="text-sm font-semibold mb-3">Manual Tracking</p>
+        {order.shippedAt && (
+          <p className="text-xs text-zinc-500 mb-3">
+            Shipped {new Date(order.shippedAt).toLocaleString()}
+          </p>
+        )}
+        {order.shippingNotificationSentAt && (
+          <p className="text-xs text-[#00ff9d] mb-3">
+            Shipping email sent {new Date(order.shippingNotificationSentAt).toLocaleString()}
+          </p>
+        )}
+        <div className="grid md:grid-cols-[1fr_160px] gap-3 mb-3">
+          <input
+            value={trackingNumber}
+            onChange={(e) => setTrackingNumber(e.target.value)}
+            placeholder="Tracking number"
+            className="bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm font-mono"
+          />
+          <select
+            value={trackingCarrier}
+            onChange={(e) => setTrackingCarrier(e.target.value as TrackingCarrier)}
+            className="bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm"
+          >
+            <option value="auto">Auto-detect carrier</option>
+            <option value="usps">USPS</option>
+            <option value="ups">UPS</option>
+            <option value="fedex">FedEx</option>
+            <option value="other">Other (no track link)</option>
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() =>
+              patchOrder({
+                status: 'shipped',
+                trackingNumber: trackingNumber.trim(),
+                trackingCarrier,
+              })
+            }
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-sm font-medium disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Mark Shipped & Save Tracking'}
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() =>
+              patchOrder({
+                trackingNumber: trackingNumber.trim(),
+                trackingCarrier,
+              })
+            }
+            className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm disabled:opacity-50"
+          >
+            Save Tracking Only
+          </button>
+        </div>
       </div>
+
       {message && (
-        <p className={`text-xs mt-2 ${message === 'Saved' ? 'text-[#00ff9d]' : 'text-red-400'}`}>
+        <p className={`text-xs ${message.includes('failed') || message.includes('not configured') ? 'text-red-400' : 'text-[#00ff9d]'}`}>
           {message}
         </p>
       )}

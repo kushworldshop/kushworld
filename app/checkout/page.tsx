@@ -19,6 +19,7 @@ import {
   SHIPPING_DIMENSION_NOTE,
   FEDEX_ALTERNATIVE_NOTE,
   type ShippingMethod,
+  type ShippingOption,
 } from '@/lib/checkout';
 import { isFirstOrderBonusLineItem } from '@/lib/firstOrderBonus';
 import { orderRequiresIdVerification } from '@/lib/products';
@@ -111,7 +112,9 @@ export default function Checkout() {
   } | null>(null);
   const [btcPaymentComplete, setBtcPaymentComplete] = useState(false);
 
-  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('usps_ground');
+  const [shippingMethod, setShippingMethod] = useState<string>('usps_ground');
+  const [liveShippingOptions, setLiveShippingOptions] = useState<ShippingOption[] | null>(null);
+  const [liveRatesLoading, setLiveRatesLoading] = useState(false);
 
   const [customerInfo, setCustomerInfo] = useState({
     name: '', email: '', address: '', address2: '', city: '', state: '', zip: '', phone: ''
@@ -280,10 +283,16 @@ export default function Checkout() {
   const loyaltyDiscount = useLoyalty ? pointsToDollarDiscount(loyaltyPointsToUse) : 0;
   const discount = Math.min(sub, promoDiscount + loyaltyDiscount + spinDiscount);
   const isFirstOrder = getFirstOrderStatus(customerInfo.email);
-  const shippingOptions = getShippingOptions(sub);
+  const staticShippingOptions = getShippingOptions(sub);
+  const shippingOptions = liveShippingOptions?.length ? liveShippingOptions : staticShippingOptions;
   const selectedShipping = shippingOptions.find((option) => option.id === shippingMethod) ?? shippingOptions[0];
-  const baseTotals = calculateTotals(sub, discount, shippingMethod);
-  const shipping = spinPreview.freeShipping ? 0 : calculateShipping(sub, shippingMethod);
+
+  const baseTotals = calculateTotals(sub, discount, shippingMethod as ShippingMethod);
+  const shipping = spinPreview.freeShipping
+    ? 0
+    : selectedShipping?.source === 'btcpostage'
+      ? selectedShipping.rate
+      : calculateShipping(sub, shippingMethod as ShippingMethod);
   const total = Math.max(0, sub - discount + shipping);
   const totals = {
     ...baseTotals,
@@ -293,6 +302,100 @@ export default function Checkout() {
     shippingCarrier: shippingMethod,
     shippingLabel: selectedShipping.label,
   };
+
+  const getShippingPayload = () => {
+    if (selectedShipping?.source === 'btcpostage') {
+      return {
+        shippingAmount: shipping,
+        shippingMethodLabel: selectedShipping.label,
+        shippingCarrierFamily: selectedShipping.carrier,
+        shippingCarrier: shippingMethod,
+      };
+    }
+    return { shippingCarrier: shippingMethod as ShippingMethod };
+  };
+
+  useEffect(() => {
+    const { address, city, state, zip, name } = customerInfo;
+    if (!address || !city || !state || !zip || !name || sub <= 0) {
+      setLiveShippingOptions(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setLiveRatesLoading(true);
+      try {
+        const res = await fetch('/api/shipping/rates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            toAddress: {
+              name,
+              street: address,
+              street2: customerInfo.address2,
+              city,
+              state,
+              zip,
+              country: 'US',
+              phone: customerInfo.phone,
+            },
+            itemCount: items.length,
+          }),
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!res.ok || !data.rates?.length) {
+          setLiveShippingOptions(null);
+          return;
+        }
+
+        const freeShipping = sub >= FREE_SHIPPING_THRESHOLD;
+        const mapped: ShippingOption[] = data.rates.map((rate: {
+          service: string;
+          serviceDisplay: string;
+          rate: number;
+          carrier: string;
+          estDeliveryDays: string;
+        }) => ({
+          id: `btc:${rate.service}`,
+          label: rate.serviceDisplay || rate.service,
+          rate: freeShipping ? 0 : Number(rate.rate || 0),
+          eta: rate.estDeliveryDays ? `${rate.estDeliveryDays} business days` : 'Carrier estimate at checkout',
+          carrier: (rate.carrier === 'ups' || rate.carrier === 'fedex' ? rate.carrier : 'usps') as 'usps' | 'fedex' | 'ups',
+          btcPostageService: rate.service,
+          source: 'btcpostage' as const,
+        }));
+
+        setLiveShippingOptions(mapped);
+        if (!mapped.some((option) => option.id === shippingMethod)) {
+          setShippingMethod(mapped[0]?.id || 'usps_ground');
+        }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          setLiveShippingOptions(null);
+        }
+      } finally {
+        setLiveRatesLoading(false);
+      }
+    }, 600);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [
+    customerInfo.address,
+    customerInfo.address2,
+    customerInfo.city,
+    customerInfo.state,
+    customerInfo.zip,
+    customerInfo.name,
+    customerInfo.phone,
+    items.length,
+    sub,
+    shippingMethod,
+  ]);
 
   useEffect(() => {
     if (!storedReferralCode || sub <= 0) return;
@@ -485,7 +588,7 @@ export default function Checkout() {
           isFirstOrder,
           discount,
           shipping: totals.shipping,
-          shippingCarrier: shippingMethod,
+          ...getShippingPayload(),
           total: totals.total,
           opaqueData,
         }),
@@ -524,7 +627,7 @@ export default function Checkout() {
           isFirstOrder,
           discount,
           shipping: totals.shipping,
-          shippingCarrier: shippingMethod,
+          ...getShippingPayload(),
           total: totals.total,
         }),
       });
@@ -574,7 +677,7 @@ export default function Checkout() {
       isFirstOrder,
       discount,
       shipping: totals.shipping,
-      shippingCarrier: shippingMethod,
+      ...getShippingPayload(),
       total: totals.total,
       paymentMethod,
     };
@@ -808,7 +911,13 @@ export default function Checkout() {
             <input type="text" name="zip" placeholder="ZIP Code" value={customerInfo.zip} onChange={handleInputChange} className="w-full bg-zinc-900 p-4 rounded-2xl mb-6" required />
 
             <h3 className="text-lg font-semibold mb-1">Shipping Method</h3>
-            <p className="text-xs text-zinc-500 mb-3">{SHIPPING_DIMENSION_NOTE}</p>
+            <p className="text-xs text-zinc-500 mb-3">
+              {liveRatesLoading
+                ? 'Fetching live carrier rates...'
+                : liveShippingOptions?.length
+                  ? 'Live rates from BTC Postage'
+                  : SHIPPING_DIMENSION_NOTE}
+            </p>
             <div className="space-y-3 mb-6">
               {shippingOptions.map((option) => (
                 <label

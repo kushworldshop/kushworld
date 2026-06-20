@@ -24,6 +24,9 @@ export interface CheckoutOrderInput {
   couponCode?: string;
   loyaltyPointsUsed?: number;
   shippingCarrier?: string;
+  shippingAmount?: number;
+  shippingMethodLabel?: string;
+  shippingCarrierFamily?: 'usps' | 'fedex' | 'ups';
   spinPrizeId?: string;
   paymentMethod?: string;
 }
@@ -54,6 +57,9 @@ export async function buildCheckoutOrder(body: CheckoutOrderInput, orderId: stri
     promoDiscount: promoMeta.promoDiscount,
     loyaltyPointsUsed: body.loyaltyPointsUsed ?? 0,
     shippingCarrier: body.shippingCarrier as ShippingCarrier | undefined,
+    shippingAmount: body.shippingAmount,
+    shippingMethodLabel: body.shippingMethodLabel,
+    shippingCarrierFamily: body.shippingCarrierFamily,
     spinPrizeId: body.spinPrizeId,
   });
 

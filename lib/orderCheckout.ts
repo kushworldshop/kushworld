@@ -20,7 +20,7 @@ export interface ResolvedOrderTotals {
   freeTshirt: boolean;
   discount: number;
   shipping: number;
-  shippingCarrier: 'usps' | 'fedex';
+  shippingCarrier: 'usps' | 'fedex' | 'ups';
   shippingMethod: string;
   shippingMethodId: ShippingMethod;
   total: number;
@@ -32,6 +32,9 @@ export async function resolveOrderTotals(input: {
   loyaltyPointsUsed?: number;
   shipping?: number;
   shippingCarrier?: ShippingCarrier;
+  shippingAmount?: number;
+  shippingMethodLabel?: string;
+  shippingCarrierFamily?: 'usps' | 'fedex' | 'ups';
   spinPrizeId?: string;
 }): Promise<ResolvedOrderTotals> {
   const subtotal = input.subtotal ?? 0;
@@ -67,7 +70,11 @@ export async function resolveOrderTotals(input: {
 
   const discount = Math.min(subtotal, promoDiscount + loyaltyDiscount + spinDiscount);
   const shippingMethodId = normalizeShippingMethod(input.shippingCarrier);
-  let shipping = calculateShipping(subtotal, shippingMethodId);
+  const usingLiveShipping =
+    typeof input.shippingAmount === 'number' && Number.isFinite(input.shippingAmount);
+  let shipping = usingLiveShipping
+    ? Math.max(0, input.shippingAmount as number)
+    : calculateShipping(subtotal, shippingMethodId);
   if (freeShippingFromPrize) {
     shipping = 0;
   }
@@ -83,8 +90,12 @@ export async function resolveOrderTotals(input: {
     freeTshirt,
     discount,
     shipping,
-    shippingCarrier: getShippingCarrier(shippingMethodId),
-    shippingMethod: getShippingLabel(shippingMethodId),
+    shippingCarrier: usingLiveShipping
+      ? (input.shippingCarrierFamily || 'usps')
+      : getShippingCarrier(shippingMethodId),
+    shippingMethod: usingLiveShipping
+      ? (input.shippingMethodLabel || 'Live shipping rate')
+      : getShippingLabel(shippingMethodId),
     shippingMethodId,
     total,
   };
