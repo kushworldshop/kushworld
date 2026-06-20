@@ -118,6 +118,7 @@ export default function CustomersTab() {
 
   const loadUsers = async (query = search) => {
     setLoading(true);
+    setMessage('');
     try {
       const res = await adminFetch(`/api/admin/users?q=${encodeURIComponent(query)}`);
       if (res.ok) {
@@ -133,6 +134,12 @@ export default function CustomersTab() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearSearch = () => {
+    setSearch('');
+    setMessage('');
+    loadUsers('');
   };
 
   const loadUserOrders = async (email: string) => {
@@ -577,16 +584,34 @@ export default function CustomersTab() {
 
       <div className="grid lg:grid-cols-[320px_1fr] gap-6 min-h-[640px]">
         <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 flex flex-col">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loadUsers(search)}
-            placeholder="Search name, email, phone, promo..."
-            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 mb-3"
-          />
-          <button onClick={() => loadUsers(search)} className="w-full px-4 py-2 bg-zinc-800 rounded-xl text-sm mb-4">
-            Search
-          </button>
+          <div className="flex gap-2 mb-3">
+            <div className="relative flex-1">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && loadUsers(search)}
+                placeholder="Search name, email, phone, promo..."
+                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 pr-9 text-sm"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xl leading-none transition"
+                  aria-label="Clear search"
+                  title="Clear search and show all members"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => loadUsers(search)}
+              className="shrink-0 px-4 py-3 bg-[#00ff9d] text-black rounded-xl text-sm font-medium hover:bg-[#00ff9d]/90 transition whitespace-nowrap"
+            >
+              Search
+            </button>
+          </div>
           <label className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
             <input
               type="checkbox"
@@ -598,6 +623,7 @@ export default function CustomersTab() {
           </label>
           <p className="text-xs text-zinc-500 mb-3 px-1">
             {loading ? 'Loading...' : `${displayUsers.length} member${displayUsers.length === 1 ? '' : 's'}`}
+            {search ? ` matching “${search}”` : ''}
             {showFree8thOnly ? ' (free 1/8th)' : ''}
           </p>
 
@@ -636,7 +662,17 @@ export default function CustomersTab() {
               );
             })}
             {!loading && displayUsers.length === 0 && (
-              <p className="text-center text-zinc-500 text-sm py-10">No members found.</p>
+              <div className="text-center py-8 px-2">
+                <p className="text-zinc-500 text-sm mb-2">No members found{search ? ' for this search' : ''}.</p>
+                {search && (
+                  <button
+                    onClick={clearSearch}
+                    className="text-sm text-[#00ff9d] hover:text-[#00ff9d]/80 underline transition"
+                  >
+                    Clear search &amp; show all members
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
