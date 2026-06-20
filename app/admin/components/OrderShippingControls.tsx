@@ -14,6 +14,32 @@ type BtcPostageRate = {
   currency: string;
 };
 
+type ShippingCheck = {
+  id?: string;
+  label: string;
+  passed: boolean;
+  note?: string;
+};
+
+type GrokPrep = {
+  readyToShip: boolean;
+  confidence: 'high' | 'medium' | 'low';
+  packageType: BtcPostagePackageType;
+  dimensions: {
+    weightLbs: number;
+    weightOz: number;
+    heightInches: number;
+    widthInches: number;
+    depthInches: number;
+  };
+  recommendedService: string | null;
+  recommendedServiceDisplay: string | null;
+  summary: string;
+  checks: ShippingCheck[];
+  grokChecks: ShippingCheck[];
+  rates: BtcPostageRate[];
+};
+
 const PACKAGE_TYPES: { id: BtcPostagePackageType; label: string }[] = [
   { id: 'Parcel', label: 'USPS Parcel' },
   { id: 'FlatRateEnvelope', label: 'Flat Rate Envelope' },
@@ -30,6 +56,11 @@ export default function OrderShippingControls({
   order: {
     id: string;
     status?: string;
+    paymentStatus?: string;
+    paymentMethod?: string;
+    shipping?: number;
+    shippingMethod?: string;
+    shippingCarrier?: string;
     trackingNumber?: string;
     trackingCarrier?: string;
     shippedAt?: string;
@@ -39,7 +70,24 @@ export default function OrderShippingControls({
     btcPostageLabelUrl?: string;
     btcPostagePostageCost?: number;
     btcPostageService?: string;
-    items?: unknown[];
+    items?: Array<{ name?: string; quantity?: number; category?: string }>;
+    customer?: {
+      name?: string;
+      email?: string;
+      address?: string;
+      address2?: string;
+      city?: string;
+      state?: string;
+      zip?: string;
+      phone?: string;
+    };
+    name?: string;
+    address?: string;
+    address2?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    phone?: string;
   };
   onUpdated: () => void;
 }) {
@@ -54,6 +102,7 @@ export default function OrderShippingControls({
   const [btcCredits, setBtcCredits] = useState<number | null>(null);
   const [btcLoading, setBtcLoading] = useState(false);
   const [btcRates, setBtcRates] = useState<BtcPostageRate[]>([]);
+  const [grokPrep, setGrokPrep] = useState<GrokPrep | null>(null);
   const [packageType, setPackageType] = useState<BtcPostagePackageType>('Parcel');
   const [weightLbs, setWeightLbs] = useState('0');
   const [weightOz, setWeightOz] = useState('16');
@@ -77,6 +126,25 @@ export default function OrderShippingControls({
       })
       .catch(() => setBtcConfigured(false));
   }, []);
+
+  const applyPrep = (prep: GrokPrep) => {
+    setGrokPrep(prep);
+    setPackageType(prep.packageType);
+    setWeightLbs(String(prep.dimensions.weightLbs));
+    setWeightOz(String(prep.dimensions.weightOz));
+    setHeightIn(String(prep.dimensions.heightInches));
+    setWidthIn(String(prep.dimensions.widthInches));
+    setDepthIn(String(prep.dimensions.depthInches));
+    setBtcRates(prep.rates || []);
+  };
+
+  const dimensionsPayload = () => ({
+    weightLbs: Number(weightLbs) || 0,
+    weightOz: Number(weightOz) || 0,
+    heightInches: Number(heightIn) || 1,
+    widthInches: Number(widthIn) || 1,
+    depthInches: Number(depthIn) || 1,
+  });
 
   const patchOrder = async (payload: Record<string, unknown>) => {
     setSaving(true);
@@ -104,10 +172,30 @@ export default function OrderShippingControls({
     }
   };
 
+  const grokPrepare = async () => {
+    setBtcLoading(true);
+    setMessage('');
+    setGrokPrep(null);
+    try {
+      const res = await adminFetch('/api/shipping/prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Grok prepare failed');
+      applyPrep(data.prep);
+      setMessage(data.prep.summary || 'Grok prepared shipping details');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Grok prepare failed');
+    } finally {
+      setBtcLoading(false);
+    }
+  };
+
   const fetchRates = async () => {
     setBtcLoading(true);
     setMessage('');
-    setBtcRates([]);
     try {
       const res = await adminFetch('/api/shipping/rates', {
         method: 'POST',
@@ -115,13 +203,7 @@ export default function OrderShippingControls({
         body: JSON.stringify({
           orderId: order.id,
           packageType,
-          dimensions: {
-            weightLbs: Number(weightLbs) || 0,
-            weightOz: Number(weightOz) || 0,
-            heightInches: Number(heightIn) || 1,
-            widthInches: Number(widthIn) || 1,
-            depthInches: Number(depthIn) || 1,
-          },
+          dimensions: dimensionsPayload(),
         }),
       });
       const data = await res.json();
@@ -135,7 +217,7 @@ export default function OrderShippingControls({
     }
   };
 
-  const buyLabel = async (service: string) => {
+  const buyLabel = async (service: string, useGrokVerify = false) => {
     setBuyingService(service);
     setMessage('');
     try {
@@ -146,13 +228,8 @@ export default function OrderShippingControls({
           orderId: order.id,
           service,
           packageType,
-          dimensions: {
-            weightLbs: Number(weightLbs) || 0,
-            weightOz: Number(weightOz) || 0,
-            heightInches: Number(heightIn) || 1,
-            widthInches: Number(widthIn) || 1,
-            depthInches: Number(depthIn) || 1,
-          },
+          dimensions: dimensionsPayload(),
+          useGrokVerify,
         }),
       });
       const data = await res.json();
@@ -166,12 +243,22 @@ export default function OrderShippingControls({
       } else {
         setMessage('Label purchased and tracking saved');
       }
+      setGrokPrep(null);
       onUpdated();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to purchase label');
     } finally {
       setBuyingService(null);
     }
+  };
+
+  const grokVerifyAndBuy = async () => {
+    const service = grokPrep?.recommendedService;
+    if (!service) {
+      setMessage('Run Grok Prepare first — no recommended service yet');
+      return;
+    }
+    await buyLabel(service, true);
   };
 
   const syncTracking = async () => {
@@ -194,12 +281,14 @@ export default function OrderShippingControls({
     }
   };
 
+  const allChecks = [...(grokPrep?.checks || []), ...(grokPrep?.grokChecks || [])];
+
   return (
     <div className="bg-black/40 border border-zinc-800 rounded-2xl p-5 mb-6 space-y-5">
       <div>
-        <p className="text-sm font-semibold mb-1">BTC Postage — Buy Label</p>
+        <p className="text-sm font-semibold mb-1">BTC Postage + Grok — Smart Labels</p>
         <p className="text-xs text-zinc-500 mb-3">
-          Get live USPS/UPS/FedEx rates, purchase a label with your BTC Postage credits, and auto-save tracking.
+          Grok reads the order, autofills package details, cross-checks the address and payment, fetches rates, and verifies again before buying the label.
         </p>
 
         {btcConfigured === false && (
@@ -218,7 +307,53 @@ export default function OrderShippingControls({
               {order.btcPostagePostageCost !== undefined && (
                 <span>Label cost: ${Number(order.btcPostagePostageCost).toFixed(2)}</span>
               )}
+              {grokPrep && (
+                <span className={grokPrep.readyToShip ? 'text-[#00ff9d]' : 'text-amber-400'}>
+                  Grok: {grokPrep.readyToShip ? 'ready' : 'needs review'} ({grokPrep.confidence})
+                </span>
+              )}
             </div>
+
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                type="button"
+                disabled={btcLoading}
+                onClick={grokPrepare}
+                className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-xl text-sm font-medium disabled:opacity-50"
+              >
+                {btcLoading && !buyingService ? 'Grok working...' : 'Grok Prepare Label'}
+              </button>
+              {grokPrep?.readyToShip && grokPrep.recommendedService && (
+                <button
+                  type="button"
+                  disabled={Boolean(buyingService)}
+                  onClick={grokVerifyAndBuy}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-sm font-medium disabled:opacity-50"
+                >
+                  {buyingService ? 'Buying...' : 'Grok Verify & Buy Recommended'}
+                </button>
+              )}
+            </div>
+
+            {grokPrep?.summary && (
+              <p className="text-xs text-zinc-300 mb-3">{grokPrep.summary}</p>
+            )}
+
+            {allChecks.length > 0 && (
+              <div className="mb-4 space-y-1">
+                {allChecks.map((check, index) => (
+                  <div key={`${check.label}-${index}`} className="flex items-start gap-2 text-xs">
+                    <span className={check.passed ? 'text-[#00ff9d]' : 'text-red-400'}>
+                      {check.passed ? '✓' : '✗'}
+                    </span>
+                    <span className="text-zinc-300">
+                      {check.label}
+                      {check.note ? <span className="text-zinc-500"> — {check.note}</span> : null}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="grid md:grid-cols-3 gap-3 mb-3">
               <select
@@ -271,7 +406,7 @@ export default function OrderShippingControls({
                 onClick={fetchRates}
                 className="px-4 py-2 bg-[#00ff9d]/20 text-[#00ff9d] hover:bg-[#00ff9d]/30 rounded-xl text-sm disabled:opacity-50"
               >
-                {btcLoading ? 'Loading...' : 'Get Rates'}
+                {btcLoading ? 'Loading...' : 'Refresh Rates'}
               </button>
               {order.btcPostageOrderId && (
                 <button
@@ -297,33 +432,49 @@ export default function OrderShippingControls({
 
             {btcRates.length > 0 && (
               <div className="space-y-2 mb-2">
-                {btcRates.map((rate) => (
-                  <div
-                    key={rate.service}
-                    className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-zinc-800 bg-zinc-950/60"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{rate.serviceDisplay || rate.service}</p>
-                      <p className="text-xs text-zinc-500">
-                        {rate.carrier.toUpperCase()}
-                        {rate.estDeliveryDays ? ` · ${rate.estDeliveryDays} days` : ''}
-                      </p>
+                {btcRates.map((rate) => {
+                  const isRecommended = grokPrep?.recommendedService === rate.service;
+                  return (
+                    <div
+                      key={rate.service}
+                      className={`flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border bg-zinc-950/60 ${
+                        isRecommended ? 'border-[#00ff9d]/50' : 'border-zinc-800'
+                      }`}
+                    >
+                      <div>
+                        <p className="text-sm font-medium">
+                          {rate.serviceDisplay || rate.service}
+                          {isRecommended && (
+                            <span className="ml-2 text-[10px] uppercase tracking-wide text-[#00ff9d]">
+                              Grok pick
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          {rate.carrier.toUpperCase()}
+                          {rate.estDeliveryDays ? ` · ${rate.estDeliveryDays} days` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-[#00ff9d]">
+                          ${rate.rate.toFixed(2)}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={Boolean(buyingService)}
+                          onClick={() => buyLabel(rate.service, isRecommended)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs font-medium disabled:opacity-50"
+                        >
+                          {buyingService === rate.service
+                            ? 'Buying...'
+                            : isRecommended
+                              ? 'Verify & Buy'
+                              : 'Buy Label'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-[#00ff9d]">
-                        ${rate.rate.toFixed(2)}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={Boolean(buyingService)}
-                        onClick={() => buyLabel(rate.service)}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs font-medium disabled:opacity-50"
-                      >
-                        {buyingService === rate.service ? 'Buying...' : 'Buy Label'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>
@@ -393,7 +544,15 @@ export default function OrderShippingControls({
       </div>
 
       {message && (
-        <p className={`text-xs ${message.includes('failed') || message.includes('not configured') ? 'text-red-400' : 'text-[#00ff9d]'}`}>
+        <p
+          className={`text-xs ${
+            message.toLowerCase().includes('failed') ||
+            message.toLowerCase().includes('not configured') ||
+            message.toLowerCase().includes('rejected')
+              ? 'text-red-400'
+              : 'text-[#00ff9d]'
+          }`}
+        >
           {message}
         </p>
       )}

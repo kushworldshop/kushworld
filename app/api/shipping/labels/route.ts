@@ -12,7 +12,9 @@ import {
   type BtcPostagePackageType,
 } from '@/lib/btcPostage';
 import { getDefaultPackageProfile } from '@/lib/shippingPackage';
+import { verifyGrokShippingPurchase } from '@/lib/grokShippingPrep';
 import { normalizeTrackingCarrier } from '@/lib/orderShipping';
+import type { OrderForShippingValidation } from '@/lib/shippingOrderValidation';
 import {
   applyShippingEmailTimestamps,
   maybeSendShippingEmail,
@@ -32,7 +34,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { orderId, service, packageType: packageTypeInput, dimensions: dimensionsInput, testMode } = body;
+    const {
+      orderId,
+      service,
+      packageType: packageTypeInput,
+      dimensions: dimensionsInput,
+      testMode,
+      useGrokVerify = false,
+    } = body;
 
     if (!orderId || !service) {
       return NextResponse.json(
@@ -64,6 +73,26 @@ export async function POST(request: NextRequest) {
       ...defaults.dimensions,
       ...(dimensionsInput || {}),
     };
+
+    if (useGrokVerify) {
+      const verification = await verifyGrokShippingPurchase({
+        order: order as OrderForShippingValidation,
+        service,
+        packageType,
+        dimensions,
+      });
+
+      if (!verification.approved) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: verification.reason,
+            verification,
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     const purchase = await purchaseBtcPostageLabel({
       from: config.shipFrom,

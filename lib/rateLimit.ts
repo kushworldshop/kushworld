@@ -75,6 +75,7 @@ const ROUTE_LIMITS: Array<{ prefix: string; limit: number; windowMs: number }> =
   { prefix: '/api/auth/reset-password', limit: 10, windowMs: 15 * 60 * 1000 },
   { prefix: '/api/auth/verify', limit: 20, windowMs: 15 * 60 * 1000 },
   { prefix: '/api/grok/chat', limit: 40, windowMs: 60 * 60 * 1000 },
+  { prefix: '/api/shipping/prepare', limit: 30, windowMs: 60 * 60 * 1000 },
   { prefix: '/api/orders/upload-id', limit: 10, windowMs: 60 * 60 * 1000 },
   { prefix: '/api/users/id-upload', limit: 10, windowMs: 60 * 60 * 1000 },
   { prefix: '/api/payments/charge', limit: 15, windowMs: 60 * 60 * 1000 },
