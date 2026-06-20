@@ -53,7 +53,7 @@ function applySecurityHeaders(response: NextResponse) {
   response.headers.set('Content-Security-Policy', csp);
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Rate limiting (in-memory; restarts on PM2 reload. Protects logins, orders, uploads, etc.)
