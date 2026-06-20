@@ -42,6 +42,9 @@ export interface UserProfile {
   email: string;
   name: string;
   password: string;
+  discordId?: string;
+  discordUsername?: string;
+  authProvider?: 'email' | 'discord' | 'both';
   createdAt: string;
   idVerified?: boolean;
   idVerification?: UserIdVerification;
@@ -84,6 +87,7 @@ export interface PublicUserProfile {
   id: string;
   email: string;
   name: string;
+  discordLinked?: boolean;
   createdAt: string;
   idVerified?: boolean;
   idVerification?: Pick<UserIdVerification, 'status' | 'uploadedAt' | 'rejectionReason'>;
@@ -215,6 +219,12 @@ export async function getUserByEmail(email: string): Promise<UserProfile | null>
   const normalized = email.trim().toLowerCase();
   const users = await readUsers();
   return users.find((u) => u.email.toLowerCase() === normalized) ?? null;
+}
+
+export async function getUserByDiscordId(discordId: string): Promise<UserProfile | null> {
+  const normalized = discordId.trim();
+  const users = await readUsers();
+  return users.find((u) => u.discordId === normalized) ?? null;
 }
 
 export async function createUser(input: {
@@ -395,6 +405,7 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     id: user.id,
     email: user.email,
     name: user.name,
+    discordLinked: Boolean(user.discordId),
     createdAt: user.createdAt,
     idVerified: user.idVerified,
     idVerification: user.idVerification

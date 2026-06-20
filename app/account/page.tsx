@@ -60,6 +60,7 @@ export default function Account() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [discordLoginEnabled, setDiscordLoginEnabled] = useState(false);
   const [signupName, setSignupName] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [signupPromoCode, setSignupPromoCode] = useState('');
@@ -165,6 +166,10 @@ export default function Account() {
         if (data?.success !== false) setPromoTerms(data);
       })
       .catch(() => {});
+    fetch('/api/auth/discord/config')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setDiscordLoginEnabled(Boolean(data?.enabled)))
+      .catch(() => setDiscordLoginEnabled(false));
   }, []);
 
   useEffect(() => {
@@ -177,6 +182,34 @@ export default function Account() {
     if (resetParam) {
       setResetToken(resetParam);
       setAuthView('reset');
+    }
+
+    const discordParam = params.get('discord');
+    const discordReason = params.get('reason');
+    if (discordParam === 'success') {
+      setMessage('Signed in with Discord.');
+      loadProfile();
+    } else if (discordParam === 'welcome') {
+      setMessage('Welcome! Your Kush World account is linked to Discord.');
+      loadProfile();
+    } else if (discordParam === 'error') {
+      const messages: Record<string, string> = {
+        not_configured: 'Discord login is not configured on the server yet.',
+        access_denied: 'Discord sign-in was cancelled.',
+        invalid_state: 'Discord sign-in expired. Please try again.',
+        expired_state: 'Discord sign-in expired. Please try again.',
+        login_failed: 'Discord sign-in failed. Please try again.',
+      };
+      const decoded = discordReason ? decodeURIComponent(discordReason) : '';
+      setError(messages[decoded] || messages[discordReason || ''] || decoded || 'Discord sign-in failed.');
+    }
+
+    if (discordParam) {
+      params.delete('discord');
+      params.delete('reason');
+      const nextQuery = params.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`;
+      window.history.replaceState({}, '', nextUrl);
     }
   }, []);
 
@@ -668,6 +701,23 @@ export default function Account() {
                 >
                   {isLogin ? 'Login' : 'Sign Up'}
                 </button>
+
+                {discordLoginEnabled && (
+                  <>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-px flex-1 bg-zinc-800" />
+                      <span className="text-xs text-zinc-500 uppercase tracking-wide">or</span>
+                      <div className="h-px flex-1 bg-zinc-800" />
+                    </div>
+                    <a
+                      href="/api/auth/discord?returnTo=/account"
+                      className="w-full flex items-center justify-center gap-3 bg-[#5865F2] hover:bg-[#4752C4] text-white py-4 rounded-2xl font-bold text-lg mb-4 transition"
+                    >
+                      <i className="fa-brands fa-discord text-xl" aria-hidden />
+                      Continue with Discord
+                    </a>
+                  </>
+                )}
 
                 <p className="text-center text-sm text-zinc-400">
                   {isLogin ? "Don't have an account? " : 'Already have an account? '}
