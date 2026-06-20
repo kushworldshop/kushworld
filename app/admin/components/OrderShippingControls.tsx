@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import { normalizeTrackingCarrier, type TrackingCarrier } from '@/lib/orderShipping';
 import type { BtcPostagePackageType } from '@/lib/btcPostage';
-import { formatShipFromLine, isShipFromComplete, normalizeShipFromInput } from '@/lib/shipFromAddress';
+import { formatShipFromLine } from '@/lib/shipFromAddress';
 
 type BtcPostageRate = {
   service: string;
@@ -39,22 +39,18 @@ type GrokPrep = {
   checks: ShippingCheck[];
   grokChecks: ShippingCheck[];
   rates: BtcPostageRate[];
-};
-
-type ShipFromForm = {
-  name: string;
-  street: string;
-  street2: string;
-  city: string;
-  state: string;
-  zip: string;
-  phone: string;
-};
-
-type ShipFromPreset = {
-  id: string;
-  label: string;
-  address: ShipFromForm;
+  shipFrom?: {
+    name: string;
+    street: string;
+    street2?: string;
+    city: string;
+    state: string;
+    zip: string;
+    phone?: string;
+  };
+  shipFromId?: string;
+  shipFromLabel?: string;
+  shipFromReason?: string;
 };
 
 const PACKAGE_TYPES: { id: BtcPostagePackageType; label: string }[] = [
@@ -66,82 +62,30 @@ const PACKAGE_TYPES: { id: BtcPostagePackageType; label: string }[] = [
   { id: 'LargeFlatRateBox', label: 'Large Flat Rate Box' },
 ];
 
-const PRESETS_KEY = 'kushworld-ship-from-presets';
-const LAST_FROM_KEY = 'kushworld-ship-from-last';
-
-const EMPTY_FROM: ShipFromForm = {
-  name: 'Kush World',
-  street: '',
-  street2: '',
-  city: '',
-  state: '',
-  zip: '',
-  phone: '',
-};
-
-function loadPresets(): ShipFromPreset[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(PRESETS_KEY);
-    return raw ? (JSON.parse(raw) as ShipFromPreset[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function loadLastFrom(): ShipFromForm | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(LAST_FROM_KEY);
-    return raw ? (JSON.parse(raw) as ShipFromForm) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveLastFrom(form: ShipFromForm) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(LAST_FROM_KEY, JSON.stringify(form));
-}
-
-function shipToLine(order: OrderShippingControlsProps['order']) {
-  const name = order.customer?.name || order.name || 'Customer';
-  const street = order.customer?.address || order.address || '';
-  const street2 = order.customer?.address2 || order.address2 || '';
-  const city = order.customer?.city || order.city || '';
-  const state = order.customer?.state || order.state || '';
-  const zip = order.customer?.zip || order.zip || '';
-  return `${name} — ${street}${street2 ? `, ${street2}` : ''}, ${city}, ${state} ${zip}`;
-}
-
-type OrderShippingControlsProps = {
+export default function OrderShippingControls({
+  order,
+  onUpdated,
+}: {
   order: {
     id: string;
     status?: string;
     paymentStatus?: string;
-    paymentMethod?: string;
-    shipping?: number;
-    shippingMethod?: string;
-    shippingCarrier?: string;
     trackingNumber?: string;
     trackingCarrier?: string;
     shippedAt?: string;
     shippingNotificationSentAt?: string;
-    trackingNotificationSentAt?: string;
     btcPostageOrderId?: string;
     btcPostageLabelUrl?: string;
     btcPostagePostageCost?: number;
     btcPostageService?: string;
-    items?: Array<{ name?: string; quantity?: number; category?: string }>;
+    items?: unknown[];
     customer?: {
       name?: string;
-      email?: string;
       address?: string;
       address2?: string;
       city?: string;
       state?: string;
       zip?: string;
-      phone?: string;
     };
     name?: string;
     address?: string;
@@ -149,12 +93,9 @@ type OrderShippingControlsProps = {
     city?: string;
     state?: string;
     zip?: string;
-    phone?: string;
   };
   onUpdated: () => void;
-};
-
-export default function OrderShippingControls({ order, onUpdated }: OrderShippingControlsProps) {
+}) {
   const [trackingNumber, setTrackingNumber] = useState(order.trackingNumber || '');
   const [trackingCarrier, setTrackingCarrier] = useState<TrackingCarrier>(
     normalizeTrackingCarrier(order.trackingCarrier)
@@ -175,51 +116,10 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
   const [depthIn, setDepthIn] = useState('4');
   const [buyingService, setBuyingService] = useState<string | null>(null);
 
-  const [shipFrom, setShipFrom] = useState<ShipFromForm>(EMPTY_FROM);
-  const [presets, setPresets] = useState<ShipFromPreset[]>([]);
-  const [selectedPresetId, setSelectedPresetId] = useState('');
-  const [presetLabel, setPresetLabel] = useState('');
-
-  const [selectedRate, setSelectedRate] = useState<BtcPostageRate | null>(null);
-  const [manualApproved, setManualApproved] = useState(false);
-  const [runGrokOnPurchase, setRunGrokOnPurchase] = useState(true);
-
-  const shipFromPayload = useMemo(() => normalizeShipFromInput(shipFrom), [shipFrom]);
-  const shipFromReady = isShipFromComplete(shipFromPayload);
-
   useEffect(() => {
     setTrackingNumber(order.trackingNumber || '');
     setTrackingCarrier(normalizeTrackingCarrier(order.trackingCarrier));
-    setSelectedRate(null);
-    setManualApproved(false);
   }, [order.id, order.trackingNumber, order.trackingCarrier]);
-
-  useEffect(() => {
-    const savedPresets = loadPresets();
-    setPresets(savedPresets);
-    const last = loadLastFrom();
-    if (last) {
-      setShipFrom(last);
-      return;
-    }
-    adminFetch('/api/shipping/config')
-      .then((res) => res.json())
-      .then((data) => {
-        const defaults = data.defaultShipFrom;
-        if (defaults?.street) {
-          setShipFrom({
-            name: defaults.name || 'Kush World',
-            street: defaults.street || '',
-            street2: defaults.street2 || '',
-            city: defaults.city || '',
-            state: defaults.state || '',
-            zip: defaults.zip || '',
-            phone: defaults.phone || '',
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     adminFetch('/api/shipping/config')
@@ -241,8 +141,6 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
     setWidthIn(String(prep.dimensions.widthInches));
     setDepthIn(String(prep.dimensions.depthInches));
     setBtcRates(prep.rates || []);
-    setSelectedRate(null);
-    setManualApproved(false);
   };
 
   const dimensionsPayload = () => ({
@@ -253,45 +151,33 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
     depthInches: Number(depthIn) || 1,
   });
 
-  const updateShipFrom = (field: keyof ShipFromForm, value: string) => {
-    setShipFrom((prev) => ({ ...prev, [field]: value }));
-    setSelectedRate(null);
-    setManualApproved(false);
-    setBtcRates([]);
-    setGrokPrep(null);
-  };
+  const fromAddressPayload = () => grokPrep?.shipFrom;
 
-  const applyPreset = (presetId: string) => {
-    setSelectedPresetId(presetId);
-    const preset = presets.find((entry) => entry.id === presetId);
-    if (!preset) return;
-    setShipFrom(preset.address);
-    setSelectedRate(null);
-    setManualApproved(false);
-    setBtcRates([]);
-    setGrokPrep(null);
-  };
-
-  const savePreset = () => {
-    if (!shipFromReady) {
-      setMessage('Complete the ship-from address before saving a preset');
-      return;
+  const grokPrepare = useCallback(async () => {
+    setBtcLoading(true);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/shipping/prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Grok prepare failed');
+      applyPrep(data.prep);
+      setMessage(data.prep.summary || 'Grok prepared label details');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Grok prepare failed');
+    } finally {
+      setBtcLoading(false);
     }
-    const label =
-      presetLabel.trim() ||
-      `${shipFrom.city}, ${shipFrom.state} — ${shipFrom.street.slice(0, 24)}`;
-    const entry: ShipFromPreset = {
-      id: `preset-${Date.now()}`,
-      label,
-      address: { ...shipFrom },
-    };
-    const next = [entry, ...presets.filter((p) => p.label !== label)].slice(0, 12);
-    setPresets(next);
-    localStorage.setItem(PRESETS_KEY, JSON.stringify(next));
-    setSelectedPresetId(entry.id);
-    setPresetLabel('');
-    setMessage(`Saved preset: ${label}`);
-  };
+  }, [order.id]);
+
+  useEffect(() => {
+    if (btcConfigured && order.id && !order.btcPostageOrderId && !order.trackingNumber) {
+      grokPrepare();
+    }
+  }, [btcConfigured, order.id, order.btcPostageOrderId, order.trackingNumber, grokPrepare]);
 
   const patchOrder = async (payload: Record<string, unknown>) => {
     setSaving(true);
@@ -319,47 +205,16 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
     }
   };
 
-  const grokPrepare = async () => {
-    if (!shipFromReady) {
-      setMessage('Enter a complete ship-from address first');
-      return;
-    }
-    setBtcLoading(true);
-    setMessage('');
-    setGrokPrep(null);
-    try {
-      const res = await adminFetch('/api/shipping/prepare', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: order.id, fromAddress: shipFromPayload }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Grok prepare failed');
-      applyPrep(data.prep);
-      setMessage(data.prep.summary || 'Grok prepared suggestions — review before purchasing');
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Grok prepare failed');
-    } finally {
-      setBtcLoading(false);
-    }
-  };
-
   const fetchRates = async () => {
-    if (!shipFromReady) {
-      setMessage('Enter a complete ship-from address first');
-      return;
-    }
     setBtcLoading(true);
     setMessage('');
-    setSelectedRate(null);
-    setManualApproved(false);
     try {
       const res = await adminFetch('/api/shipping/rates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: order.id,
-          fromAddress: shipFromPayload,
+          fromAddress: fromAddressPayload(),
           packageType,
           dimensions: dimensionsPayload(),
         }),
@@ -367,6 +222,15 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to fetch rates');
       setBtcRates(data.rates || []);
+      if (data.shipFrom && grokPrep) {
+        setGrokPrep({
+          ...grokPrep,
+          shipFrom: data.shipFrom,
+          shipFromId: data.shipFromId,
+          shipFromLabel: data.shipFromLabel,
+          shipFromReason: data.shipFromReason,
+        });
+      }
       if (!data.rates?.length) setMessage('No rates returned for this package');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to fetch rates');
@@ -375,21 +239,8 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
     }
   };
 
-  const confirmPurchase = async () => {
-    if (!selectedRate) {
-      setMessage('Select a rate to review first');
-      return;
-    }
-    if (!manualApproved) {
-      setMessage('Check the manual verification box before purchasing');
-      return;
-    }
-    if (!shipFromReady) {
-      setMessage('Ship-from address is incomplete');
-      return;
-    }
-
-    setBuyingService(selectedRate.service);
+  const buyLabel = async (service: string, useGrokVerify = false) => {
+    setBuyingService(service);
     setMessage('');
     try {
       const res = await adminFetch('/api/shipping/labels', {
@@ -397,17 +248,15 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: order.id,
-          service: selectedRate.service,
+          service,
           packageType,
           dimensions: dimensionsPayload(),
-          fromAddress: shipFromPayload,
-          manualApproved: true,
-          useGrokVerify: runGrokOnPurchase,
+          fromAddress: fromAddressPayload(),
+          useGrokVerify,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Label purchase failed');
-      saveLastFrom(shipFrom);
       setTrackingNumber(data.order?.trackingNumber || '');
       setTrackingCarrier(normalizeTrackingCarrier(data.order?.trackingCarrier));
       if (data.shippingEmailSent) {
@@ -418,14 +267,21 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
         setMessage('Label purchased and tracking saved');
       }
       setGrokPrep(null);
-      setSelectedRate(null);
-      setManualApproved(false);
       onUpdated();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to purchase label');
     } finally {
       setBuyingService(null);
     }
+  };
+
+  const grokVerifyAndBuy = async () => {
+    const service = grokPrep?.recommendedService;
+    if (!service) {
+      setMessage('Grok has not picked a rate yet — run prepare or refresh rates');
+      return;
+    }
+    await buyLabel(service, true);
   };
 
   const syncTracking = async () => {
@@ -453,9 +309,9 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
   return (
     <div className="bg-black/40 border border-zinc-800 rounded-2xl p-5 mb-6 space-y-5">
       <div>
-        <p className="text-sm font-semibold mb-1">BTC Postage — Manual Label Purchase</p>
+        <p className="text-sm font-semibold mb-1">BTC Postage + Grok — Smart Labels</p>
         <p className="text-xs text-zinc-500 mb-3">
-          Choose a ship-from address, let Grok suggest package details, review everything yourself, then confirm purchase. Labels are never bought automatically.
+          Grok auto-picks a real outgoing address, suggests package details, fetches rates, and verifies before purchase.
         </p>
 
         {btcConfigured === false && (
@@ -466,116 +322,55 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
 
         {btcConfigured && (
           <>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400 mb-4">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400 mb-3">
               {btcCredits !== null && <span>Account credits: ${btcCredits.toFixed(2)}</span>}
               {order.btcPostageOrderId && (
                 <span className="font-mono">Postage order: {order.btcPostageOrderId}</span>
               )}
               {grokPrep && (
                 <span className={grokPrep.readyToShip ? 'text-[#00ff9d]' : 'text-amber-400'}>
-                  Grok suggestion: {grokPrep.readyToShip ? 'looks good' : 'review carefully'} ({grokPrep.confidence})
+                  Grok: {grokPrep.readyToShip ? 'ready' : 'needs review'} ({grokPrep.confidence})
                 </span>
               )}
             </div>
 
-            <div className="border border-zinc-800 rounded-xl p-4 mb-4 space-y-3">
-              <p className="text-sm font-medium">Ship-from address (required — changes per order)</p>
-              <div className="flex flex-wrap gap-2 mb-2">
-                <select
-                  value={selectedPresetId}
-                  onChange={(e) => applyPreset(e.target.value)}
-                  className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm min-w-[220px]"
-                >
-                  <option value="">Load saved address...</option>
-                  {presets.map((preset) => (
-                    <option key={preset.id} value={preset.id}>
-                      {preset.label}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={presetLabel}
-                  onChange={(e) => setPresetLabel(e.target.value)}
-                  placeholder="Preset name (optional)"
-                  className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm flex-1 min-w-[180px]"
-                />
-                <button
-                  type="button"
-                  onClick={savePreset}
-                  className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm"
-                >
-                  Save as preset
-                </button>
+            {grokPrep?.shipFrom && (
+              <div className="border border-zinc-800 rounded-xl p-3 mb-4 text-xs">
+                <p className="text-zinc-500 mb-1">Outgoing address (Grok auto-selected)</p>
+                <p className="text-zinc-200">{formatShipFromLine(grokPrep.shipFrom)}</p>
+                {grokPrep.shipFromLabel && (
+                  <p className="text-zinc-500 mt-1">
+                    {grokPrep.shipFromLabel}
+                    {grokPrep.shipFromReason ? ` — ${grokPrep.shipFromReason}` : ''}
+                  </p>
+                )}
               </div>
-              <div className="grid md:grid-cols-2 gap-3">
-                <input
-                  value={shipFrom.name}
-                  onChange={(e) => updateShipFrom('name', e.target.value)}
-                  placeholder="Sender name"
-                  className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-                />
-                <input
-                  value={shipFrom.phone}
-                  onChange={(e) => updateShipFrom('phone', e.target.value)}
-                  placeholder="Sender phone"
-                  className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-                />
-                <input
-                  value={shipFrom.street}
-                  onChange={(e) => updateShipFrom('street', e.target.value)}
-                  placeholder="Street address"
-                  className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm md:col-span-2"
-                />
-                <input
-                  value={shipFrom.street2}
-                  onChange={(e) => updateShipFrom('street2', e.target.value)}
-                  placeholder="Apt / suite (optional)"
-                  className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm md:col-span-2"
-                />
-                <input
-                  value={shipFrom.city}
-                  onChange={(e) => updateShipFrom('city', e.target.value)}
-                  placeholder="City"
-                  className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-                />
-                <input
-                  value={shipFrom.state}
-                  onChange={(e) => updateShipFrom('state', e.target.value.toUpperCase())}
-                  placeholder="State"
-                  className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-                />
-                <input
-                  value={shipFrom.zip}
-                  onChange={(e) => updateShipFrom('zip', e.target.value)}
-                  placeholder="ZIP"
-                  className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-                />
-              </div>
-              {!shipFromReady && (
-                <p className="text-xs text-amber-400">Complete ship-from street, city, state, and ZIP to continue.</p>
-              )}
-            </div>
+            )}
 
             <div className="flex flex-wrap gap-2 mb-4">
               <button
                 type="button"
-                disabled={btcLoading || !shipFromReady}
+                disabled={btcLoading}
                 onClick={grokPrepare}
                 className="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-xl text-sm font-medium disabled:opacity-50"
               >
-                {btcLoading && !buyingService ? 'Grok working...' : 'Grok Suggest Package'}
+                {btcLoading && !buyingService ? 'Grok working...' : 'Grok Prepare Label'}
               </button>
-              <button
-                type="button"
-                disabled={btcLoading || !shipFromReady}
-                onClick={fetchRates}
-                className="px-4 py-2 bg-[#00ff9d]/20 text-[#00ff9d] hover:bg-[#00ff9d]/30 rounded-xl text-sm disabled:opacity-50"
-              >
-                {btcLoading ? 'Loading...' : 'Get Rates'}
-              </button>
+              {grokPrep?.readyToShip && grokPrep.recommendedService && (
+                <button
+                  type="button"
+                  disabled={Boolean(buyingService)}
+                  onClick={grokVerifyAndBuy}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-sm font-medium disabled:opacity-50"
+                >
+                  {buyingService ? 'Buying...' : 'Grok Verify & Buy Recommended'}
+                </button>
+              )}
             </div>
 
-            {grokPrep?.summary && <p className="text-xs text-zinc-300 mb-3">{grokPrep.summary}</p>}
+            {grokPrep?.summary && (
+              <p className="text-xs text-zinc-300 mb-3">{grokPrep.summary}</p>
+            )}
 
             {allChecks.length > 0 && (
               <div className="mb-4 space-y-1">
@@ -596,11 +391,7 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
             <div className="grid md:grid-cols-3 gap-3 mb-3">
               <select
                 value={packageType}
-                onChange={(e) => {
-                  setPackageType(e.target.value as BtcPostagePackageType);
-                  setSelectedRate(null);
-                  setManualApproved(false);
-                }}
+                onChange={(e) => setPackageType(e.target.value as BtcPostagePackageType)}
                 className="bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-sm"
               >
                 {PACKAGE_TYPES.map((option) => (
@@ -641,20 +432,46 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
               />
             </div>
 
+            <div className="flex flex-wrap gap-2 mb-3">
+              <button
+                type="button"
+                disabled={btcLoading}
+                onClick={fetchRates}
+                className="px-4 py-2 bg-[#00ff9d]/20 text-[#00ff9d] hover:bg-[#00ff9d]/30 rounded-xl text-sm disabled:opacity-50"
+              >
+                {btcLoading ? 'Loading...' : 'Refresh Rates'}
+              </button>
+              {order.btcPostageOrderId && (
+                <button
+                  type="button"
+                  disabled={btcLoading}
+                  onClick={syncTracking}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm disabled:opacity-50"
+                >
+                  Sync Tracking
+                </button>
+              )}
+              {order.btcPostageLabelUrl && (
+                <a
+                  href={order.btcPostageLabelUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm"
+                >
+                  Download Label
+                </a>
+              )}
+            </div>
+
             {btcRates.length > 0 && (
-              <div className="space-y-2 mb-4">
+              <div className="space-y-2 mb-2">
                 {btcRates.map((rate) => {
                   const isRecommended = grokPrep?.recommendedService === rate.service;
-                  const isSelected = selectedRate?.service === rate.service;
                   return (
                     <div
                       key={rate.service}
                       className={`flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border bg-zinc-950/60 ${
-                        isSelected
-                          ? 'border-[#00ff9d]'
-                          : isRecommended
-                            ? 'border-[#00ff9d]/40'
-                            : 'border-zinc-800'
+                        isRecommended ? 'border-[#00ff9d]/50' : 'border-zinc-800'
                       }`}
                     >
                       <div>
@@ -677,13 +494,15 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
                         </span>
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedRate(rate);
-                            setManualApproved(false);
-                          }}
-                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-xs font-medium"
+                          disabled={Boolean(buyingService)}
+                          onClick={() => buyLabel(rate.service, isRecommended)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs font-medium disabled:opacity-50"
                         >
-                          {isSelected ? 'Selected' : 'Review this rate'}
+                          {buyingService === rate.service
+                            ? 'Buying...'
+                            : isRecommended
+                              ? 'Verify & Buy'
+                              : 'Buy Label'}
                         </button>
                       </div>
                     </div>
@@ -691,74 +510,6 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
                 })}
               </div>
             )}
-
-            {selectedRate && (
-              <div className="border border-[#00ff9d]/30 bg-[#00ff9d]/5 rounded-xl p-4 mb-4 space-y-3">
-                <p className="text-sm font-semibold text-[#00ff9d]">Review before purchase</p>
-                <div className="text-xs text-zinc-300 space-y-1">
-                  <p><span className="text-zinc-500">From:</span> {formatShipFromLine(shipFromPayload)}</p>
-                  <p><span className="text-zinc-500">To:</span> {shipToLine(order)}</p>
-                  <p>
-                    <span className="text-zinc-500">Service:</span> {selectedRate.serviceDisplay || selectedRate.service} — ${selectedRate.rate.toFixed(2)}
-                  </p>
-                  <p>
-                    <span className="text-zinc-500">Package:</span> {packageType} · {weightLbs} lb {weightOz} oz · {heightIn}×{widthIn}×{depthIn} in
-                  </p>
-                  <p><span className="text-zinc-500">Order:</span> {order.id} · {order.paymentStatus || 'payment unknown'} · {order.shippingMethod || 'shipping n/a'}</p>
-                </div>
-                <label className="flex items-start gap-2 text-xs text-zinc-300 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={manualApproved}
-                    onChange={(e) => setManualApproved(e.target.checked)}
-                    className="mt-0.5 accent-[#00ff9d]"
-                  />
-                  <span>
-                    I manually verified the ship-from address, recipient address, package size, and shipping rate. I approve purchasing this label.
-                  </span>
-                </label>
-                <label className="flex items-start gap-2 text-xs text-zinc-400 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={runGrokOnPurchase}
-                    onChange={(e) => setRunGrokOnPurchase(e.target.checked)}
-                    className="mt-0.5 accent-violet-500"
-                  />
-                  <span>Run Grok double-check at purchase time (recommended)</span>
-                </label>
-                <button
-                  type="button"
-                  disabled={!manualApproved || Boolean(buyingService)}
-                  onClick={confirmPurchase}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-sm font-medium disabled:opacity-50"
-                >
-                  {buyingService ? 'Purchasing...' : 'Confirm & Purchase Label'}
-                </button>
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              {order.btcPostageOrderId && (
-                <button
-                  type="button"
-                  disabled={btcLoading}
-                  onClick={syncTracking}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm disabled:opacity-50"
-                >
-                  Sync Tracking
-                </button>
-              )}
-              {order.btcPostageLabelUrl && (
-                <a
-                  href={order.btcPostageLabelUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm"
-                >
-                  Download Label
-                </a>
-              )}
-            </div>
           </>
         )}
       </div>
@@ -825,8 +576,7 @@ export default function OrderShippingControls({ order, onUpdated }: OrderShippin
           className={`text-xs ${
             message.toLowerCase().includes('failed') ||
             message.toLowerCase().includes('not configured') ||
-            message.toLowerCase().includes('rejected') ||
-            message.toLowerCase().includes('complete')
+            message.toLowerCase().includes('rejected')
               ? 'text-red-400'
               : 'text-[#00ff9d]'
           }`}

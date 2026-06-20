@@ -24,7 +24,8 @@
 .DS_Store
 *.pem
 /_product_import*
-/data/
+/data/*
+!data/ship-from-addresses.json
 
 # debug
 npm-debug.log*

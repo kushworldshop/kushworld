@@ -37,6 +37,7 @@ export interface OrderForShippingValidation {
   zip?: string;
   phone?: string;
   trackingNumber?: string;
+  shippedAt?: string;
   btcPostageOrderId?: string;
 }
 

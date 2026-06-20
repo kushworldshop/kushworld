@@ -1,0 +1,15 @@
+[
+  {
+    "id": "example-west",
+    "label": "Example — replace with your real address",
+    "name": "Kush World",
+    "street": "123 Your Ship Street",
+    "street2": "",
+    "city": "Los Angeles",
+    "state": "CA",
+    "zip": "90001",
+    "country": "US",
+    "phone": "+15627724106",
+    "notes": "Edit this file on the server: /var/www/kushworld/data/ship-from-addresses.json — add all real outgoing addresses you use."
+  }
+]

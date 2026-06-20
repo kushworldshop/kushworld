@@ -6,7 +6,8 @@ import {
   type BtcPostagePackageType,
   type BtcPostageRate,
 } from '@/lib/btcPostage';
-import { resolveShipFrom } from '@/lib/shipFromAddress';
+import { selectGrokShipFrom } from '@/lib/grokShipFrom';
+import { isShipFromComplete, normalizeShipFromInput } from '@/lib/shipFromAddress';
 import {
   summarizeOrderForGrok,
   validateOrderForShipping,
@@ -36,6 +37,10 @@ export interface GrokShippingPrepResult {
   checks: ShippingCheck[];
   grokChecks: Array<{ label: string; passed: boolean; note?: string }>;
   rates: BtcPostageRate[];
+  shipFrom: BtcPostageAddress;
+  shipFromId: string;
+  shipFromLabel: string;
+  shipFromReason: string;
   autofilledFrom: 'grok' | 'defaults';
 }
 
@@ -212,6 +217,33 @@ All rates: ${JSON.stringify(input.rates.map((r) => ({ service: r.service, displa
   return parseJsonFromContent<GrokRatePick>(content);
 }
 
+async function resolveShipFromForOrder(
+  order: OrderForShippingValidation,
+  fromAddressInput?: Partial<BtcPostageAddress> | null
+): Promise<{ address: BtcPostageAddress; id: string; label: string; reason: string } | { error: string }> {
+  const explicit = normalizeShipFromInput(fromAddressInput);
+  if (isShipFromComplete(explicit)) {
+    return {
+      address: explicit,
+      id: 'manual',
+      label: 'Manual override',
+      reason: 'Ship-from provided in request',
+    };
+  }
+
+  const grokPick = await selectGrokShipFrom(order);
+  if (grokPick.error || !grokPick.result) {
+    return { error: grokPick.error || 'Could not select ship-from address' };
+  }
+
+  return {
+    address: grokPick.result.address,
+    id: grokPick.result.addressId,
+    label: grokPick.result.label,
+    reason: grokPick.result.reason,
+  };
+}
+
 export async function prepareGrokShippingLabel(
   order: OrderForShippingValidation,
   fromAddressInput?: Partial<BtcPostageAddress> | null
@@ -221,10 +253,11 @@ export async function prepareGrokShippingLabel(
     return { error: 'BTC Postage is not configured (API key and secret required)' };
   }
 
-  const shipFrom = resolveShipFrom(fromAddressInput);
-  if (!shipFrom.complete) {
-    return { error: 'Enter a complete ship-from address before preparing a label' };
+  const shipFromResolved = await resolveShipFromForOrder(order, fromAddressInput);
+  if ('error' in shipFromResolved) {
+    return { error: shipFromResolved.error };
   }
+  const shipFrom = shipFromResolved;
 
   const validation = validateOrderForShipping(order);
   const grokSuggestion = isXaiConfigured()
@@ -274,9 +307,20 @@ export async function prepareGrokShippingLabel(
       checks: validation.checks,
       grokChecks,
       rates: rates.sort((a, b) => a.rate - b.rate),
+      shipFrom: shipFrom.address,
+      shipFromId: shipFrom.id,
+      shipFromLabel: shipFrom.label,
+      shipFromReason: shipFrom.reason,
       autofilledFrom: grokSuggestion ? 'grok' : 'defaults',
     },
   };
+}
+
+export async function resolveShipFromForLabel(
+  order: OrderForShippingValidation,
+  fromAddressInput?: Partial<BtcPostageAddress> | null
+) {
+  return resolveShipFromForOrder(order, fromAddressInput);
 }
 
 export async function verifyGrokShippingPurchase(input: {
@@ -298,11 +342,11 @@ export async function verifyGrokShippingPurchase(input: {
     };
   }
 
-  const shipFrom = resolveShipFrom(input.fromAddress);
-  if (!shipFrom.complete) {
+  const shipFromResolved = await resolveShipFromForOrder(input.order, input.fromAddress);
+  if ('error' in shipFromResolved) {
     return {
       approved: false,
-      reason: 'Ship-from address is incomplete',
+      reason: shipFromResolved.error,
       checks: validation.checks,
       grokChecks: [],
     };
@@ -311,7 +355,7 @@ export async function verifyGrokShippingPurchase(input: {
   let rates: BtcPostageRate[] = [];
   try {
     rates = await getBtcPostageRates({
-      from: shipFrom.address,
+      from: shipFromResolved.address,
       to: validation.address,
       packageType: input.packageType,
       dimensions: input.dimensions,

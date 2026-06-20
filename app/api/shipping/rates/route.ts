@@ -7,33 +7,16 @@ import {
   type BtcPostageDimensions,
   type BtcPostagePackageType,
 } from '@/lib/btcPostage';
+import { resolveShipFromForLabel } from '@/lib/grokShippingPrep';
 import { getDefaultPackageProfile } from '@/lib/shippingPackage';
-import { resolveShipFrom } from '@/lib/shipFromAddress';
+import { isShipFromComplete, normalizeShipFromInput, resolveShipFrom } from '@/lib/shipFromAddress';
+import type { OrderForShippingValidation } from '@/lib/shippingOrderValidation';
 import fs from 'fs/promises';
 import path from 'path';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
-type StoredOrder = {
-  id: string;
-  items?: unknown[];
-  customer?: {
-    name?: string;
-    address?: string;
-    address2?: string;
-    city?: string;
-    state?: string;
-    zip?: string;
-    phone?: string;
-  };
-  name?: string;
-  address?: string;
-  address2?: string;
-  city?: string;
-  state?: string;
-  zip?: string;
-  phone?: string;
-};
+type StoredOrder = OrderForShippingValidation;
 
 async function loadOrder(orderId: string): Promise<StoredOrder | undefined> {
   const data = await fs.readFile(ORDERS_FILE, 'utf8');
@@ -58,9 +41,10 @@ export async function POST(request: NextRequest) {
   try {
     let toAddress = body.toAddress;
     let itemCount = Number(body.itemCount || 1);
+    let order: StoredOrder | undefined;
 
     if (orderId) {
-      const order = await loadOrder(orderId);
+      order = await loadOrder(orderId);
       if (!order) {
         return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
       }
@@ -75,6 +59,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let fromAddress = normalizeShipFromInput(body.fromAddress);
+    let shipFromMeta = { id: 'manual', label: 'Manual', reason: 'Provided in request' };
+
+    if (!isShipFromComplete(fromAddress)) {
+      if (!order) {
+        return NextResponse.json(
+          { success: false, error: 'Ship-from address required (or provide orderId for Grok auto-select)' },
+          { status: 400 }
+        );
+      }
+      const resolved = await resolveShipFromForLabel(order, body.fromAddress);
+      if ('error' in resolved) {
+        return NextResponse.json({ success: false, error: resolved.error }, { status: 400 });
+      }
+      fromAddress = resolved.address;
+      shipFromMeta = {
+        id: resolved.id,
+        label: resolved.label,
+        reason: resolved.reason,
+      };
+    } else {
+      const fallback = resolveShipFrom(body.fromAddress);
+      fromAddress = fallback.address;
+    }
+
     const defaults = getDefaultPackageProfile(itemCount);
     const packageType = (body.packageType as BtcPostagePackageType | undefined) || defaults.packageType;
     const dimensions: BtcPostageDimensions = {
@@ -82,16 +91,8 @@ export async function POST(request: NextRequest) {
       ...(body.dimensions || {}),
     };
 
-    const shipFrom = resolveShipFrom(body.fromAddress);
-    if (!shipFrom.complete) {
-      return NextResponse.json(
-        { success: false, error: 'Complete ship-from address is required' },
-        { status: 400 }
-      );
-    }
-
     const rates = await getBtcPostageRates({
-      from: shipFrom.address,
+      from: fromAddress,
       to: {
         name: toAddress.name || 'Customer',
         street: toAddress.street,
@@ -112,6 +113,10 @@ export async function POST(request: NextRequest) {
       rates: rates.sort((a, b) => a.rate - b.rate),
       packageType,
       dimensions,
+      shipFrom: fromAddress,
+      shipFromId: shipFromMeta.id,
+      shipFromLabel: shipFromMeta.label,
+      shipFromReason: shipFromMeta.reason,
     });
   } catch (error) {
     console.error('BTC Postage rates error:', error);
