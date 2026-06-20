@@ -51,6 +51,7 @@ export default function ShopSection({
   const [activeSubsection, setActiveSubsection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('name-asc');
+  const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(2000);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -93,7 +94,7 @@ export default function ShopSection({
   const activeCategory = getShopCategoryById(nav, activeFilter);
   const subsections = activeCategory?.subsections ?? [];
 
-  const filteredProducts = useMemo(() => {
+  const categoryProducts = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     let result = q
       ? products.filter(
@@ -112,7 +113,29 @@ export default function ShopSection({
       result = result.filter((product) => product.category !== 'merch');
     }
 
-    result = result.filter((product) => product.price <= maxPrice);
+    return result;
+  }, [activeFilter, activeSubsection, searchQuery, merchOnly, products, nav]);
+
+  const priceBounds = useMemo(() => {
+    if (!categoryProducts.length) return { min: 0, max: 2000 };
+    const prices = categoryProducts.map((product) => product.price);
+    const min = Math.floor(Math.min(...prices));
+    const max = Math.ceil(Math.max(...prices));
+    return { min, max: Math.max(min, max) };
+  }, [categoryProducts]);
+
+  useEffect(() => {
+    setMinPrice(priceBounds.min);
+    setMaxPrice(priceBounds.max);
+  }, [priceBounds.min, priceBounds.max]);
+
+  const budgetActive =
+    minPrice > priceBounds.min || maxPrice < priceBounds.max;
+
+  const filteredProducts = useMemo(() => {
+    const result = categoryProducts.filter(
+      (product) => product.price >= minPrice && product.price <= maxPrice
+    );
 
     result.sort((a, b) => {
       switch (sortBy) {
@@ -128,7 +151,7 @@ export default function ShopSection({
     });
 
     return result;
-  }, [activeFilter, activeSubsection, searchQuery, sortBy, maxPrice, merchOnly, products, nav]);
+  }, [categoryProducts, sortBy, minPrice, maxPrice]);
 
   const showCategoryFilters = !merchOnly && !isMerchShopCategory(activeFilter);
 
@@ -198,43 +221,121 @@ export default function ShopSection({
           </div>
         )}
 
-        <div className="flex flex-wrap gap-4 mb-10 justify-center items-center">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2 text-sm"
-          >
-            {sortOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <div className="max-w-3xl mx-auto mb-10 space-y-4">
+          <div className="flex flex-wrap gap-4 justify-center items-center">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2 text-sm"
+            >
+              {sortOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
 
-          <label className="flex items-center gap-3 text-sm text-zinc-400">
-            Max price: ${maxPrice}
-            <input
-              type="range"
-              min={5}
-              max={2000}
-              step={5}
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
-              className="w-32 accent-[#00ff9d]"
-            />
-          </label>
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="text-sm text-[#00ff9d] hover:underline">
+                Clear search &quot;{searchQuery}&quot;
+              </button>
+            )}
+          </div>
 
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="text-sm text-[#00ff9d] hover:underline">
-              Clear search &quot;{searchQuery}&quot;
-            </button>
-          )}
+          <div className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-zinc-200">Budget</p>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
+                <span>
+                  {filteredProducts.length} of {categoryProducts.length} products
+                </span>
+                {budgetActive && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMinPrice(priceBounds.min);
+                      setMaxPrice(priceBounds.max);
+                    }}
+                    className="text-[#00ff9d] hover:underline"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <p className="text-sm text-[#00ff9d]">
+              ${minPrice} – ${maxPrice}
+              <span className="text-zinc-500 ml-2">
+                (store range ${priceBounds.min} – ${priceBounds.max})
+              </span>
+            </p>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>Min</span>
+                  <input
+                    type="number"
+                    min={priceBounds.min}
+                    max={maxPrice}
+                    step={1}
+                    value={minPrice}
+                    onChange={(e) => {
+                      const next = Math.min(Number(e.target.value) || 0, maxPrice);
+                      setMinPrice(Math.max(priceBounds.min, Math.round(next)));
+                    }}
+                    className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-right text-zinc-200"
+                  />
+                </div>
+                <input
+                  type="range"
+                  min={priceBounds.min}
+                  max={priceBounds.max}
+                  step={1}
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(Math.min(Number(e.target.value), maxPrice))}
+                  className="w-full accent-[#00ff9d]"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>Max</span>
+                  <input
+                    type="number"
+                    min={minPrice}
+                    max={priceBounds.max}
+                    step={1}
+                    value={maxPrice}
+                    onChange={(e) => {
+                      const next = Math.max(Number(e.target.value) || 0, minPrice);
+                      setMaxPrice(Math.min(priceBounds.max, Math.round(next)));
+                    }}
+                    className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-right text-zinc-200"
+                  />
+                </div>
+                <input
+                  type="range"
+                  min={priceBounds.min}
+                  max={priceBounds.max}
+                  step={1}
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(Math.max(Number(e.target.value), minPrice))}
+                  className="w-full accent-[#00ff9d]"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {loadingProducts ? (
           <p className="text-center text-zinc-400 py-20">Loading products...</p>
         ) : filteredProducts.length === 0 ? (
-          <p className="text-center text-zinc-400 py-20">No products match your filters.</p>
+          <p className="text-center text-zinc-400 py-20">
+            {categoryProducts.length > 0 && budgetActive
+              ? `No products between $${minPrice} and $${maxPrice} — try widening your budget.`
+              : 'No products match your filters.'}
+          </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {filteredProducts.map((product) => (
