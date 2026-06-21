@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node src/bot.mjs",
     "setup": "node src/setup-server.mjs",
+    "rebrand": "node src/rebrand-server.mjs",
+    "audit": "node src/audit-server.mjs",
     "status": "node src/server-status.mjs"
   },
   "dependencies": {
