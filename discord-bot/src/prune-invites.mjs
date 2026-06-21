@@ -41,10 +41,16 @@ async function main() {
   }
 
   const kept = invites.has(KEEP_CODE) ? 1 : 0;
-  console.log(`\nDone. Deleted ${deleted}, kept ${kept} canonical invite(s).`);
-  if (!invites.has(KEEP_CODE)) {
+  console.log(`\nDone. Deleted ${deleted}, kept ${kept} canonical invite(s) from guild list.`);
+
+  try {
+    const canonical = await client.fetchInvite(KEEP_CODE);
+    console.log(
+      `Canonical invite OK: https://discord.gg/${canonical.code} → ${canonical.guild?.name || 'server'} (${canonical.uses ?? 0} uses)`
+    );
+  } catch {
     console.warn(
-      `WARNING: canonical code ${KEEP_CODE} was not in the list. Create it in Discord Server Settings → Invites.`
+      `WARNING: https://discord.gg/${KEEP_CODE} is not valid. Create a fresh invite in Discord → Server Settings → Invites.`
     );
   }
 
