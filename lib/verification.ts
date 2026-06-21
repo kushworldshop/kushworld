@@ -56,11 +56,13 @@ export async function markEmailVerified(email: string) {
     await fs.writeFile(VERIFIED_FILE, JSON.stringify(verified, null, 2));
   }
 
-  const users = await readJson<Array<{ email: string; idVerified?: boolean }>>(USERS_FILE, []);
+  const users = await readJson<Array<{ id: string; email: string; idVerified?: boolean }>>(USERS_FILE, []);
   const userIndex = users.findIndex((u) => u.email.toLowerCase() === normalized);
   if (userIndex !== -1) {
     users[userIndex].idVerified = true;
     await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+    const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
+    await syncUserDiscordVerificationByUserId(users[userIndex].id).catch(() => null);
   }
 }
 
@@ -219,6 +221,10 @@ export async function markUserIdVerified(userId: string): Promise<boolean> {
   };
   await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
   await markEmailVerified(email);
+
+  const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
+  await syncUserDiscordVerificationByUserId(userId).catch(() => null);
+
   return true;
 }
 
@@ -240,5 +246,9 @@ export async function markUserIdRejected(userId: string, reason?: string): Promi
     verifiedAt: undefined,
   };
   await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+
+  const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
+  await syncUserDiscordVerificationByUserId(userId).catch(() => null);
+
   return true;
 }

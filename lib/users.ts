@@ -44,6 +44,8 @@ export interface UserProfile {
   password: string;
   discordId?: string;
   discordUsername?: string;
+  discordVerifiedAt?: string;
+  discordVerifySyncPending?: boolean;
   authProvider?: 'email' | 'discord' | 'both';
   createdAt: string;
   idVerified?: boolean;
@@ -88,6 +90,8 @@ export interface PublicUserProfile {
   email: string;
   name: string;
   discordLinked?: boolean;
+  discordServerVerified?: boolean;
+  discordVerifySyncPending?: boolean;
   createdAt: string;
   idVerified?: boolean;
   idVerification?: Pick<UserIdVerification, 'status' | 'uploadedAt' | 'rejectionReason'>;
@@ -406,6 +410,8 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     email: user.email,
     name: user.name,
     discordLinked: Boolean(user.discordId),
+    discordServerVerified: Boolean(user.discordVerifiedAt),
+    discordVerifySyncPending: Boolean(user.discordVerifySyncPending),
     createdAt: user.createdAt,
     idVerified: user.idVerified,
     idVerification: user.idVerification

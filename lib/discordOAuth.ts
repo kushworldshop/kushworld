@@ -152,11 +152,30 @@ export async function resolveUserFromDiscord(
   profile: DiscordUserProfile
 ): Promise<{ user: UserProfile; isNew: boolean }> {
   const discordId = profile.id;
+  const displayName = profile.global_name?.trim() || profile.username?.trim() || 'Discord User';
+  const avatarUrl = discordAvatarUrl(profile);
+
   const existingByDiscord = await getUserByDiscordId(discordId);
   if (existingByDiscord) {
     if (isUserBlocked(existingByDiscord)) {
       throw new Error('This account has been suspended');
     }
+
+    const users = await readUsers();
+    const index = users.findIndex((user) => user.id === existingByDiscord.id);
+    if (index !== -1) {
+      users[index] = {
+        ...users[index],
+        discordUsername: profile.username,
+        name: users[index].name || displayName,
+        avatarUrl: users[index].avatarUrl || avatarUrl,
+      };
+      await writeUsers(users);
+      const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
+      await syncUserDiscordVerificationByUserId(users[index].id).catch(() => null);
+      return { user: users[index], isNew: false };
+    }
+
     return { user: existingByDiscord, isNew: false };
   }
 
@@ -164,9 +183,6 @@ export async function resolveUserFromDiscord(
   if (!email) {
     throw new Error('Discord did not share an email. Allow email access or use email login.');
   }
-
-  const displayName = profile.global_name?.trim() || profile.username?.trim() || 'Discord User';
-  const avatarUrl = discordAvatarUrl(profile);
 
   const existingByEmail = await getUserByEmail(email);
   if (existingByEmail) {
@@ -191,6 +207,8 @@ export async function resolveUserFromDiscord(
       authProvider: users[index].password ? 'both' : 'discord',
     };
     await writeUsers(users);
+    const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
+    await syncUserDiscordVerificationByUserId(users[index].id).catch(() => null);
     return { user: users[index], isNew: false };
   }
 
@@ -215,6 +233,8 @@ export async function resolveUserFromDiscord(
 
   users.push(newUser);
   await writeUsers(users);
+  const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
+  await syncUserDiscordVerificationByUserId(newUser.id).catch(() => null);
   return { user: newUser, isNew: true };
 }
 

@@ -4,7 +4,6 @@ import { guildId } from './config.mjs';
 import { BRAND } from './brand.mjs';
 
 const REACTION_ROLES = {
-  '✅': 'Verified',
   '🔥': 'Deals',
   '📦': 'Drops',
   '👕': 'Merch',
@@ -71,7 +70,8 @@ async function main() {
         `<@${member.id}>\n\n` +
           `${BRAND.tagline}\n\n` +
           `▸ Read ${rules ? `<#${rules.id}>` : '**#rules**'}\n` +
-          `▸ React ✅ in ${roles ? `<#${roles.id}>` : '**#roles**'} to unlock the server\n` +
+          `▸ Verify on ${BRAND.site} (link Discord + government ID) to unlock the server\n` +
+          `▸ Optional alerts in ${roles ? `<#${roles.id}>` : '**#roles**'} (Deals · Drops · Merch)\n` +
           `▸ Find your state in **#state-connect**\n` +
           `▸ Shop ${BRAND.site}`
       )

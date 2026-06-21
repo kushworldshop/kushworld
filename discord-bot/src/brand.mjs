@@ -26,6 +26,7 @@ export const RULES_BODY =
   `**03** · No sourcing, illegal sales, or sketchy DMs\n` +
   `**04** · Order help → <#ORDER_HELP> · don't post personal info publicly\n` +
   `**05** · No medical claims — adults only, shop responsibly\n\n` +
-  `Get <@&VERIFIED_ROLE> in <#ROLES_CH> to unlock the server.\n` +
-  `Connect locally in **#state-connect** after you verify.\n` +
+  `**Verified** unlocks the server after you link Discord at ${BRAND.site} and staff approves your government ID.\n` +
+  `Optional alerts: react in <#ROLES_CH> for Deals · Drops · Merch.\n` +
+  `Connect locally in **#state-connect** after you are verified.\n` +
   `Shop → ${BRAND.site}`;

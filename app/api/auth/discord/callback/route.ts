@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await completeDiscordLogin(code);
+    const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
+    await syncUserDiscordVerificationByUserId(result.user.id).catch(() => null);
     const { pointsToAdd } = await claimReferralPoints(result.user.email);
     if (pointsToAdd > 0) {
       await addLoyaltyPoints(result.user.id, pointsToAdd);

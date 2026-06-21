@@ -376,7 +376,7 @@ async function seedBranding(guild, channels) {
       .setDescription(
         `${BRAND.tagline}\n\n` +
           `▸ Read <#${rules?.id || 'rules'}>\n` +
-          `▸ Verify in <#${roles?.id || 'roles'}>\n` +
+          `▸ Verify on ${BRAND.site} (Discord + government ID)\n` +
           `▸ Shop ${BRAND.site}`
       );
     const recent = await announcements.messages.fetch({ limit: 5 }).catch(() => null);
@@ -386,23 +386,24 @@ async function seedBranding(guild, channels) {
     }
   }
 
-  if (roles && verifiedRole) {
+  if (roles) {
     const embed = new EmbedBuilder()
       .setColor(BRAND.color)
       .setTitle('Roles')
       .setDescription(
-        `React to opt in:\n\n` +
-          `✅ **Verified** — required to participate\n` +
+        `**Verified** — staff grants this after you link Discord on ${BRAND.site} and your government ID is approved.\n\n` +
+          `Optional alerts (react below):\n` +
           `🔥 **Deals** — promos & sales\n` +
           `📦 **Drops** — new products & restocks\n` +
-          `👕 **Merch** — apparel alerts\n\n` +
-          BRAND.site
+          `👕 **Merch** — apparel alerts`
       );
     const recent = await roles.messages.fetch({ limit: 8 }).catch(() => null);
     const botMsg = recent?.find((m) => m.author.id === guild.client.user.id && m.embeds[0]?.title === 'Roles');
-    if (!botMsg) {
+    if (botMsg) {
+      await botMsg.edit({ embeds: [embed] }).catch(() => null);
+    } else {
       const msg = await roles.send({ embeds: [embed] });
-      for (const emoji of ['✅', '🔥', '📦', '👕']) {
+      for (const emoji of ['🔥', '📦', '👕']) {
         await msg.react(emoji).catch(() => null);
       }
     }

@@ -10,6 +10,7 @@ import type { ReferralNotification } from '@/lib/referralNotifications';
 import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { useSiteContent } from '@/lib/useSiteContent';
 import IdVerificationUpload from '@/app/components/IdVerificationUpload';
+import DiscordCommunityAccess from '@/app/components/DiscordCommunityAccess';
 import OrderShippingStatus from '@/app/components/OrderShippingStatus';
 import OrderTracker from '@/app/components/OrderTracker';
 
@@ -1018,6 +1019,10 @@ export default function Account() {
               <Field label="YouTube" value={profileForm.socials.youtube || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, youtube: v } })} placeholder="Channel URL" />
               <Field label="Website" value={profileForm.socials.website || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, website: v } })} placeholder="https://yoursite.com" />
             </div>
+
+            {discordLoginEnabled && (
+              <DiscordCommunityAccess user={user} onUpdated={loadProfile} />
+            )}
 
             {features.idVerification?.enabled && (
               <IdVerificationUpload user={user} onUpdated={loadProfile} />
