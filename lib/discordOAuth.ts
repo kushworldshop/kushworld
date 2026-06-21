@@ -55,11 +55,18 @@ export function getDiscordOAuthConfig(): DiscordOAuthConfig {
   };
 }
 
-export function createDiscordOAuthState(returnTo = '/account'): string {
+export type DiscordOAuthMode = 'login' | 'link';
+
+export function createDiscordOAuthState(
+  returnTo = '/account',
+  options?: { mode?: DiscordOAuthMode; linkUserId?: string }
+): string {
   const payload = Buffer.from(
     JSON.stringify({
       nonce: randomBytes(16).toString('hex'),
       returnTo: returnTo.startsWith('/') ? returnTo : '/account',
+      mode: options?.mode === 'link' ? 'link' : 'login',
+      linkUserId: options?.mode === 'link' ? options.linkUserId : undefined,
       exp: Date.now() + STATE_MS,
     })
   ).toString('base64url');
@@ -68,7 +75,7 @@ export function createDiscordOAuthState(returnTo = '/account'): string {
 
 export function verifyDiscordOAuthState(
   token: string
-): { returnTo: string } | null {
+): { returnTo: string; mode: DiscordOAuthMode; linkUserId?: string } | null {
   const [payload, signature] = token.split('.');
   if (!payload || !signature) return null;
 
@@ -86,7 +93,11 @@ export function verifyDiscordOAuthState(
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
     if (!data.exp || data.exp < Date.now()) return null;
-    return { returnTo: typeof data.returnTo === 'string' ? data.returnTo : '/account' };
+    return {
+      returnTo: typeof data.returnTo === 'string' ? data.returnTo : '/account',
+      mode: data.mode === 'link' ? 'link' : 'login',
+      linkUserId: typeof data.linkUserId === 'string' ? data.linkUserId : undefined,
+    };
   } catch {
     return null;
   }
@@ -236,6 +247,61 @@ export async function resolveUserFromDiscord(
   const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
   await syncUserDiscordVerificationByUserId(newUser.id).catch(() => null);
   return { user: newUser, isNew: true };
+}
+
+export async function linkDiscordToUser(
+  userId: string,
+  profile: DiscordUserProfile
+): Promise<UserProfile> {
+  const discordId = profile.id.trim();
+  const existingByDiscord = await getUserByDiscordId(discordId);
+  if (existingByDiscord && existingByDiscord.id !== userId) {
+    throw new Error('This Discord account is already linked to another profile');
+  }
+
+  const users = await readUsers();
+  const index = users.findIndex((user) => user.id === userId);
+  if (index === -1) throw new Error('Account not found');
+
+  if (isUserBlocked(users[index])) {
+    throw new Error('This account has been suspended');
+  }
+
+  if (users[index].discordId && users[index].discordId !== discordId) {
+    throw new Error('Your profile already has a different Discord account linked');
+  }
+
+  const displayName = profile.global_name?.trim() || profile.username?.trim();
+  const avatarUrl = discordAvatarUrl(profile);
+
+  users[index] = {
+    ...users[index],
+    discordId,
+    discordUsername: profile.username,
+    name: users[index].name || displayName || users[index].name,
+    avatarUrl: users[index].avatarUrl || avatarUrl,
+    authProvider:
+      users[index].authProvider === 'discord'
+        ? 'discord'
+        : users[index].password
+          ? 'both'
+          : users[index].authProvider || 'email',
+  };
+
+  await writeUsers(users);
+
+  const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
+  await syncUserDiscordVerificationByUserId(users[index].id).catch(() => null);
+
+  return users[index];
+}
+
+export async function completeDiscordLink(code: string, userId: string) {
+  const accessToken = await exchangeDiscordCode(code);
+  const discordUser = await fetchDiscordUser(accessToken);
+  const user = await linkDiscordToUser(userId, discordUser);
+  const dashboard = await getUserDashboard(user.id);
+  return { user, dashboard };
 }
 
 export async function completeDiscordLogin(code: string) {

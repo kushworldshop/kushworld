@@ -90,6 +90,7 @@ export interface PublicUserProfile {
   email: string;
   name: string;
   discordLinked?: boolean;
+  discordUsername?: string;
   discordServerVerified?: boolean;
   discordVerifySyncPending?: boolean;
   createdAt: string;
@@ -410,6 +411,7 @@ export function toPublicProfile(user: UserProfile, referralStats?: PublicUserPro
     email: user.email,
     name: user.name,
     discordLinked: Boolean(user.discordId),
+    discordUsername: user.discordUsername,
     discordServerVerified: Boolean(user.discordVerifiedAt),
     discordVerifySyncPending: Boolean(user.discordVerifySyncPending),
     createdAt: user.createdAt,

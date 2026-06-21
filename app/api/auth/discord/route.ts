@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionUserId } from '@/lib/auth';
 import {
   buildDiscordAuthorizeUrl,
   createDiscordOAuthState,
@@ -15,8 +16,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const mode = request.nextUrl.searchParams.get('mode') === 'link' ? 'link' : 'login';
   const returnTo = request.nextUrl.searchParams.get('returnTo') || '/account';
-  const state = createDiscordOAuthState(returnTo);
+
+  let linkUserId: string | undefined;
+  if (mode === 'link') {
+    linkUserId = (await getSessionUserId()) ?? undefined;
+    if (!linkUserId) {
+      return NextResponse.redirect(
+        new URL('/account?discord=error&reason=sign_in_required', request.url)
+      );
+    }
+  }
+
+  const state = createDiscordOAuthState(returnTo, { mode, linkUserId });
   const response = NextResponse.redirect(buildDiscordAuthorizeUrl(state));
 
   response.cookies.set(STATE_COOKIE, state, {

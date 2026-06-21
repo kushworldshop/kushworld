@@ -4,7 +4,11 @@ import {
   getSessionCookieName,
   sessionCookieOptions,
 } from '@/lib/auth';
-import { completeDiscordLogin, verifyDiscordOAuthState } from '@/lib/discordOAuth';
+import {
+  completeDiscordLink,
+  completeDiscordLogin,
+  verifyDiscordOAuthState,
+} from '@/lib/discordOAuth';
 import { claimReferralPoints } from '@/lib/referrals';
 import { addLoyaltyPoints } from '@/lib/users';
 
@@ -39,6 +43,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    if (parsedState.mode === 'link') {
+      if (!parsedState.linkUserId) {
+        return redirectWithError(request, 'invalid_link');
+      }
+
+      await completeDiscordLink(code, parsedState.linkUserId);
+
+      const returnUrl = new URL(parsedState.returnTo, request.url);
+      returnUrl.searchParams.set('discord', 'linked');
+
+      const response = NextResponse.redirect(returnUrl);
+      response.cookies.set(STATE_COOKIE, '', { path: '/', maxAge: 0 });
+      return response;
+    }
+
     const result = await completeDiscordLogin(code);
     const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
     await syncUserDiscordVerificationByUserId(result.user.id).catch(() => null);

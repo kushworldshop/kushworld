@@ -11,6 +11,7 @@ import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { useSiteContent } from '@/lib/useSiteContent';
 import IdVerificationUpload from '@/app/components/IdVerificationUpload';
 import DiscordCommunityAccess from '@/app/components/DiscordCommunityAccess';
+import DiscordSocialLink from '@/app/components/DiscordSocialLink';
 import OrderShippingStatus from '@/app/components/OrderShippingStatus';
 import OrderTracker from '@/app/components/OrderTracker';
 
@@ -207,6 +208,10 @@ export default function Account() {
     if (discordParam === 'success') {
       setMessage('Signed in with Discord.');
       loadProfile();
+    } else if (discordParam === 'linked') {
+      setMessage('Discord linked to your profile.');
+      setTab('profile');
+      loadProfile();
     } else if (discordParam === 'welcome') {
       setMessage('Welcome! Your Kush World account is linked to Discord.');
       loadProfile();
@@ -217,6 +222,8 @@ export default function Account() {
         invalid_state: 'Discord sign-in expired. Please try again.',
         expired_state: 'Discord sign-in expired. Please try again.',
         login_failed: 'Discord sign-in failed. Please try again.',
+        sign_in_required: 'Sign in to your account before linking Discord.',
+        invalid_link: 'Discord link expired. Please try again.',
       };
       const decoded = discordReason ? decodeURIComponent(discordReason) : '';
       setError(messages[decoded] || messages[discordReason || ''] || decoded || 'Discord sign-in failed.');
@@ -1030,6 +1037,7 @@ export default function Account() {
 
             <h3 className="text-lg font-semibold pt-2">Social Links</h3>
             <div className="grid md:grid-cols-2 gap-4">
+              <DiscordSocialLink user={user} enabled={discordLoginEnabled} />
               <Field label="Instagram" value={profileForm.socials.instagram || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, instagram: v } })} placeholder="@yourhandle" />
               <Field label="X / Twitter" value={profileForm.socials.twitter || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, twitter: v } })} placeholder="@yourhandle" />
               <Field label="TikTok" value={profileForm.socials.tiktok || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, tiktok: v } })} placeholder="@yourhandle" />

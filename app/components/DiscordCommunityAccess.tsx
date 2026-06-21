@@ -63,7 +63,7 @@ export default function DiscordCommunityAccess({
       <ol className="text-sm text-zinc-300 space-y-2 list-decimal list-inside">
         <li>
           <span className={user.discordLinked ? 'text-[#00ff9d]' : ''}>
-            Link Discord {user.discordLinked ? '✓' : '— use Continue with Discord on login'}
+            Link Discord {user.discordLinked ? '✓' : '— use Link Discord under Social Links'}
           </span>
         </li>
         <li>
