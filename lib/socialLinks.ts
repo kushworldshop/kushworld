@@ -1,4 +1,5 @@
 import type { SiteContent } from '@/lib/siteContentTypes';
+import { normalizeDiscordInviteUrl } from '@/lib/discordInvite';
 
 export type SocialUrlKey = Exclude<keyof SiteContent['social'], 'twitterHandle'>;
 
@@ -22,10 +23,11 @@ export const SOCIAL_LINK_ORDER: SocialLinkDef[] = [
 ];
 
 export function getActiveSocialLinks(social: SiteContent['social']) {
-  return SOCIAL_LINK_ORDER.map((def) => ({
-    ...def,
-    url: social[def.key],
-  })).filter((link) => link.url.trim());
+  return SOCIAL_LINK_ORDER.map((def) => {
+    const raw = social[def.key];
+    const url = def.key === 'discordUrl' ? normalizeDiscordInviteUrl(raw) : raw;
+    return { ...def, url };
+  }).filter((link) => link.url.trim());
 }
 
 export function getOrganizationSameAs(social: SiteContent['social']): string[] {

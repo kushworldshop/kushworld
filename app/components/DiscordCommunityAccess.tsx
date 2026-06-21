@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import type { PublicUserProfile } from '@/lib/users';
 
-const DISCORD_INVITE = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || 'https://discord.gg/48HmtfDgQp';
+import { DISCORD_INVITE_URL, normalizeDiscordInviteUrl } from '@/lib/discordInvite';
+
+const DISCORD_INVITE = normalizeDiscordInviteUrl(process.env.NEXT_PUBLIC_DISCORD_INVITE_URL);
 
 export default function DiscordCommunityAccess({
   user,

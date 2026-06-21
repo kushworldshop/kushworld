@@ -9,6 +9,7 @@
     "rebrand": "node src/rebrand-server.mjs",
     "audit": "node src/audit-server.mjs",
     "migrate-regions": "node src/migrate-regions.mjs",
+    "prune-invites": "node src/prune-invites.mjs",
     "status": "node src/server-status.mjs"
   },
   "dependencies": {

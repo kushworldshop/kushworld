@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import { mergeSiteFeatures } from '@/lib/featureTypes';
+import { normalizeDiscordInviteUrl } from '@/lib/discordInvite';
 
 const SITE_CONTENT_FILE = path.join(process.cwd(), 'data', 'site-content.json');
 
@@ -44,6 +45,10 @@ export async function getSiteContent(): Promise<SiteContent> {
   const merged = deepMergeSiteContent(DEFAULT_SITE_CONTENT, parsed);
   return {
     ...merged,
+    social: {
+      ...merged.social,
+      discordUrl: normalizeDiscordInviteUrl(merged.social.discordUrl),
+    },
     features: mergeSiteFeatures(parsed.features),
   };
 }

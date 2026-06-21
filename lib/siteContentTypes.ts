@@ -114,6 +114,7 @@ export interface SiteContent {
 }
 
 import { DEFAULT_SHOP_NAVIGATION } from '@/lib/shopNavigation';
+import { DISCORD_INVITE_URL } from '@/lib/discordInvite';
 
 export const DEFAULT_SITE_CONTENT: SiteContent = {
   updatedAt: new Date().toISOString(),
@@ -163,7 +164,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     twitterUrl: 'https://x.com/kushworld',
     twitterHandle: '@kushworld',
     studioUrl: 'https://kushworldstudio.co',
-    discordUrl: 'https://discord.gg/48HmtfDgQp',
+    discordUrl: DISCORD_INVITE_URL,
     tiktokUrl: 'https://www.tiktok.com/@kushwrldshop',
     facebookUrl: 'https://www.facebook.com/profile.php?id=61585255765095&mibextid=wwXIfr',
     whatsappUrl: 'https://wa.me/15627724106',

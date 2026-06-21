@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { Product } from '@/lib/products';
 import { getProductSlug, getProductDescription } from '@/lib/products';
 import type { Review } from '@/lib/reviews';
+import { DISCORD_INVITE_URL } from '@/lib/discordInvite';
 
 export const SITE_URL = 'https://kushworld.shop';
 export const SITE_NAME = 'Kush World';
@@ -15,7 +16,7 @@ export const ORGANIZATION = {
   logo: DEFAULT_OG_IMAGE,
   email: 'kushworldshop@gmail.com',
   sameAs: [
-    'https://discord.gg/48HmtfDgQp',
+    DISCORD_INVITE_URL,
     'https://kushworldstudio.co',
     'https://x.com/kushworld',
     'https://www.tiktok.com/@kushwrldshop',
