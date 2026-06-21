@@ -126,6 +126,23 @@ export default function Account() {
         setUser(data.user);
         hydrateForm(data.user);
         localStorage.setItem('currentUser', JSON.stringify(data.user));
+        const idVerified =
+          data.user.idVerified || data.user.idVerification?.status === 'verified';
+        const needsDiscordSync =
+          data.user.discordLinked &&
+          idVerified &&
+          (!data.user.discordServerVerified || data.user.discordVerifySyncPending);
+        if (needsDiscordSync) {
+          fetch('/api/users/discord-sync', { method: 'POST', credentials: 'include' })
+            .then((syncRes) => (syncRes.ok ? syncRes.json() : null))
+            .then((syncData) => {
+              if (syncData?.success && syncData.user) {
+                setUser(syncData.user);
+                localStorage.setItem('currentUser', JSON.stringify(syncData.user));
+              }
+            })
+            .catch(() => null);
+        }
         await loadOrders();
       } else {
         localStorage.removeItem('currentUser');

@@ -55,7 +55,8 @@ export default function DiscordCommunityAccess({
       <div>
         <h3 className="text-lg font-semibold text-white">Discord community access</h3>
         <p className="text-sm text-zinc-400 mt-1">
-          Unlock the KushWorld LLC Discord server after you link Discord here and staff verifies your government ID.
+          Link Discord here and get staff ID approval on the site. When you join the Discord server, Verified is
+          applied automatically — no button needed in most cases.
         </p>
       </div>
 
@@ -72,7 +73,7 @@ export default function DiscordCommunityAccess({
         </li>
         <li>
           <span className={user.discordServerVerified ? 'text-[#00ff9d]' : ''}>
-            Join Discord & sync Verified role {user.discordServerVerified ? '✓' : ''}
+            Join Discord — Verified applies automatically {user.discordServerVerified ? '✓' : ''}
           </span>
         </li>
       </ol>
@@ -94,14 +95,15 @@ export default function DiscordCommunityAccess({
             disabled={syncing}
             className="bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black px-5 py-3 rounded-xl font-semibold text-sm disabled:opacity-50"
           >
-            {syncing ? 'Syncing...' : user.discordServerVerified ? 'Re-sync Discord' : 'Sync Discord access'}
+            {syncing ? 'Syncing...' : user.discordServerVerified ? 'Re-sync' : 'Sync now (backup)'}
           </button>
         )}
       </div>
 
-      {user.discordVerifySyncPending && (
+      {user.discordVerifySyncPending && !user.discordServerVerified && (
         <p className="text-sm text-yellow-400">
-          You are ID-verified on the site. Join the Discord server, then tap Sync Discord access.
+          You are ID-verified on the site. Join the Discord server — Verified should apply within seconds. If
+          channels stay locked, use Sync now (backup).
         </p>
       )}
       {message && <p className="text-sm text-[#00ff9d]">{message}</p>}

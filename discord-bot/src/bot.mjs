@@ -2,6 +2,7 @@ import { Events, EmbedBuilder } from 'discord.js';
 import { createClient, loginAndReady } from './client.mjs';
 import { guildId } from './config.mjs';
 import { BRAND } from './brand.mjs';
+import { requestSiteMemberSync } from './sync-member.mjs';
 
 const REACTION_ROLES = {
   '🔥': 'Deals',
@@ -48,6 +49,12 @@ async function main() {
 
   client.on(Events.GuildMemberAdd, async (member) => {
     if (member.guild.id !== guildId()) return;
+
+    const syncResult = await requestSiteMemberSync(member.id);
+    if (syncResult?.success) {
+      console.log(`Auto-verified ${member.user.tag} from site ID approval`);
+    }
+
     const general = member.guild.channels.cache.find(
       (channel) =>
         channel.isTextBased() &&
@@ -63,21 +70,32 @@ async function main() {
       (channel) => channel.name === 'roles' && channel.parent?.name === 'INFO'
     );
 
+    const verifiedOnSite = syncResult?.success === true;
     const embed = new EmbedBuilder()
       .setColor(BRAND.color)
       .setTitle(`Welcome to ${BRAND.serverName}`)
       .setDescription(
         `<@${member.id}>\n\n` +
           `${BRAND.tagline}\n\n` +
-          `▸ Read ${rules ? `<#${rules.id}>` : '**#rules**'}\n` +
-          `▸ Verify on ${BRAND.site} (link Discord + government ID) to unlock the server\n` +
-          `▸ Optional alerts in ${roles ? `<#${roles.id}>` : '**#roles**'} (Deals · Drops · Merch)\n` +
-          `▸ Find your state in **#state-connect**\n` +
-          `▸ Shop ${BRAND.site}`
+          (verifiedOnSite
+            ? `✅ **You're verified** — full server access is unlocked.\n\n` +
+              `▸ Say hi in ${general ? `<#${general.id}>` : '**#chat**'}\n` +
+              `▸ Find your state in **#state-connect**\n` +
+              `▸ Optional alerts in ${roles ? `<#${roles.id}>` : '**#roles**'}`
+            : `▸ Read ${rules ? `<#${rules.id}>` : '**#rules**'}\n` +
+              `▸ Verify on ${BRAND.site} (link Discord + government ID) to unlock the server\n` +
+              `▸ Optional alerts in ${roles ? `<#${roles.id}>` : '**#roles**'} (Deals · Drops · Merch)`)
       )
       .setFooter({ text: `${BRAND.serverName} · ${BRAND.site}` });
 
-    await general.send({ embeds: [embed] }).catch(() => null);
+    const welcomeChannel = verifiedOnSite
+      ? general
+      : member.guild.channels.cache.find(
+          (channel) => channel.name === 'rules' && channel.parent?.name === 'INFO' && channel.isTextBased()
+        ) || general;
+    if (welcomeChannel?.isTextBased()) {
+      await welcomeChannel.send({ embeds: [embed] }).catch(() => null);
+    }
   });
 
   await loginAndReady(client);
