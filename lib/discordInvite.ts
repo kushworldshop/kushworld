@@ -1,5 +1,5 @@
 /** Canonical KushWorld LLC Discord invite — keep in sync with server invite settings. */
-export const DISCORD_INVITE_CODE = '48HmtfDgQp';
+export const DISCORD_INVITE_CODE = 'TsDbxrZVwg';
 
 export const DISCORD_INVITE_URL = `https://discord.gg/${DISCORD_INVITE_CODE}`;
 

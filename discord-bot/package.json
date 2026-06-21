@@ -10,6 +10,7 @@
     "audit": "node src/audit-server.mjs",
     "migrate-regions": "node src/migrate-regions.mjs",
     "prune-invites": "node src/prune-invites.mjs",
+    "create-invite": "node src/create-invite.mjs",
     "status": "node src/server-status.mjs"
   },
   "dependencies": {

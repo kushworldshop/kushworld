@@ -2,7 +2,7 @@ import { createClient, loginAndReady } from './client.mjs';
 import { guildId } from './config.mjs';
 import { BRAND } from './brand.mjs';
 
-const KEEP_CODE = (process.env.DISCORD_INVITE_CODE || '48HmtfDgQp').trim();
+const KEEP_CODE = (process.env.DISCORD_INVITE_CODE || 'TsDbxrZVwg').trim();
 
 async function main() {
   const client = createClient();
@@ -16,13 +16,11 @@ async function main() {
   console.log(`Found ${invites.size} active invite(s):\n`);
 
   if (invites.size === 0) {
-    console.log('No invites returned. Bot needs Manage Server permission, or none exist.');
-    await client.destroy();
-    return;
+    console.log('No guild invites listed (all pruned, or bot lacks Manage Server).');
   }
 
   let deleted = 0;
-  for (const invite of invites.values()) {
+  for (const invite of [...invites.values()]) {
     const code = invite.code;
     const meta = [
       code,
