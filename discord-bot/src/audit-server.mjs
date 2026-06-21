@@ -14,7 +14,8 @@ const EXPECTED_LAYOUT = [
   CATEGORY_NAMES.staff,
 ];
 
-const THEATER_CHANNEL_NAMES = ['theater', 'theater-live', 'meeting'];
+const THEATER_CHANNEL_NAMES = ['theater', 'theater-live'];
+const STAFF_VOICE_NAMES = ['staff-room', 'meeting'];
 
 const LEGACY_ROLES = ['VERIFIED', 'stoners', 'KWLLC', 'BOT'];
 const CORE_ROLES = ['Verified', 'Deals', 'Drops', 'Merch', 'Mod'];
@@ -158,7 +159,7 @@ async function main() {
       (name) => !theaterKids.some((c) => c.name === name)
     );
     if (!missingTheater.length) {
-      ok.push('THEATER section complete (#theater, theater-live, meeting)');
+      ok.push('THEATER section complete (#theater, theater-live)');
     } else {
       issues.push(`THEATER missing: ${missingTheater.join(', ')} — run npm run discord:rebrand`);
     }
@@ -167,15 +168,18 @@ async function main() {
   }
 
   const voiceCat = categories.find((c) => c.name === CATEGORY_NAMES.voice);
-  const staffVoice = voiceCat
-    ? [...guild.channels.cache.values()].find(
-        (c) => c.parentId === voiceCat.id && c.name === 'staff-room' && c.type === ChannelType.GuildVoice
-      )
-    : null;
-  if (staffVoice) {
-    ok.push('Staff voice channel (#staff-room) in VOICE');
+  if (voiceCat) {
+    const voiceKids = [...guild.channels.cache.values()].filter((c) => c.parentId === voiceCat.id);
+    const missingStaffVoice = STAFF_VOICE_NAMES.filter(
+      (name) => !voiceKids.some((c) => c.name === name && c.type === ChannelType.GuildVoice)
+    );
+    if (!missingStaffVoice.length) {
+      ok.push('Staff-only voice in VOICE (staff-room, meeting)');
+    } else {
+      issues.push(`VOICE missing staff channels: ${missingStaffVoice.join(', ')} — run npm run discord:rebrand`);
+    }
   } else {
-    issues.push('Missing staff voice channel — run npm run discord:rebrand');
+    issues.push('Missing VOICE category — run npm run discord:rebrand');
   }
 
   if (guild.name === BRAND.serverName) {

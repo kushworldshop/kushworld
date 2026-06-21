@@ -53,7 +53,6 @@ const LAYOUT = [
     channels: [
       { name: 'theater', type: ChannelType.GuildText, topic: 'Movie nights, sports, and live stream schedules' },
       { name: 'theater-live', type: ChannelType.GuildVoice },
-      { name: 'meeting', type: ChannelType.GuildVoice },
     ],
   },
   {
@@ -61,6 +60,7 @@ const LAYOUT = [
     channels: [
       { name: 'Lounge', type: ChannelType.GuildVoice },
       { name: 'staff-room', type: ChannelType.GuildVoice, staffOnly: true },
+      { name: 'meeting', type: ChannelType.GuildVoice, staffOnly: true },
     ],
   },
 ];

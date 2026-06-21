@@ -9,7 +9,10 @@ import { BRAND, CATEGORY_NAMES, RULES_BODY } from './brand.mjs';
 import { consolidateStateRegions, applyForumPermissions } from './regions-forum.mjs';
 
 const STAFF_ROLES = ['Staff', 'Mod', 'Kush World'];
-const STAFF_VOICE_NAME = 'staff-room';
+const STAFF_ONLY_VOICE_CHANNELS = [
+  { name: 'staff-room', userLimit: 0, reason: 'Kush World staff voice room' },
+  { name: 'meeting', userLimit: 50, reason: 'Kush World staff client meetings' },
+];
 
 const THEATER_CHANNELS = [
   {
@@ -23,13 +26,11 @@ const THEATER_CHANNELS = [
     userLimit: 99,
     topic: 'Watch together — movies, sports, and live events via screen share / Go Live',
   },
-  {
-    name: 'meeting',
-    type: ChannelType.GuildVoice,
-    userLimit: 50,
-    topic: 'Community meetings, hangouts, and group voice',
-  },
 ];
+
+function isStaffOnlyVoice(name) {
+  return STAFF_ONLY_VOICE_CHANNELS.some((spec) => spec.name === name);
+}
 
 function staffRoles(guild) {
   return STAFF_ROLES.map((name) => guild.roles.cache.find((r) => r.name === name)).filter(Boolean);
@@ -87,22 +88,32 @@ async function moveToCategory(channel, category) {
   }
 }
 
-async function ensureStaffVoiceChannel(guild, voiceCategory) {
-  let channel = [...guild.channels.cache.values()].find(
-    (c) => c.name === STAFF_VOICE_NAME && c.type === ChannelType.GuildVoice
-  );
-  if (!channel) {
-    channel = await guild.channels.create({
-      name: STAFF_VOICE_NAME,
-      type: ChannelType.GuildVoice,
-      parent: voiceCategory.id,
-      reason: 'Kush World staff voice room',
-    });
-    console.log(`Created voice channel: ${STAFF_VOICE_NAME}`);
-  } else {
-    await moveToCategory(channel, voiceCategory);
+async function ensureStaffOnlyVoiceChannels(guild, voiceCategory) {
+  const channels = [];
+
+  for (const spec of STAFF_ONLY_VOICE_CHANNELS) {
+    let channel = [...guild.channels.cache.values()].find(
+      (c) => c.name === spec.name && c.type === ChannelType.GuildVoice
+    );
+    if (!channel) {
+      channel = await guild.channels.create({
+        name: spec.name,
+        type: ChannelType.GuildVoice,
+        parent: voiceCategory.id,
+        userLimit: spec.userLimit || undefined,
+        reason: spec.reason,
+      });
+      console.log(`Created staff voice: ${spec.name}`);
+    } else {
+      await moveToCategory(channel, voiceCategory);
+      if (spec.userLimit) {
+        await channel.setUserLimit(spec.userLimit).catch(() => null);
+      }
+    }
+    channels.push(channel);
   }
-  return channel;
+
+  return channels;
 }
 
 async function ensureTheaterSection(guild) {
@@ -150,7 +161,8 @@ async function ensureTheaterSection(guild) {
 async function setupStaffVoicePermissions(guild, verifiedRole, staffVoiceChannel) {
   const everyone = guild.roles.everyone;
   const staff = staffRoles(guild);
-  const denyPublic = { ViewChannel: false, Connect: false };
+  // Hidden from the channel list, but staff can drag members in (Connect required for moves).
+  const hiddenPullIn = { ViewChannel: false, Connect: true, Speak: true, Stream: true };
   const staffVoicePerms = {
     ViewChannel: true,
     Connect: true,
@@ -159,11 +171,13 @@ async function setupStaffVoicePermissions(guild, verifiedRole, staffVoiceChannel
     UseVAD: true,
     PrioritySpeaker: true,
     MoveMembers: true,
+    MuteMembers: true,
+    DeafenMembers: true,
   };
 
-  await staffVoiceChannel.permissionOverwrites.edit(everyone, denyPublic).catch(() => null);
+  await staffVoiceChannel.permissionOverwrites.edit(everyone, hiddenPullIn).catch(() => null);
   if (verifiedRole) {
-    await staffVoiceChannel.permissionOverwrites.edit(verifiedRole, denyPublic).catch(() => null);
+    await staffVoiceChannel.permissionOverwrites.edit(verifiedRole, hiddenPullIn).catch(() => null);
   }
   for (const role of staff) {
     await staffVoiceChannel.permissionOverwrites.edit(role, staffVoicePerms).catch(() => null);
@@ -396,7 +410,7 @@ async function setupChannelPermissions(guild, verifiedRole) {
 
     for (const ch of [...guild.channels.cache.values()]) {
       if (ch.parent?.name !== CATEGORY_NAMES.voice || ch.type !== ChannelType.GuildVoice) continue;
-      if (ch.name === STAFF_VOICE_NAME) continue;
+      if (isStaffOnlyVoice(ch.name)) continue;
       await ch.permissionOverwrites.edit(verifiedRole, {
         ViewChannel: true,
         Connect: true,
@@ -406,11 +420,16 @@ async function setupChannelPermissions(guild, verifiedRole) {
     }
   }
 
-  const staffVoice = [...guild.channels.cache.values()].find(
-    (c) => c.name === STAFF_VOICE_NAME && c.type === ChannelType.GuildVoice
-  );
-  if (staffVoice) {
-    await setupStaffVoicePermissions(guild, verifiedRole, staffVoice);
+  for (const spec of STAFF_ONLY_VOICE_CHANNELS) {
+    const staffChannel = [...guild.channels.cache.values()].find(
+      (c) =>
+        c.name === spec.name &&
+        c.type === ChannelType.GuildVoice &&
+        c.parent?.name === CATEGORY_NAMES.voice
+    );
+    if (staffChannel) {
+      await setupStaffVoicePermissions(guild, verifiedRole, staffChannel);
+    }
   }
 
   for (const name of ['new-drops', 'deals']) {
@@ -561,7 +580,6 @@ async function seedBranding(guild, channels) {
 
   const theaterCh = findChannel(guild, 'theater', CATEGORY_NAMES.theater);
   const theaterLive = findChannel(guild, 'theater-live', CATEGORY_NAMES.theater);
-  const meetingCh = findChannel(guild, 'meeting', CATEGORY_NAMES.theater);
   if (theaterCh) {
     const embed = new EmbedBuilder()
       .setColor(BRAND.color)
@@ -570,8 +588,7 @@ async function seedBranding(guild, channels) {
         `Movie nights, sports, and live events with the community.\n\n` +
           `**How it works**\n` +
           `▸ Staff posts what's playing here in ${theaterCh.id ? `<#${theaterCh.id}>` : '#theater'}\n` +
-          `▸ Join ${theaterLive?.id ? `<#${theaterLive.id}>` : 'theater-live'} to watch via screen share / Go Live\n` +
-          `▸ Use ${meetingCh?.id ? `<#${meetingCh.id}>` : 'meeting'} for community hangouts and voice meetings\n\n` +
+          `▸ Join ${theaterLive?.id ? `<#${theaterLive.id}>` : 'theater-live'} to watch via screen share / Go Live\n\n` +
           `21+ only · be respectful · no piracy links`
       )
       .setFooter({ text: BRAND.site });
@@ -683,7 +700,7 @@ async function main() {
     }
   }
 
-  await ensureStaffVoiceChannel(guild, voice);
+  await ensureStaffOnlyVoiceChannels(guild, voice);
 
   const modOnly = findChannel(guild, 'moderator-only');
   if (modOnly) {
