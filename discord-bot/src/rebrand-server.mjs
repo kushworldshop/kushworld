@@ -1,12 +1,17 @@
 import {
   ChannelType,
   EmbedBuilder,
+  PermissionFlagsBits,
 } from 'discord.js';
 import { createClient, loginAndReady } from './client.mjs';
 import { guildId } from './config.mjs';
 import { BRAND, CATEGORY_NAMES, RULES_BODY } from './brand.mjs';
 
 const STAFF_ROLES = ['BOT', 'Staff', 'Mod', 'Kush World', 'KWLLC'];
+
+function staffRoles(guild) {
+  return STAFF_ROLES.map((name) => guild.roles.cache.find((r) => r.name === name)).filter(Boolean);
+}
 
 function findChannel(guild, name, parentName) {
   const parent = parentName
@@ -136,14 +141,44 @@ async function styleRoles(guild) {
       await role.setColors({ primaryColor: spec.color }).catch((e) => {
         console.warn(`  color ${spec.name}: ${e.message}`);
       });
+      console.log(`  styled ${spec.name}`);
     }
   }
 
   await mergeRole(guild, 'VERIFIED', 'Verified');
+
   const kwllc = guild.roles.cache.find((r) => r.name === 'KWLLC');
   if (kwllc) {
-    await kwllc.setName('Kush World', 'Kush World rebrand').catch(() => null);
+    await kwllc.setName('Kush World', 'Kush World rebrand').then(() => {
+      console.log('Role renamed → Kush World');
+    }).catch((e) => console.warn(`  KWLLC rename: ${e.message}`));
     await kwllc.setColors({ primaryColor: BRAND.color }).catch(() => null);
+  }
+
+  const mod = guild.roles.cache.find((r) => r.name === 'Mod');
+  if (mod) {
+    await mod.setPermissions([
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.ManageMessages,
+      PermissionFlagsBits.KickMembers,
+      PermissionFlagsBits.BanMembers,
+      PermissionFlagsBits.ModerateMembers,
+      PermissionFlagsBits.ReadMessageHistory,
+      PermissionFlagsBits.ManageThreads,
+    ]).catch((e) => console.warn(`  Mod perms: ${e.message}`));
+  }
+
+  const staff = guild.roles.cache.find((r) => r.name === 'Staff');
+  if (staff) {
+    await staff.setPermissions([
+      PermissionFlagsBits.ViewChannel,
+      PermissionFlagsBits.SendMessages,
+      PermissionFlagsBits.ManageMessages,
+      PermissionFlagsBits.ReadMessageHistory,
+      PermissionFlagsBits.ManageThreads,
+    ]).catch((e) => console.warn(`  Staff perms: ${e.message}`));
+    await staff.setColors({ primaryColor: 0x99aab5 }).catch(() => null);
   }
 }
 
@@ -154,7 +189,7 @@ async function setupVerificationGate(guild, verifiedRole) {
   }
 
   const everyone = guild.roles.everyone;
-  const staffRoles = STAFF_ROLES.map((name) => guild.roles.cache.find((r) => r.name === name)).filter(Boolean);
+  const staff = staffRoles(guild);
 
   for (const cat of [...guild.channels.cache.values()].filter((c) => c.type === ChannelType.GuildCategory)) {
     if (cat.name === CATEGORY_NAMES.info) {
@@ -165,7 +200,7 @@ async function setupVerificationGate(guild, verifiedRole) {
     if (cat.name === CATEGORY_NAMES.staff) {
       await cat.permissionOverwrites.edit(everyone, { ViewChannel: false }).catch(() => null);
       await cat.permissionOverwrites.edit(verifiedRole, { ViewChannel: false }).catch(() => null);
-      for (const role of staffRoles) {
+      for (const role of staff) {
         await cat.permissionOverwrites.edit(role, { ViewChannel: true }).catch(() => null);
       }
       continue;
@@ -173,12 +208,125 @@ async function setupVerificationGate(guild, verifiedRole) {
 
     await cat.permissionOverwrites.edit(everyone, { ViewChannel: false }).catch(() => null);
     await cat.permissionOverwrites.edit(verifiedRole, { ViewChannel: true }).catch(() => null);
-    for (const role of staffRoles) {
+    for (const role of staff) {
       await cat.permissionOverwrites.edit(role, { ViewChannel: true }).catch(() => null);
     }
   }
 
   console.log('Verification gate applied — new members only see INFO until ✅');
+}
+
+async function setupChannelPermissions(guild, verifiedRole) {
+  const everyone = guild.roles.everyone;
+  const staff = staffRoles(guild);
+
+  const infoReadOnly = ['rules', 'announcements'];
+  for (const name of infoReadOnly) {
+    const ch = findChannel(guild, name, CATEGORY_NAMES.info);
+    if (!ch) continue;
+    await ch.permissionOverwrites.edit(everyone, {
+      ViewChannel: true,
+      ReadMessageHistory: true,
+      SendMessages: false,
+      AddReactions: false,
+    }).catch(() => null);
+  }
+
+  const rolesCh = findChannel(guild, 'roles', CATEGORY_NAMES.info);
+  if (rolesCh) {
+    await rolesCh.permissionOverwrites.edit(everyone, {
+      ViewChannel: true,
+      ReadMessageHistory: true,
+      SendMessages: false,
+      AddReactions: true,
+    }).catch(() => null);
+  }
+
+  if (verifiedRole) {
+    const memberPerms = {
+      ViewChannel: true,
+      ReadMessageHistory: true,
+      SendMessages: true,
+      AddReactions: true,
+      AttachFiles: true,
+      EmbedLinks: true,
+      UseExternalEmojis: true,
+    };
+
+    for (const catName of [CATEGORY_NAMES.products, CATEGORY_NAMES.community, CATEGORY_NAMES.media, CATEGORY_NAMES.regions]) {
+      for (const ch of [...guild.channels.cache.values()]) {
+        if (ch.parent?.name !== catName || ch.type !== ChannelType.GuildText) continue;
+        if (ch.name === 'nsfw') continue;
+        await ch.permissionOverwrites.edit(verifiedRole, memberPerms).catch(() => null);
+      }
+    }
+
+    const orderHelp = findChannel(guild, 'order-help', CATEGORY_NAMES.shop);
+    if (orderHelp) {
+      await orderHelp.permissionOverwrites.edit(verifiedRole, memberPerms).catch(() => null);
+    }
+
+    for (const ch of [...guild.channels.cache.values()]) {
+      if (ch.parent?.name !== CATEGORY_NAMES.voice || ch.type !== ChannelType.GuildVoice) continue;
+      await ch.permissionOverwrites.edit(verifiedRole, {
+        ViewChannel: true,
+        Connect: true,
+        Speak: true,
+        Stream: true,
+      }).catch(() => null);
+    }
+  }
+
+  for (const name of ['new-drops', 'deals']) {
+    const ch = findChannel(guild, name, CATEGORY_NAMES.shop);
+    if (!ch) continue;
+    await setReadOnly(ch);
+    if (verifiedRole) {
+      await ch.permissionOverwrites.edit(verifiedRole, {
+        ViewChannel: true,
+        ReadMessageHistory: true,
+        SendMessages: false,
+      }).catch(() => null);
+    }
+    for (const role of staff) {
+      await ch.permissionOverwrites.edit(role, {
+        ViewChannel: true,
+        SendMessages: true,
+        ReadMessageHistory: true,
+      }).catch(() => null);
+    }
+  }
+
+  const nsfw = findChannel(guild, 'nsfw', CATEGORY_NAMES.media);
+  if (nsfw) {
+    await nsfw.setNSFW(true).catch(() => null);
+    if (verifiedRole) {
+      await nsfw.permissionOverwrites.edit(verifiedRole, {
+        ViewChannel: true,
+        ReadMessageHistory: true,
+        SendMessages: true,
+        AttachFiles: true,
+      }).catch(() => null);
+    }
+  }
+
+  const modChat = findChannel(guild, 'mod-chat', CATEGORY_NAMES.staff);
+  if (modChat) {
+    await modChat.permissionOverwrites.edit(everyone, { ViewChannel: false }).catch(() => null);
+    if (verifiedRole) {
+      await modChat.permissionOverwrites.edit(verifiedRole, { ViewChannel: false }).catch(() => null);
+    }
+    for (const role of staff) {
+      await modChat.permissionOverwrites.edit(role, {
+        ViewChannel: true,
+        SendMessages: true,
+        ReadMessageHistory: true,
+        AttachFiles: true,
+      }).catch(() => null);
+    }
+  }
+
+  console.log('Channel permissions synced');
 }
 
 async function setupGuildProfile(guild, rulesChannel) {
@@ -439,6 +587,7 @@ async function main() {
 
   const verifiedRole = guild.roles.cache.find((r) => r.name === 'Verified');
   await setupVerificationGate(guild, verifiedRole);
+  await setupChannelPermissions(guild, verifiedRole);
 
   try {
     await styleRoles(guild);

@@ -14,7 +14,7 @@ const EXPECTED_LAYOUT = [
   CATEGORY_NAMES.staff,
 ];
 
-const LEGACY_ROLES = ['VERIFIED', 'stoners', 'KWLLC'];
+const LEGACY_ROLES = ['VERIFIED', 'stoners', 'KWLLC', 'BOT'];
 const CORE_ROLES = ['Verified', 'Deals', 'Drops', 'Merch', 'Mod'];
 
 function channelKind(ch) {
