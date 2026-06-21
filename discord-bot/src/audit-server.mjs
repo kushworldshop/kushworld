@@ -148,6 +148,18 @@ async function main() {
     issues.push('Missing #state-connect forum — run npm run discord:rebrand');
   }
 
+  const voiceCat = categories.find((c) => c.name === CATEGORY_NAMES.voice);
+  const staffVoice = voiceCat
+    ? [...guild.channels.cache.values()].find(
+        (c) => c.parentId === voiceCat.id && c.name === 'staff-room' && c.type === ChannelType.GuildVoice
+      )
+    : null;
+  if (staffVoice) {
+    ok.push('Staff voice channel (#staff-room) in VOICE');
+  } else {
+    issues.push('Missing staff voice channel — run npm run discord:rebrand');
+  }
+
   if (guild.name === BRAND.serverName) {
     ok.push(`Server name is "${BRAND.serverName}" (Discord policy-safe)`);
   } else {

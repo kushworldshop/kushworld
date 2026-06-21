@@ -50,7 +50,10 @@ const LAYOUT = [
   },
   {
     name: 'VOICE',
-    channels: [{ name: 'Lounge', type: ChannelType.GuildVoice }],
+    channels: [
+      { name: 'Lounge', type: ChannelType.GuildVoice },
+      { name: 'staff-room', type: ChannelType.GuildVoice, staffOnly: true },
+    ],
   },
 ];
 

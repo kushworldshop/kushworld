@@ -9,6 +9,7 @@ import { BRAND, CATEGORY_NAMES, RULES_BODY } from './brand.mjs';
 import { consolidateStateRegions, applyForumPermissions } from './regions-forum.mjs';
 
 const STAFF_ROLES = ['Staff', 'Mod', 'Kush World'];
+const STAFF_VOICE_NAME = 'staff-room';
 
 function staffRoles(guild) {
   return STAFF_ROLES.map((name) => guild.roles.cache.find((r) => r.name === name)).filter(Boolean);
@@ -63,6 +64,47 @@ async function moveToCategory(channel, category) {
   if (channel.parentId !== category.id) {
     await channel.setParent(category.id, { lockPermissions: false });
     console.log(`  moved #${channel.name} → ${category.name}`);
+  }
+}
+
+async function ensureStaffVoiceChannel(guild, voiceCategory) {
+  let channel = [...guild.channels.cache.values()].find(
+    (c) => c.name === STAFF_VOICE_NAME && c.type === ChannelType.GuildVoice
+  );
+  if (!channel) {
+    channel = await guild.channels.create({
+      name: STAFF_VOICE_NAME,
+      type: ChannelType.GuildVoice,
+      parent: voiceCategory.id,
+      reason: 'Kush World staff voice room',
+    });
+    console.log(`Created voice channel: ${STAFF_VOICE_NAME}`);
+  } else {
+    await moveToCategory(channel, voiceCategory);
+  }
+  return channel;
+}
+
+async function setupStaffVoicePermissions(guild, verifiedRole, staffVoiceChannel) {
+  const everyone = guild.roles.everyone;
+  const staff = staffRoles(guild);
+  const denyPublic = { ViewChannel: false, Connect: false };
+  const staffVoicePerms = {
+    ViewChannel: true,
+    Connect: true,
+    Speak: true,
+    Stream: true,
+    UseVAD: true,
+    PrioritySpeaker: true,
+    MoveMembers: true,
+  };
+
+  await staffVoiceChannel.permissionOverwrites.edit(everyone, denyPublic).catch(() => null);
+  if (verifiedRole) {
+    await staffVoiceChannel.permissionOverwrites.edit(verifiedRole, denyPublic).catch(() => null);
+  }
+  for (const role of staff) {
+    await staffVoiceChannel.permissionOverwrites.edit(role, staffVoicePerms).catch(() => null);
   }
 }
 
@@ -267,6 +309,7 @@ async function setupChannelPermissions(guild, verifiedRole) {
 
     for (const ch of [...guild.channels.cache.values()]) {
       if (ch.parent?.name !== CATEGORY_NAMES.voice || ch.type !== ChannelType.GuildVoice) continue;
+      if (ch.name === STAFF_VOICE_NAME) continue;
       await ch.permissionOverwrites.edit(verifiedRole, {
         ViewChannel: true,
         Connect: true,
@@ -274,6 +317,13 @@ async function setupChannelPermissions(guild, verifiedRole) {
         Stream: true,
       }).catch(() => null);
     }
+  }
+
+  const staffVoice = [...guild.channels.cache.values()].find(
+    (c) => c.name === STAFF_VOICE_NAME && c.type === ChannelType.GuildVoice
+  );
+  if (staffVoice) {
+    await setupStaffVoicePermissions(guild, verifiedRole, staffVoice);
   }
 
   for (const name of ['new-drops', 'deals']) {
@@ -522,6 +572,8 @@ async function main() {
       await moveToCategory(ch, voice);
     }
   }
+
+  await ensureStaffVoiceChannel(guild, voice);
 
   const modOnly = findChannel(guild, 'moderator-only');
   if (modOnly) {
