@@ -56,6 +56,12 @@ interface AdminUser {
   pointsClaimedFromReferrals?: number;
   promoConversions?: number;
   promoClicks?: number;
+  authProvider?: 'email' | 'discord' | 'both';
+  discordLinked?: boolean;
+  discordUsername?: string;
+  discordServerVerified?: boolean;
+  discordVerifySyncPending?: boolean;
+  discordVerifiedAt?: string;
 }
 
 type MemberDraft = {
@@ -67,7 +73,6 @@ type MemberDraft = {
   promoCode: string;
   loyaltyPoints: number;
   lockedLoyaltyPoints: number;
-  idVerified: boolean;
   emailVerified: boolean;
   phoneVerified: boolean;
   signupBonusClaimed: boolean;
@@ -199,7 +204,6 @@ export default function CustomersTab() {
       promoCode: patch?.promoCode ?? user.promoCode ?? '',
       loyaltyPoints: patch?.loyaltyPoints ?? user.loyaltyPoints,
       lockedLoyaltyPoints: patch?.lockedLoyaltyPoints ?? user.lockedLoyaltyPoints,
-      idVerified: patch?.idVerified ?? user.idVerified ?? false,
       emailVerified: patch?.emailVerified ?? user.emailVerified ?? false,
       phoneVerified: patch?.phoneVerified ?? user.phoneVerified ?? false,
       signupBonusClaimed: patch?.signupBonusClaimed ?? user.signupBonusClaimed ?? false,
@@ -252,7 +256,6 @@ export default function CustomersTab() {
       socials: draft.socials,
       loyaltyPoints: draft.loyaltyPoints,
       lockedLoyaltyPoints: draft.lockedLoyaltyPoints,
-      idVerified: draft.idVerified,
       emailVerified: draft.emailVerified,
       phoneVerified: draft.phoneVerified,
       signupBonusClaimed: draft.signupBonusClaimed,
@@ -308,6 +311,31 @@ export default function CustomersTab() {
       window.open(url, '_blank');
     } catch {
       setMessage('Failed to load ID image');
+    }
+  };
+
+  const syncDiscordForUser = async (user: AdminUser) => {
+    setSavingId(user.id);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: user.id, discordSync: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Discord sync failed');
+      setUsers((prev) => prev.map((item) => (item.id === user.id ? data.user : item)));
+      const synced = data.user?.discordServerVerified;
+      setMessage(
+        synced
+          ? `Discord Verified role synced for ${user.email}`
+          : `Discord sync attempted for ${user.email} — check ID + linked Discord`
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to sync Discord role');
+    } finally {
+      setSavingId(null);
     }
   };
 
@@ -577,8 +605,8 @@ export default function CustomersTab() {
       <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
         <h2 className="text-2xl font-bold mb-2">Site Members</h2>
         <p className="text-zinc-400 text-sm">
-          View every registered member, edit profiles and social links, and manage loyalty points and
-          commission settings per person.
+          View every registered member, review ID and Discord verification, edit profiles and social
+          links, and manage loyalty points and commission settings per person.
         </p>
       </div>
 
@@ -590,7 +618,7 @@ export default function CustomersTab() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && loadUsers(search)}
-                placeholder="Search name, email, phone, promo..."
+                placeholder="Search name, email, Discord, promo..."
                 className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 pr-9 text-sm"
               />
               {search && (
@@ -653,6 +681,14 @@ export default function CustomersTab() {
                     {user.idVerification?.status === 'uploaded' && (
                       <span className="text-yellow-400">ID pending</span>
                     )}
+                    {user.discordLinked && (
+                      <span className="text-indigo-400">
+                        {user.discordServerVerified ? 'Discord ✓' : 'Discord'}
+                      </span>
+                    )}
+                    {user.discordVerifySyncPending && (
+                      <span className="text-amber-400">Discord sync</span>
+                    )}
                     {user.promoCode && <span className="text-[#00ff9d]">{user.promoCode}</span>}
                     {(user.lockedLoyaltyPoints ?? 0) > 0 && (
                       <span className="text-amber-400">{user.lockedLoyaltyPoints.toLocaleString()} locked</span>
@@ -696,6 +732,7 @@ export default function CustomersTab() {
               onViewId={() => viewUserId(selectedUser.id)}
               onVerifyId={() => updateIdVerification(selectedUser, 'verify')}
               onRejectId={(reason) => updateIdVerification(selectedUser, 'reject', reason)}
+              onSyncDiscord={() => syncDiscordForUser(selectedUser)}
               onResetPassword={(newPassword) => resetUserPassword(selectedUser, newPassword)}
               onUnlockPoints={(amount) => unlockUserPoints(selectedUser, amount)}
               onMarkFreeEighth={() => markFreeEighthForUser(selectedUser)}
@@ -740,6 +777,7 @@ function MemberProfilePanel({
   onViewId,
   onVerifyId,
   onRejectId,
+  onSyncDiscord,
   onResetPassword,
   onUnlockPoints,
   onMarkFreeEighth,
@@ -776,6 +814,7 @@ function MemberProfilePanel({
   onViewId: () => void;
   onVerifyId: () => void;
   onRejectId: (reason: string) => void;
+  onSyncDiscord: () => void;
   onResetPassword: (newPassword: string) => void;
   onUnlockPoints: (amount?: number) => void;
   onMarkFreeEighth?: () => void;
@@ -838,20 +877,33 @@ function MemberProfilePanel({
             {user.orderCount === 1 ? '' : 's'}
           </p>
           <div className="flex flex-wrap gap-2 mt-3 text-xs">
+            {user.authProvider && user.authProvider !== 'email' && (
+              <Badge
+                label={user.authProvider === 'both' ? 'Email + Discord login' : 'Discord login'}
+                tone="amber"
+              />
+            )}
             {user.emailVerified && <Badge label="Email verified" tone="green" />}
             {user.phoneVerified && <Badge label="Phone verified" tone="green" />}
-            {user.idVerified && <Badge label="ID verified" tone="green" />}
-            {user.signupBonusClaimed && <Badge label="Signup bonus" tone="amber" />}
-            {user.freeEighthReceivedAt && <Badge label="Free 1/8th" tone="green" />}
-            {draft.blocked && <Badge label="Blocked" tone="red" />}
-            {idStatus === 'verified' && <Badge label="ID verified" tone="green" />}
-            {idStatus === 'uploaded' && <Badge label="ID pending" tone="amber" />}
+            {idStatus === 'verified' && <Badge label="ID verified (21+)" tone="green" />}
+            {idStatus === 'uploaded' && <Badge label="ID pending review" tone="amber" />}
             {idStatus === 'rejected' && (
               <Badge
                 label={user.idVerification?.autoRejected ? 'ID auto-rejected' : 'ID rejected'}
                 tone="red"
               />
             )}
+            {user.discordLinked && (
+              <Badge
+                label={user.discordUsername ? `Discord: @${user.discordUsername}` : 'Discord linked'}
+                tone="green"
+              />
+            )}
+            {user.discordServerVerified && <Badge label="Discord server verified" tone="green" />}
+            {user.discordVerifySyncPending && <Badge label="Discord sync pending" tone="amber" />}
+            {user.signupBonusClaimed && <Badge label="Signup bonus" tone="amber" />}
+            {user.freeEighthReceivedAt && <Badge label="Free 1/8th" tone="green" />}
+            {draft.blocked && <Badge label="Blocked" tone="red" />}
           </div>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -882,6 +934,8 @@ function MemberProfilePanel({
         <SectionTitle>ID Verification</SectionTitle>
         <p className="text-sm text-zinc-500 mb-4">
           Members can pre-upload ID photos from their account. Review here before approving hemp checkout access.
+          Approving ID also grants the Discord <strong className="text-zinc-300">Verified</strong> role when their
+          Discord account is linked.
         </p>
         <p className="text-sm mb-4">
           Status:{' '}
@@ -1174,11 +1228,6 @@ function MemberProfilePanel({
             onChange={(v) => onDraftChange({ phoneVerified: v })}
           />
           <Checkbox
-            label="ID verified (21+)"
-            checked={draft.idVerified}
-            onChange={(v) => onDraftChange({ idVerified: v })}
-          />
-          <Checkbox
             label="Signup bonus claimed"
             checked={draft.signupBonusClaimed}
             onChange={(v) => onDraftChange({ signupBonusClaimed: v })}
@@ -1186,10 +1235,61 @@ function MemberProfilePanel({
         </div>
       </section>
 
+      <section className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5">
+        <SectionTitle>Discord Community</SectionTitle>
+        <p className="text-sm text-zinc-500 mb-4">
+          Linked from the member&apos;s account under Profile → Social Links. Server access requires ID
+          verification plus the Discord Verified role.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-4 mb-4 text-sm">
+          <div className="bg-black/50 border border-zinc-800 rounded-xl p-4">
+            <p className="text-xs text-zinc-500 mb-1">Account linked</p>
+            <p className={user.discordLinked ? 'text-green-400 font-medium' : 'text-zinc-400'}>
+              {user.discordLinked
+                ? user.discordUsername
+                  ? `@${user.discordUsername}`
+                  : 'Yes (username hidden)'
+                : 'Not linked'}
+            </p>
+          </div>
+          <div className="bg-black/50 border border-zinc-800 rounded-xl p-4">
+            <p className="text-xs text-zinc-500 mb-1">Server Verified role</p>
+            <p className={user.discordServerVerified ? 'text-green-400 font-medium' : 'text-zinc-400'}>
+              {user.discordServerVerified
+                ? `Granted${user.discordVerifiedAt ? ` · ${new Date(user.discordVerifiedAt).toLocaleString()}` : ''}`
+                : user.discordVerifySyncPending
+                  ? 'Sync pending — member may not be in server yet'
+                  : 'Not granted'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onSyncDiscord}
+          disabled={saving || deleting || !user.discordLinked || idStatus !== 'verified'}
+          className="text-sm bg-indigo-900/50 border border-indigo-800 text-indigo-200 px-4 py-2 rounded-xl disabled:opacity-40"
+          title={
+            !user.discordLinked
+              ? 'Member must link Discord on their account first'
+              : idStatus !== 'verified'
+                ? 'Member must have approved ID first'
+                : 'Push Verified role to Discord server now'
+          }
+        >
+          {saving ? 'Syncing...' : 'Sync Discord Verified Role'}
+        </button>
+        {!user.discordLinked && (
+          <p className="text-xs text-zinc-500 mt-3">
+            Member links Discord from their account page — you cannot link it for them here.
+          </p>
+        )}
+      </section>
+
       <section>
         <SectionTitle>Social Links</SectionTitle>
         <p className="text-sm text-zinc-500 mb-4">
-          Members can also edit these on their account page. Handles or full URLs both work.
+          Members can also edit these on their account page. Handles or full URLs both work. Discord is
+          managed separately above.
         </p>
         <div className="grid md:grid-cols-2 gap-4">
           <Field

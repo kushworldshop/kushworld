@@ -11,7 +11,7 @@ import OrdersTab from '@/app/admin/components/OrdersTab';
 import ProductsTab from '@/app/admin/components/ProductsTab';
 import SpinWheelTab from '@/app/admin/components/SpinWheelTab';
 
-type AdminTab = 'orders' | 'products' | 'wishlist' | 'wheel' | 'site' | 'features' | 'customers';
+type AdminTab = 'orders' | 'members' | 'products' | 'wheel' | 'wishlist' | 'settings';
 
 interface WishlistStat {
   id: string;
@@ -159,12 +159,18 @@ export default function AdminOrders() {
           </button>
         </div>
 
-        <div className="flex gap-3 mb-10">
+        <div className="flex flex-wrap gap-3 mb-10">
           <button
             onClick={() => setTab('orders')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'orders' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Orders
+          </button>
+          <button
+            onClick={() => setTab('members')}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'members' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Members
           </button>
           <button
             onClick={() => setTab('products')}
@@ -173,46 +179,39 @@ export default function AdminOrders() {
             Products
           </button>
           <button
-            onClick={() => { setTab('wishlist'); loadWishlistStats(); }}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'wishlist' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Wishlist Insights
-          </button>
-          <button
             onClick={() => setTab('wheel')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'wheel' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Wheel Wins
           </button>
           <button
-            onClick={() => { setTab('site'); loadSiteContent(); }}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'site' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+            onClick={() => { setTab('wishlist'); loadWishlistStats(); }}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'wishlist' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
-            Site Content
+            Wishlist
           </button>
           <button
-            onClick={() => { setTab('features'); loadSiteContent(); }}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'features' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+            onClick={() => { setTab('settings'); loadSiteContent(); }}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'settings' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
-            Features
-          </button>
-          <button
-            onClick={() => setTab('customers')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'customers' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Members
+            Site Settings
           </button>
         </div>
 
-        {tab === 'site' && (
-          <SiteContentTab content={siteContent} onContentChange={setSiteContent} />
+        {tab === 'settings' && (
+          <div className="space-y-16">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-zinc-500 mb-6">Step 1 — Feature toggles</p>
+              <FeaturesTab content={siteContent} onContentChange={setSiteContent} />
+            </div>
+            <div className="border-t border-zinc-800 pt-12">
+              <p className="text-xs uppercase tracking-widest text-zinc-500 mb-6">Step 2 — Copy &amp; content</p>
+              <SiteContentTab content={siteContent} onContentChange={setSiteContent} />
+            </div>
+          </div>
         )}
 
-        {tab === 'features' && (
-          <FeaturesTab content={siteContent} onContentChange={setSiteContent} />
-        )}
-
-        {tab === 'customers' && <CustomersTab />}
+        {tab === 'members' && <CustomersTab />}
 
         {tab === 'products' && <ProductsTab />}
 

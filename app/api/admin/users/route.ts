@@ -72,6 +72,12 @@ export interface AdminUserSummary {
   pointsClaimedFromReferrals?: number;
   promoConversions?: number;
   promoClicks?: number;
+  authProvider?: 'email' | 'discord' | 'both';
+  discordLinked?: boolean;
+  discordUsername?: string;
+  discordServerVerified?: boolean;
+  discordVerifySyncPending?: boolean;
+  discordVerifiedAt?: string;
 }
 
 function sanitizeSocials(socials: unknown): UserSocials | undefined {
@@ -177,6 +183,12 @@ async function toAdminSummary(
     pointsClaimedFromReferrals: referral?.pointsClaimed ?? 0,
     promoConversions: referral?.conversions ?? 0,
     promoClicks: referral?.clicks ?? 0,
+    authProvider: user.authProvider,
+    discordLinked: Boolean(user.discordId),
+    discordUsername: user.discordUsername,
+    discordServerVerified: Boolean(user.discordVerifiedAt),
+    discordVerifySyncPending: Boolean(user.discordVerifySyncPending),
+    discordVerifiedAt: user.discordVerifiedAt,
   };
 }
 
@@ -195,6 +207,8 @@ export async function GET(request: NextRequest) {
       user.name.toLowerCase().includes(search) ||
       (user.phone || '').includes(search) ||
       (user.referralCode || '').toLowerCase().includes(search) ||
+      (user.discordUsername || '').toLowerCase().includes(search) ||
+      (user.discordId || '').includes(search) ||
       socialText.includes(search)
     );
   });
@@ -371,6 +385,17 @@ export async function PATCH(request: NextRequest) {
     }
 
     await writeUsers(users);
+
+    if (body.discordSync === true) {
+      const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
+      const syncResult = await syncUserDiscordVerificationByUserId(userId);
+      if (!syncResult.ok && syncResult.reason !== 'not_id_verified' && syncResult.reason !== 'no_discord_linked') {
+        return NextResponse.json({
+          success: false,
+          error: syncResult.message || `Discord sync failed (${syncResult.reason})`,
+        }, { status: 400 });
+      }
+    }
 
     if (body.idVerificationAction === 'verify' || (body.idVerified === true && !body.idVerificationAction)) {
       await markUserIdVerified(userId);
