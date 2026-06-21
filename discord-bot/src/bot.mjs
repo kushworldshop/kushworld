@@ -72,6 +72,7 @@ async function main() {
           `${BRAND.tagline}\n\n` +
           `▸ Read ${rules ? `<#${rules.id}>` : '**#rules**'}\n` +
           `▸ React ✅ in ${roles ? `<#${roles.id}>` : '**#roles**'} to unlock the server\n` +
+          `▸ Find your state in **#state-connect**\n` +
           `▸ Shop ${BRAND.site}`
       )
       .setFooter({ text: `${BRAND.serverName} · ${BRAND.site}` });

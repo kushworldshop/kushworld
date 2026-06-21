@@ -27,4 +27,5 @@ export const RULES_BODY =
   `**04** · Order help → <#ORDER_HELP> · don't post personal info publicly\n` +
   `**05** · No medical claims — adults only, shop responsibly\n\n` +
   `Get <@&VERIFIED_ROLE> in <#ROLES_CH> to unlock the server.\n` +
+  `Connect locally in **#state-connect** after you verify.\n` +
   `Shop → ${BRAND.site}`;

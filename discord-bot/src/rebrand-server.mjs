@@ -6,6 +6,7 @@ import {
 import { createClient, loginAndReady } from './client.mjs';
 import { guildId } from './config.mjs';
 import { BRAND, CATEGORY_NAMES, RULES_BODY } from './brand.mjs';
+import { consolidateStateRegions, applyForumPermissions } from './regions-forum.mjs';
 
 const STAFF_ROLES = ['Staff', 'Mod', 'Kush World'];
 
@@ -245,13 +246,19 @@ async function setupChannelPermissions(guild, verifiedRole) {
       UseExternalEmojis: true,
     };
 
-    for (const catName of [CATEGORY_NAMES.products, CATEGORY_NAMES.community, CATEGORY_NAMES.media, CATEGORY_NAMES.regions]) {
+    for (const catName of [CATEGORY_NAMES.products, CATEGORY_NAMES.community, CATEGORY_NAMES.media]) {
       for (const ch of [...guild.channels.cache.values()]) {
-        if (ch.parent?.name !== catName || ch.type !== ChannelType.GuildText) continue;
-        if (ch.name === 'nsfw') continue;
-        await ch.permissionOverwrites.edit(verifiedRole, memberPerms).catch(() => null);
+        if (ch.parent?.name !== catName) continue;
+        if (ch.type === ChannelType.GuildText && ch.name !== 'nsfw') {
+          await ch.permissionOverwrites.edit(verifiedRole, memberPerms).catch(() => null);
+        }
       }
     }
+
+    const stateForum = [...guild.channels.cache.values()].find(
+      (c) => c.name === 'state-connect' && c.type === ChannelType.GuildForum
+    );
+    if (stateForum) await applyForumPermissions(guild, stateForum, verifiedRole);
 
     const orderHelp = findChannel(guild, 'order-help', CATEGORY_NAMES.shop);
     if (orderHelp) {
@@ -452,7 +459,6 @@ async function main() {
   const products = findCategory(guild, CATEGORY_NAMES.products) || (await ensureCategory(guild, CATEGORY_NAMES.products));
   const community = findCategory(guild, CATEGORY_NAMES.community) || (await ensureCategory(guild, CATEGORY_NAMES.community));
   const media = findCategory(guild, CATEGORY_NAMES.media) || (await ensureCategory(guild, CATEGORY_NAMES.media));
-  const regions = findCategory(guild, CATEGORY_NAMES.regions) || (await ensureCategory(guild, CATEGORY_NAMES.regions));
   const voice = findCategory(guild, CATEGORY_NAMES.voice) || (await ensureCategory(guild, CATEGORY_NAMES.voice));
   const staff = await ensureCategory(guild, CATEGORY_NAMES.staff);
 
@@ -551,11 +557,7 @@ async function main() {
     }
   }
 
-  for (const ch of [...guild.channels.cache.values()]) {
-    if (ch.parentId === regions.id && ch.type === ChannelType.GuildText) {
-      await ch.setTopic(`${BRAND.serverName} · ${ch.name.replace(/-/g, ' ')}`).catch(() => null);
-    }
-  }
+  await consolidateStateRegions(guild, community);
 
   await setCategoryOrder(guild, [
     CATEGORY_NAMES.info,
@@ -564,7 +566,6 @@ async function main() {
     CATEGORY_NAMES.community,
     CATEGORY_NAMES.media,
     CATEGORY_NAMES.voice,
-    CATEGORY_NAMES.regions,
     CATEGORY_NAMES.staff,
   ]);
 
@@ -580,6 +581,11 @@ async function main() {
   const verifiedRole = guild.roles.cache.find((r) => r.name === 'Verified');
   await setupVerificationGate(guild, verifiedRole);
   await setupChannelPermissions(guild, verifiedRole);
+
+  const stateForum = [...guild.channels.cache.values()].find(
+    (c) => c.name === 'state-connect' && c.type === ChannelType.GuildForum
+  );
+  if (stateForum && verifiedRole) await applyForumPermissions(guild, stateForum, verifiedRole);
 
   try {
     await styleRoles(guild);

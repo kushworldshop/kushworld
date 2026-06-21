@@ -8,6 +8,7 @@
     "setup": "node src/setup-server.mjs",
     "rebrand": "node src/rebrand-server.mjs",
     "audit": "node src/audit-server.mjs",
+    "migrate-regions": "node src/migrate-regions.mjs",
     "status": "node src/server-status.mjs"
   },
   "dependencies": {

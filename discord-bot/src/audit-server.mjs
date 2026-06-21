@@ -10,7 +10,6 @@ const EXPECTED_LAYOUT = [
   CATEGORY_NAMES.community,
   CATEGORY_NAMES.media,
   CATEGORY_NAMES.voice,
-  CATEGORY_NAMES.regions,
   CATEGORY_NAMES.staff,
 ];
 
@@ -134,11 +133,19 @@ async function main() {
     }
   }
 
-  const regionCount = [...guild.channels.cache.values()].filter(
-    (c) => c.parentId && categories.find((cat) => cat.id === c.parentId && cat.name === CATEGORY_NAMES.regions)
-  ).length;
-  if (regionCount > 10) {
-    issues.push(`${regionCount} region channels — main sidebar clutter (optional: collapse later)`);
+  const regionsCat = categories.find((c) => c.name === CATEGORY_NAMES.regions);
+  if (regionsCat) {
+    const legacyCount = [...guild.channels.cache.values()].filter((c) => c.parentId === regionsCat.id).length;
+    issues.push(`REGIONS category still has ${legacyCount} channels — run npm run discord:rebrand to migrate`);
+  }
+
+  const stateForum = [...guild.channels.cache.values()].find(
+    (c) => c.name === 'state-connect' && c.type === ChannelType.GuildForum
+  );
+  if (stateForum) {
+    ok.push('#state-connect forum replaces 50 state text channels');
+  } else {
+    issues.push('Missing #state-connect forum — run npm run discord:rebrand');
   }
 
   if (guild.name === BRAND.serverName) {
