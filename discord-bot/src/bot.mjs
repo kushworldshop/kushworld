@@ -66,14 +66,15 @@ async function main() {
 
     const embed = new EmbedBuilder()
       .setColor(BRAND.color)
+      .setTitle(`Welcome to ${BRAND.serverName}`)
       .setDescription(
-        `Welcome, <@${member.id}>.\n\n` +
+        `<@${member.id}>\n\n` +
           `${BRAND.tagline}\n\n` +
           `▸ Read ${rules ? `<#${rules.id}>` : '**#rules**'}\n` +
           `▸ React ✅ in ${roles ? `<#${roles.id}>` : '**#roles**'} to unlock the server\n` +
           `▸ Shop ${BRAND.site}`
       )
-      .setFooter({ text: BRAND.name });
+      .setFooter({ text: `${BRAND.serverName} · ${BRAND.site}` });
 
     await general.send({ embeds: [embed] }).catch(() => null);
   });

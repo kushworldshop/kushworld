@@ -7,7 +7,7 @@ import { createClient, loginAndReady } from './client.mjs';
 import { guildId } from './config.mjs';
 import { BRAND, CATEGORY_NAMES, RULES_BODY } from './brand.mjs';
 
-const STAFF_ROLES = ['BOT', 'Staff', 'Mod', 'Kush World', 'KWLLC'];
+const STAFF_ROLES = ['Staff', 'Mod', 'Kush World'];
 
 function staffRoles(guild) {
   return STAFF_ROLES.map((name) => guild.roles.cache.find((r) => r.name === name)).filter(Boolean);
@@ -95,7 +95,7 @@ async function tryElevateBotRole(guild, client) {
   const botRole = me.roles.highest;
   const managedNames = [
     'Verified', 'Deals', 'Drops', 'Merch', 'Mod', 'Staff',
-    'VERIFIED', 'stoners', 'KWLLC', 'Kush World', 'Member',
+    'VERIFIED', 'stoners', 'Member',
   ];
   const managed = guild.roles.cache
     .filter((r) => managedNames.includes(r.name))
@@ -129,7 +129,7 @@ async function styleRoles(guild) {
   for (const spec of styles) {
     let role = guild.roles.cache.find((r) => r.name === spec.name);
     if (!role && spec.name === 'Member') {
-      const legacy = guild.roles.cache.find((r) => r.name === 'stoners' || r.name === 'KWLLC');
+      const legacy = guild.roles.cache.find((r) => r.name === 'stoners');
       if (legacy) {
         await legacy.setName('Member', 'Kush World rebrand');
         await legacy.setColors({ primaryColor: spec.color });
@@ -146,14 +146,6 @@ async function styleRoles(guild) {
   }
 
   await mergeRole(guild, 'VERIFIED', 'Verified');
-
-  const kwllc = guild.roles.cache.find((r) => r.name === 'KWLLC');
-  if (kwllc) {
-    await kwllc.setName('Kush World', 'Kush World rebrand').then(() => {
-      console.log('Role renamed → Kush World');
-    }).catch((e) => console.warn(`  KWLLC rename: ${e.message}`));
-    await kwllc.setColors({ primaryColor: BRAND.color }).catch(() => null);
-  }
 
   const mod = guild.roles.cache.find((r) => r.name === 'Mod');
   if (mod) {
@@ -355,10 +347,10 @@ async function seedBranding(guild, channels) {
 
   if (rules) {
     await setReadOnly(rules);
-    await rules.setTopic(`${BRAND.name} community guidelines`);
+    await rules.setTopic(`${BRAND.serverName} community guidelines`);
     const embed = new EmbedBuilder()
       .setColor(BRAND.color)
-      .setTitle(`${BRAND.name} · Rules`)
+      .setTitle(`${BRAND.serverName} · Rules`)
       .setDescription(rulesText)
       .setFooter({ text: BRAND.site });
     const recent = await rules.messages.fetch({ limit: 8 }).catch(() => null);
@@ -370,10 +362,10 @@ async function seedBranding(guild, channels) {
 
   if (announcements) {
     await setReadOnly(announcements);
-    await announcements.setTopic(`Official ${BRAND.name} updates`);
+    await announcements.setTopic(`Official ${BRAND.serverName} updates`);
     const embed = new EmbedBuilder()
       .setColor(BRAND.color)
-      .setTitle(`Welcome to ${BRAND.name}`)
+      .setTitle(`Welcome to ${BRAND.serverName}`)
       .setDescription(
         `${BRAND.tagline}\n\n` +
           `▸ Read <#${rules?.id || 'rules'}>\n` +
@@ -413,13 +405,13 @@ async function seedBranding(guild, channels) {
     const ch = findChannel(guild, name, CATEGORY_NAMES.shop);
     if (ch) {
       await setReadOnly(ch);
-      await ch.setTopic(`${BRAND.name} · ${name.replace('-', ' ')}`).catch(() => null);
+      await ch.setTopic(`${BRAND.serverName} · ${name.replace('-', ' ')}`).catch(() => null);
     }
   }
 
   const orderHelpCh = findChannel(guild, 'order-help', CATEGORY_NAMES.shop);
   if (orderHelpCh) {
-    await orderHelpCh.setTopic(`${BRAND.name} · order & shipping support`).catch(() => null);
+    await orderHelpCh.setTopic(`${BRAND.serverName} · order & shipping support`).catch(() => null);
   }
 }
 
@@ -476,7 +468,7 @@ async function main() {
     if (ch) {
       await renameChannel(ch, to);
       await moveToCategory(ch, products);
-      await ch.setTopic(`${BRAND.name} · ${to}`).catch(() => null);
+      await ch.setTopic(`${BRAND.serverName} · ${to}`).catch(() => null);
     }
   }
 
@@ -493,7 +485,7 @@ async function main() {
   if (mainChat) {
     await renameChannel(mainChat, 'chat');
     await moveToCategory(mainChat, community);
-    await mainChat.setTopic(`${BRAND.name} main lounge`).catch(() => null);
+    await mainChat.setTopic(`${BRAND.serverName} main lounge`).catch(() => null);
   }
   if (newGeneral && mainChat) {
     await deleteChannel(newGeneral, 'duplicate of main-chat');
@@ -501,7 +493,7 @@ async function main() {
 
   for (const name of ['show-your-setup', 'music-media']) {
     const ch = findChannel(guild, name, CATEGORY_NAMES.community);
-    if (ch) await ch.setTopic(`${BRAND.name} community`).catch(() => null);
+    if (ch) await ch.setTopic(`${BRAND.serverName} community`).catch(() => null);
   }
 
   for (const name of ['rules', 'announcements', 'roles']) {
@@ -561,7 +553,7 @@ async function main() {
 
   for (const ch of [...guild.channels.cache.values()]) {
     if (ch.parentId === regions.id && ch.type === ChannelType.GuildText) {
-      await ch.setTopic(`${BRAND.name} · ${ch.name.replace(/-/g, ' ')}`).catch(() => null);
+      await ch.setTopic(`${BRAND.serverName} · ${ch.name.replace(/-/g, ' ')}`).catch(() => null);
     }
   }
 
@@ -597,7 +589,7 @@ async function main() {
   }
 
   const me = await guild.members.fetch(client.user.id);
-  await me.setNickname(BRAND.name).catch(() => null);
+  await me.setNickname(BRAND.serverName).catch(() => null);
 
   console.log('\nRebrand complete.');
   await client.destroy();

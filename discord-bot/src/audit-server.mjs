@@ -38,7 +38,7 @@ async function main() {
   const ok = [];
 
   console.log(`Server: ${guild.name} (${guild.memberCount} members)`);
-  console.log(`Brand target: ${BRAND.name}`);
+  console.log(`Discord server: ${BRAND.serverName} · Shop: ${BRAND.shopName}`);
   console.log(`Bot: ${client.user.tag} · role "${botRole.name}" (pos ${botRole.position})\n`);
 
   const categories = [...guild.channels.cache.values()]
@@ -120,10 +120,6 @@ async function main() {
     ok.push('Bot role hierarchy looks OK for role management');
   }
 
-  if (!me.roles.cache.some((r) => r.name === 'BOT') && me.roles.highest.name === 'KWLLC') {
-    issues.push('Bot uses KWLLC as its top role — either assign the BOT role to the bot or drag KWLLC above managed roles');
-  }
-
   const verified = guild.roles.cache.find((r) => r.name === 'Verified');
   const info = categories.find((c) => c.name === CATEGORY_NAMES.info);
   if (verified && info) {
@@ -145,8 +141,10 @@ async function main() {
     issues.push(`${regionCount} region channels — main sidebar clutter (optional: collapse later)`);
   }
 
-  if (guild.name !== BRAND.name) {
-    issues.push(`Server display name is "${guild.name}" — owner can rename to "${BRAND.name}" in Server Settings`);
+  if (guild.name === BRAND.serverName) {
+    ok.push(`Server name is "${BRAND.serverName}" (Discord policy-safe)`);
+  } else {
+    issues.push(`Server display name is "${guild.name}" — expected "${BRAND.serverName}"`);
   }
 
   console.log('── Health ──');

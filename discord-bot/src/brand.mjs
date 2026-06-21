@@ -1,10 +1,11 @@
 export const BRAND = {
-  name: 'Kush World',
+  serverName: 'KushWorld LLC',
+  shopName: 'Kush World',
   color: 0x00ff9d,
   site: 'https://kushworld.shop',
   tagline: 'Lab-tested hemp · Studio merch · Built different',
   description:
-    'Official Kush World community — lab-tested hemp, studio merch, and discreet shipping. 21+ only.',
+    'Official KushWorld LLC community — lab-tested hemp, studio merch, and discreet shipping. 21+ only. Shop at kushworld.shop',
 };
 
 export const CATEGORY_NAMES = {
@@ -19,7 +20,7 @@ export const CATEGORY_NAMES = {
 };
 
 export const RULES_BODY =
-  `**${BRAND.name}** — ${BRAND.tagline}\n\n` +
+  `**${BRAND.serverName}** — ${BRAND.tagline}\n\n` +
   `**01** · 21+ only · follow your local laws\n` +
   `**02** · Be respectful — no harassment, hate, or drama\n` +
   `**03** · No sourcing, illegal sales, or sketchy DMs\n` +
