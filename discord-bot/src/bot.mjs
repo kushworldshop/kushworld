@@ -1,6 +1,7 @@
-import { Events } from 'discord.js';
+import { Events, EmbedBuilder } from 'discord.js';
 import { createClient, loginAndReady } from './client.mjs';
 import { guildId } from './config.mjs';
+import { BRAND } from './brand.mjs';
 
 const REACTION_ROLES = {
   '✅': 'Verified',
@@ -49,12 +50,32 @@ async function main() {
   client.on(Events.GuildMemberAdd, async (member) => {
     if (member.guild.id !== guildId()) return;
     const general = member.guild.channels.cache.find(
-      (channel) => channel.name === 'general' && channel.isTextBased()
+      (channel) =>
+        channel.isTextBased() &&
+        (channel.name === 'chat' || channel.name === 'general') &&
+        channel.parent?.name === 'COMMUNITY'
     );
     if (!general?.isTextBased()) return;
-    await general
-      .send(`Welcome <@${member.id}> — read **#rules** and grab **@Verified** in **#roles**.`)
-      .catch(() => null);
+
+    const rules = member.guild.channels.cache.find(
+      (channel) => channel.name === 'rules' && channel.parent?.name === 'INFO'
+    );
+    const roles = member.guild.channels.cache.find(
+      (channel) => channel.name === 'roles' && channel.parent?.name === 'INFO'
+    );
+
+    const embed = new EmbedBuilder()
+      .setColor(BRAND.color)
+      .setDescription(
+        `Welcome, <@${member.id}>.\n\n` +
+          `${BRAND.tagline}\n\n` +
+          `▸ Read ${rules ? `<#${rules.id}>` : '**#rules**'}\n` +
+          `▸ React ✅ in ${roles ? `<#${roles.id}>` : '**#roles**'} to unlock the server\n` +
+          `▸ Shop ${BRAND.site}`
+      )
+      .setFooter({ text: BRAND.name });
+
+    await general.send({ embeds: [embed] }).catch(() => null);
   });
 
   await loginAndReady(client);

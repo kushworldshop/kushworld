@@ -1,38 +1,12 @@
 import {
   ChannelType,
-  PermissionFlagsBits,
   EmbedBuilder,
 } from 'discord.js';
 import { createClient, loginAndReady } from './client.mjs';
 import { guildId } from './config.mjs';
+import { BRAND, CATEGORY_NAMES, RULES_BODY } from './brand.mjs';
 
-const BRAND = {
-  name: 'Kush World',
-  color: 0x00ff9d,
-  site: 'https://kushworld.shop',
-  tagline: 'Lab-tested hemp · Studio merch · Built different',
-};
-
-const CATEGORY_NAMES = {
-  info: 'INFO',
-  shop: 'SHOP',
-  products: 'PRODUCTS',
-  community: 'COMMUNITY',
-  media: 'MEDIA',
-  regions: 'REGIONS',
-  voice: 'VOICE',
-  staff: 'STAFF',
-};
-
-const RULES_BODY =
-  `**${BRAND.name}** — ${BRAND.tagline}\n\n` +
-  `**01** · 21+ only · follow your local laws\n` +
-  `**02** · Be respectful — no harassment, hate, or drama\n` +
-  `**03** · No sourcing, illegal sales, or sketchy DMs\n` +
-  `**04** · Order help → <#ORDER_HELP> · don't post personal info publicly\n` +
-  `**05** · No medical claims — adults only, shop responsibly\n\n` +
-  `Get <@&VERIFIED_ROLE> in <#ROLES_CH> to unlock the server.\n` +
-  `Shop → ${BRAND.site}`;
+const STAFF_ROLES = ['BOT', 'Staff', 'Mod', 'Kush World', 'KWLLC'];
 
 function findChannel(guild, name, parentName) {
   const parent = parentName
@@ -105,8 +79,35 @@ async function mergeRole(guild, fromName, toName) {
     await member.roles.add(to).catch(() => null);
     await member.roles.remove(from).catch(() => null);
   }
-  await from.delete('Kush World rebrand — merged role').catch(() => null);
+  await from.delete('Kush World rebrand — merged role').catch((e) => {
+    console.warn(`  could not delete role ${fromName}: ${e.message}`);
+  });
   console.log(`Role merged: ${fromName} → ${toName}`);
+}
+
+async function tryElevateBotRole(guild, client) {
+  const me = await guild.members.fetch(client.user.id);
+  const botRole = me.roles.highest;
+  const managedNames = [
+    'Verified', 'Deals', 'Drops', 'Merch', 'Mod', 'Staff',
+    'VERIFIED', 'stoners', 'KWLLC', 'Kush World', 'Member',
+  ];
+  const managed = guild.roles.cache
+    .filter((r) => managedNames.includes(r.name))
+    .sort((a, b) => b.position - a.position);
+  if (!managed.size) return;
+
+  const target = managed.first().position + 1;
+  if (botRole.position >= target) {
+    console.log('BOT role hierarchy OK');
+    return;
+  }
+
+  await botRole.setPosition(target).catch((e) => {
+    console.warn(`Could not elevate BOT role: ${e.message}`);
+    console.warn('Drag BOT above Verified/legacy roles in Server Settings → Roles.');
+  });
+  if (botRole.position >= target) console.log(`BOT role elevated to pos ${botRole.position}`);
 }
 
 async function styleRoles(guild) {
@@ -117,7 +118,7 @@ async function styleRoles(guild) {
     { name: 'Merch', color: 0xeb459e },
     { name: 'Mod', color: 0xed4245 },
     { name: 'Staff', color: 0x99aab5 },
-    { name: 'Member', color: 0x2f3136 },
+    { name: 'Member', color: 0x4f545c },
   ];
 
   for (const spec of styles) {
@@ -126,13 +127,15 @@ async function styleRoles(guild) {
       const legacy = guild.roles.cache.find((r) => r.name === 'stoners' || r.name === 'KWLLC');
       if (legacy) {
         await legacy.setName('Member', 'Kush World rebrand');
-        await legacy.setColor(spec.color);
-        console.log(`Role renamed → Member`);
+        await legacy.setColors({ primaryColor: spec.color });
+        console.log('Role renamed → Member');
         continue;
       }
     }
     if (role) {
-      await role.setColor(spec.color).catch(() => null);
+      await role.setColors({ primaryColor: spec.color }).catch((e) => {
+        console.warn(`  color ${spec.name}: ${e.message}`);
+      });
     }
   }
 
@@ -140,8 +143,52 @@ async function styleRoles(guild) {
   const kwllc = guild.roles.cache.find((r) => r.name === 'KWLLC');
   if (kwllc) {
     await kwllc.setName('Kush World', 'Kush World rebrand').catch(() => null);
-    await kwllc.setColor(BRAND.color).catch(() => null);
+    await kwllc.setColors({ primaryColor: BRAND.color }).catch(() => null);
   }
+}
+
+async function setupVerificationGate(guild, verifiedRole) {
+  if (!verifiedRole) {
+    console.warn('No Verified role — skipping verification gate');
+    return;
+  }
+
+  const everyone = guild.roles.everyone;
+  const staffRoles = STAFF_ROLES.map((name) => guild.roles.cache.find((r) => r.name === name)).filter(Boolean);
+
+  for (const cat of [...guild.channels.cache.values()].filter((c) => c.type === ChannelType.GuildCategory)) {
+    if (cat.name === CATEGORY_NAMES.info) {
+      await cat.permissionOverwrites.edit(everyone, { ViewChannel: true }).catch(() => null);
+      continue;
+    }
+
+    if (cat.name === CATEGORY_NAMES.staff) {
+      await cat.permissionOverwrites.edit(everyone, { ViewChannel: false }).catch(() => null);
+      await cat.permissionOverwrites.edit(verifiedRole, { ViewChannel: false }).catch(() => null);
+      for (const role of staffRoles) {
+        await cat.permissionOverwrites.edit(role, { ViewChannel: true }).catch(() => null);
+      }
+      continue;
+    }
+
+    await cat.permissionOverwrites.edit(everyone, { ViewChannel: false }).catch(() => null);
+    await cat.permissionOverwrites.edit(verifiedRole, { ViewChannel: true }).catch(() => null);
+    for (const role of staffRoles) {
+      await cat.permissionOverwrites.edit(role, { ViewChannel: true }).catch(() => null);
+    }
+  }
+
+  console.log('Verification gate applied — new members only see INFO until ✅');
+}
+
+async function setupGuildProfile(guild, rulesChannel) {
+  await guild.edit({
+    description: BRAND.description,
+    ...(rulesChannel ? { rulesChannel: rulesChannel.id } : {}),
+  }).catch((e) => console.warn(`Guild profile: ${e.message}`));
+
+  await guild.setAFKChannel(null).catch(() => null);
+  console.log('Guild description updated');
 }
 
 async function deleteChannel(channel, reason) {
@@ -208,11 +255,23 @@ async function seedBranding(guild, channels) {
     const botMsg = recent?.find((m) => m.author.id === guild.client.user.id && m.embeds[0]?.title === 'Roles');
     if (!botMsg) {
       const msg = await roles.send({ embeds: [embed] });
-      await msg.react('✅');
-      await msg.react('🔥');
-      await msg.react('📦');
-      await msg.react('👕');
+      for (const emoji of ['✅', '🔥', '📦', '👕']) {
+        await msg.react(emoji).catch(() => null);
+      }
     }
+  }
+
+  for (const name of ['new-drops', 'deals']) {
+    const ch = findChannel(guild, name, CATEGORY_NAMES.shop);
+    if (ch) {
+      await setReadOnly(ch);
+      await ch.setTopic(`${BRAND.name} · ${name.replace('-', ' ')}`).catch(() => null);
+    }
+  }
+
+  const orderHelpCh = findChannel(guild, 'order-help', CATEGORY_NAMES.shop);
+  if (orderHelpCh) {
+    await orderHelpCh.setTopic(`${BRAND.name} · order & shipping support`).catch(() => null);
   }
 }
 
@@ -235,7 +294,8 @@ async function main() {
 
   console.log(`Rebranding: ${guild.name}\n`);
 
-  // Rename legacy categories
+  await tryElevateBotRole(guild, client);
+
   const legacyMap = [
     ['KUSH GOODNESS', CATEGORY_NAMES.products],
     ['MONKEY BIDNESS', CATEGORY_NAMES.media],
@@ -256,7 +316,6 @@ async function main() {
   const voice = findCategory(guild, CATEGORY_NAMES.voice) || (await ensureCategory(guild, CATEGORY_NAMES.voice));
   const staff = await ensureCategory(guild, CATEGORY_NAMES.staff);
 
-  // Product channel renames
   const productRenames = [
     ['flower', 'flower'],
     ['wax', 'wax'],
@@ -273,7 +332,6 @@ async function main() {
     }
   }
 
-  // Media
   for (const name of ['memes', 'nsfw']) {
     const ch = findChannel(guild, name);
     if (ch) {
@@ -282,7 +340,6 @@ async function main() {
     }
   }
 
-  // Community — prefer main-chat, drop duplicate general
   const mainChat = findChannel(guild, 'main-chat');
   const newGeneral = findChannel(guild, 'general', CATEGORY_NAMES.community);
   if (mainChat) {
@@ -299,7 +356,6 @@ async function main() {
     if (ch) await ch.setTopic(`${BRAND.name} community`).catch(() => null);
   }
 
-  // Shop + info channels
   for (const name of ['rules', 'announcements', 'roles']) {
     const ch = findChannel(guild, name, CATEGORY_NAMES.info);
     if (ch) await moveToCategory(ch, info);
@@ -309,7 +365,6 @@ async function main() {
     if (ch) await moveToCategory(ch, shop);
   }
 
-  // Voice consolidation
   for (const name of ['HOOKA LOUNGE', 'DAB CENTRAL', 'Lounge']) {
     const ch = [...guild.channels.cache.values()].find(
       (c) => c.name === name && c.type === ChannelType.GuildVoice
@@ -321,7 +376,6 @@ async function main() {
     }
   }
 
-  // Staff
   const modOnly = findChannel(guild, 'moderator-only');
   if (modOnly) {
     await renameChannel(modOnly, 'mod-chat');
@@ -329,12 +383,14 @@ async function main() {
     await modOnly.permissionOverwrites.edit(guild.roles.everyone, { ViewChannel: false }).catch(() => null);
   }
 
-  // Remove duplicates (uncategorized / typos)
   const infoRules = findChannel(guild, 'rules', CATEGORY_NAMES.info);
   for (const ch of [...guild.channels.cache.values()]) {
     if (!ch.parentId && ch.type === ChannelType.GuildText) {
-      if (ch.name === 'rules' && infoRules && ch.id !== infoRules.id) {
-        await deleteChannel(ch, 'duplicate rules');
+      if (ch.name === 'rules') {
+        await moveToCategory(ch, info);
+        if (infoRules && ch.id !== infoRules.id) {
+          await deleteChannel(infoRules, 'duplicate rules channel');
+        }
       }
       if (ch.name === 'announcments') {
         await deleteChannel(ch, 'typo duplicate announcements');
@@ -342,14 +398,24 @@ async function main() {
     }
   }
 
-  // Region channel topics
+  const voiceCats = [...guild.channels.cache.values()].filter(
+    (c) => c.type === ChannelType.GuildCategory && c.name === CATEGORY_NAMES.voice
+  );
+  if (voiceCats.length > 1) {
+    for (const cat of voiceCats) {
+      const kids = [...guild.channels.cache.values()].filter((c) => c.parentId === cat.id);
+      if (!kids.length) {
+        await cat.delete('Kush World rebrand — empty voice category').catch(() => null);
+        console.log('Removed empty VOICE category');
+      }
+    }
+  }
+
   for (const ch of [...guild.channels.cache.values()]) {
     if (ch.parentId === regions.id && ch.type === ChannelType.GuildText) {
       await ch.setTopic(`${BRAND.name} · ${ch.name.replace(/-/g, ' ')}`).catch(() => null);
     }
   }
-
-  await styleRoles(guild);
 
   await setCategoryOrder(guild, [
     CATEGORY_NAMES.info,
@@ -367,7 +433,22 @@ async function main() {
     roles: findChannel(guild, 'roles', CATEGORY_NAMES.info),
     announcements: findChannel(guild, 'announcements', CATEGORY_NAMES.info),
   };
+
+  await setupGuildProfile(guild, brandedChannels.rules);
   await seedBranding(guild, brandedChannels);
+
+  const verifiedRole = guild.roles.cache.find((r) => r.name === 'Verified');
+  await setupVerificationGate(guild, verifiedRole);
+
+  try {
+    await styleRoles(guild);
+  } catch (error) {
+    console.warn(`Role styling skipped: ${error.message || error}`);
+    console.warn('Drag the BOT role above other roles in Server Settings → Roles.');
+  }
+
+  const me = await guild.members.fetch(client.user.id);
+  await me.setNickname(BRAND.name).catch(() => null);
 
   console.log('\nRebrand complete.');
   await client.destroy();
