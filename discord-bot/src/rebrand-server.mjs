@@ -11,6 +11,26 @@ import { consolidateStateRegions, applyForumPermissions } from './regions-forum.
 const STAFF_ROLES = ['Staff', 'Mod', 'Kush World'];
 const STAFF_VOICE_NAME = 'staff-room';
 
+const THEATER_CHANNELS = [
+  {
+    name: 'theater',
+    type: ChannelType.GuildText,
+    topic: 'Movie nights, sports watch parties, and live stream schedules — Verified members only',
+  },
+  {
+    name: 'theater-live',
+    type: ChannelType.GuildVoice,
+    userLimit: 99,
+    topic: 'Watch together — movies, sports, and live events via screen share / Go Live',
+  },
+  {
+    name: 'meeting',
+    type: ChannelType.GuildVoice,
+    userLimit: 50,
+    topic: 'Community meetings, hangouts, and group voice',
+  },
+];
+
 function staffRoles(guild) {
   return STAFF_ROLES.map((name) => guild.roles.cache.find((r) => r.name === name)).filter(Boolean);
 }
@@ -83,6 +103,48 @@ async function ensureStaffVoiceChannel(guild, voiceCategory) {
     await moveToCategory(channel, voiceCategory);
   }
   return channel;
+}
+
+async function ensureTheaterSection(guild) {
+  const theater = await ensureCategory(guild, CATEGORY_NAMES.theater);
+  const created = [];
+
+  for (const spec of THEATER_CHANNELS) {
+    let channel = findChannel(guild, spec.name, CATEGORY_NAMES.theater);
+    if (!channel) {
+      channel = [...guild.channels.cache.values()].find(
+        (c) => c.name === spec.name && c.type === spec.type
+      );
+    }
+    if (!channel) {
+      const options = {
+        name: spec.name,
+        type: spec.type,
+        parent: theater.id,
+        reason: 'Kush World theater section',
+      };
+      if (spec.topic && spec.type === ChannelType.GuildText) {
+        options.topic = spec.topic;
+      }
+      if (spec.type === ChannelType.GuildVoice) {
+        if (spec.userLimit) options.userLimit = spec.userLimit;
+        options.bitrate = 64000;
+      }
+      channel = await guild.channels.create(options);
+      console.log(`Created ${spec.type === ChannelType.GuildVoice ? 'voice' : '#'}${spec.name} in THEATER`);
+    } else {
+      await moveToCategory(channel, theater);
+      if (spec.topic && spec.type === ChannelType.GuildText) {
+        await channel.setTopic(spec.topic).catch(() => null);
+      }
+      if (spec.type === ChannelType.GuildVoice && spec.userLimit) {
+        await channel.setUserLimit(spec.userLimit).catch(() => null);
+      }
+    }
+    created.push(channel);
+  }
+
+  return { theater, channels: created };
 }
 
 async function setupStaffVoicePermissions(guild, verifiedRole, staffVoiceChannel) {
@@ -288,12 +350,37 @@ async function setupChannelPermissions(guild, verifiedRole) {
       UseExternalEmojis: true,
     };
 
-    for (const catName of [CATEGORY_NAMES.products, CATEGORY_NAMES.community, CATEGORY_NAMES.media]) {
+    for (const catName of [
+      CATEGORY_NAMES.products,
+      CATEGORY_NAMES.community,
+      CATEGORY_NAMES.theater,
+      CATEGORY_NAMES.media,
+    ]) {
       for (const ch of [...guild.channels.cache.values()]) {
         if (ch.parent?.name !== catName) continue;
         if (ch.type === ChannelType.GuildText && ch.name !== 'nsfw') {
           await ch.permissionOverwrites.edit(verifiedRole, memberPerms).catch(() => null);
         }
+      }
+    }
+
+    const theaterVoicePerms = {
+      ViewChannel: true,
+      Connect: true,
+      Speak: true,
+      Stream: true,
+      UseVAD: true,
+    };
+    for (const ch of [...guild.channels.cache.values()]) {
+      if (ch.parent?.name !== CATEGORY_NAMES.theater || ch.type !== ChannelType.GuildVoice) continue;
+      await ch.permissionOverwrites.edit(verifiedRole, theaterVoicePerms).catch(() => null);
+      for (const role of staff) {
+        await ch.permissionOverwrites.edit(role, {
+          ...theaterVoicePerms,
+          MoveMembers: true,
+          MuteMembers: true,
+          DeafenMembers: true,
+        }).catch(() => null);
       }
     }
 
@@ -471,6 +558,29 @@ async function seedBranding(guild, channels) {
   if (orderHelpCh) {
     await orderHelpCh.setTopic(`${BRAND.serverName} · order & shipping support`).catch(() => null);
   }
+
+  const theaterCh = findChannel(guild, 'theater', CATEGORY_NAMES.theater);
+  const theaterLive = findChannel(guild, 'theater-live', CATEGORY_NAMES.theater);
+  const meetingCh = findChannel(guild, 'meeting', CATEGORY_NAMES.theater);
+  if (theaterCh) {
+    const embed = new EmbedBuilder()
+      .setColor(BRAND.color)
+      .setTitle('Kush World Theater')
+      .setDescription(
+        `Movie nights, sports, and live events with the community.\n\n` +
+          `**How it works**\n` +
+          `▸ Staff posts what's playing here in ${theaterCh.id ? `<#${theaterCh.id}>` : '#theater'}\n` +
+          `▸ Join ${theaterLive?.id ? `<#${theaterLive.id}>` : 'theater-live'} to watch via screen share / Go Live\n` +
+          `▸ Use ${meetingCh?.id ? `<#${meetingCh.id}>` : 'meeting'} for community hangouts and voice meetings\n\n` +
+          `21+ only · be respectful · no piracy links`
+      )
+      .setFooter({ text: BRAND.site });
+    const recent = await theaterCh.messages.fetch({ limit: 5 }).catch(() => null);
+    const hasTheater = recent?.some((m) => m.author.id === guild.client.user.id && m.embeds[0]?.title === 'Kush World Theater');
+    if (!hasTheater) {
+      await theaterCh.send({ embeds: [embed] });
+    }
+  }
 }
 
 async function setCategoryOrder(guild, orderedNames) {
@@ -611,12 +721,14 @@ async function main() {
   }
 
   await consolidateStateRegions(guild, community);
+  await ensureTheaterSection(guild);
 
   await setCategoryOrder(guild, [
     CATEGORY_NAMES.info,
     CATEGORY_NAMES.shop,
     CATEGORY_NAMES.products,
     CATEGORY_NAMES.community,
+    CATEGORY_NAMES.theater,
     CATEGORY_NAMES.media,
     CATEGORY_NAMES.voice,
     CATEGORY_NAMES.staff,

@@ -13,6 +13,7 @@ export const CATEGORY_NAMES = {
   shop: 'SHOP',
   products: 'PRODUCTS',
   community: 'COMMUNITY',
+  theater: 'THEATER',
   media: 'MEDIA',
   regions: 'REGIONS',
   voice: 'VOICE',

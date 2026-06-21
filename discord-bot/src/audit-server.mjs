@@ -8,10 +8,13 @@ const EXPECTED_LAYOUT = [
   CATEGORY_NAMES.shop,
   CATEGORY_NAMES.products,
   CATEGORY_NAMES.community,
+  CATEGORY_NAMES.theater,
   CATEGORY_NAMES.media,
   CATEGORY_NAMES.voice,
   CATEGORY_NAMES.staff,
 ];
+
+const THEATER_CHANNEL_NAMES = ['theater', 'theater-live', 'meeting'];
 
 const LEGACY_ROLES = ['VERIFIED', 'stoners', 'KWLLC', 'BOT'];
 const CORE_ROLES = ['Verified', 'Deals', 'Drops', 'Merch', 'Mod'];
@@ -146,6 +149,21 @@ async function main() {
     ok.push('#state-connect forum replaces 50 state text channels');
   } else {
     issues.push('Missing #state-connect forum — run npm run discord:rebrand');
+  }
+
+  const theaterCat = categories.find((c) => c.name === CATEGORY_NAMES.theater);
+  if (theaterCat) {
+    const theaterKids = [...guild.channels.cache.values()].filter((c) => c.parentId === theaterCat.id);
+    const missingTheater = THEATER_CHANNEL_NAMES.filter(
+      (name) => !theaterKids.some((c) => c.name === name)
+    );
+    if (!missingTheater.length) {
+      ok.push('THEATER section complete (#theater, theater-live, meeting)');
+    } else {
+      issues.push(`THEATER missing: ${missingTheater.join(', ')} — run npm run discord:rebrand`);
+    }
+  } else {
+    issues.push('Missing THEATER category — run npm run discord:rebrand');
   }
 
   const voiceCat = categories.find((c) => c.name === CATEGORY_NAMES.voice);
