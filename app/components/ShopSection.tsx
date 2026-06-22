@@ -222,12 +222,12 @@ export default function ShopSection({
           </div>
         )}
 
-        <div className="max-w-3xl mx-auto mb-10 space-y-4">
-          <div className="flex flex-wrap gap-4 justify-center items-center">
+        <div className="max-w-2xl mx-auto mb-8">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2 text-sm"
+              className="bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-300"
             >
               {sortOptions.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -236,72 +236,48 @@ export default function ShopSection({
               ))}
             </select>
 
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="text-sm text-[#00ff9d] hover:underline">
-                Clear search &quot;{searchQuery}&quot;
-              </button>
-            )}
-          </div>
-
-          <div className="bg-zinc-950/80 border border-zinc-800 rounded-2xl p-4 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium text-zinc-200">Budget</p>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
-                <span>
-                  {filteredProducts.length} of {categoryProducts.length} products
-                </span>
-                {budgetActive && (
-                  <button
-                    type="button"
-                    onClick={() => setMaxPrice(defaultMaxPrice)}
-                    className="text-[#00ff9d] hover:underline"
-                  >
-                    Reset
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <p className="text-[#00ff9d]">
-                Up to ${maxPrice}
-                <span className="text-zinc-500 ml-2 text-xs">
-                  (from ${priceBounds.min}
-                  {priceBounds.max > BUDGET_FILTER_MAX ? ` · capped at $${BUDGET_FILTER_MAX}` : ''})
-                </span>
-              </p>
+            <div className="flex items-center gap-2.5 min-w-[min(100%,220px)] max-w-xs flex-1">
+              <span className="text-[11px] text-zinc-500 shrink-0 uppercase tracking-wide">Budget</span>
               <input
-                type="number"
+                type="range"
                 min={priceBounds.min}
                 max={BUDGET_FILTER_MAX}
                 step={1}
                 value={maxPrice}
-                onChange={(e) => {
-                  const next = Number(e.target.value) || priceBounds.min;
+                onChange={(e) =>
                   setMaxPrice(
-                    Math.min(BUDGET_FILTER_MAX, Math.max(priceBounds.min, Math.round(next)))
-                  );
-                }}
-                className="w-24 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-right text-zinc-200 text-sm"
+                    Math.max(priceBounds.min, Math.min(BUDGET_FILTER_MAX, Number(e.target.value)))
+                  )
+                }
+                className="budget-slider flex-1 min-w-[80px]"
                 aria-label="Maximum budget"
               />
+              <span className="text-xs text-[#00ff9d] tabular-nums w-14 text-right shrink-0">
+                ≤${maxPrice}
+              </span>
+              {budgetActive && (
+                <button
+                  type="button"
+                  onClick={() => setMaxPrice(defaultMaxPrice)}
+                  className="text-[10px] text-zinc-500 hover:text-[#00ff9d] shrink-0"
+                  aria-label="Reset budget"
+                >
+                  Reset
+                </button>
+              )}
             </div>
 
-            <input
-              type="range"
-              min={priceBounds.min}
-              max={BUDGET_FILTER_MAX}
-              step={1}
-              value={maxPrice}
-              onChange={(e) =>
-                setMaxPrice(
-                  Math.max(priceBounds.min, Math.min(BUDGET_FILTER_MAX, Number(e.target.value)))
-                )
-              }
-              className="w-full accent-[#00ff9d]"
-              aria-label="Maximum budget"
-            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="text-xs text-[#00ff9d] hover:underline">
+                Clear &quot;{searchQuery}&quot;
+              </button>
+            )}
           </div>
+          {budgetActive && (
+            <p className="text-center text-[10px] text-zinc-600 mt-1.5">
+              {filteredProducts.length} of {categoryProducts.length} products
+            </p>
+          )}
         </div>
 
         {loadingProducts ? (
