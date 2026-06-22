@@ -178,14 +178,72 @@ export function getAllProductCategorySlugs(nav: ShopNavigation): string[] {
   return Array.from(slugs);
 }
 
+export function slugifyShopSubsectionId(label: string): string {
+  return label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+export function getShopCategoryForProductCategory(
+  nav: ShopNavigation,
+  productCategory: string
+): ShopCategory | undefined {
+  return nav.categories.find((category) => category.productCategories.includes(productCategory));
+}
+
 export function getSubsectionsForProductCategory(
   nav: ShopNavigation,
   productCategory: string
 ): ShopSubsection[] {
-  const shopCategory = nav.categories.find((category) =>
+  return getShopCategoryForProductCategory(nav, productCategory)?.subsections ?? [];
+}
+
+export function getSubsectionLabel(
+  nav: ShopNavigation,
+  productCategory: string,
+  subsectionId?: string
+): string {
+  if (!subsectionId) return '';
+  const subsection = getSubsectionsForProductCategory(nav, productCategory).find(
+    (item) => item.id === subsectionId
+  );
+  return subsection?.label ?? subsectionId;
+}
+
+export function addSubsectionForProductCategory(
+  nav: ShopNavigation,
+  productCategory: string,
+  label: string
+): { navigation: ShopNavigation; subsection: ShopSubsection; created: boolean } | null {
+  const trimmed = label.trim();
+  if (!trimmed) return null;
+
+  const categoryIndex = nav.categories.findIndex((category) =>
     category.productCategories.includes(productCategory)
   );
-  return shopCategory?.subsections ?? [];
+  if (categoryIndex === -1) return null;
+
+  const category = nav.categories[categoryIndex];
+  const id = slugifyShopSubsectionId(trimmed);
+  const existing = category.subsections.find((subsection) => subsection.id === id);
+  if (existing) {
+    return { navigation: nav, subsection: existing, created: false };
+  }
+
+  const subsection = { id, label: trimmed };
+  const categories = nav.categories.map((item, index) =>
+    index === categoryIndex
+      ? { ...item, subsections: [...item.subsections, subsection] }
+      : item
+  );
+
+  return {
+    navigation: { ...nav, categories },
+    subsection,
+    created: true,
+  };
 }
 
 export function getProductCategoryLabel(nav: ShopNavigation, productCategory: string): string {

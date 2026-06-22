@@ -19,7 +19,9 @@ import {
   ADMIN_PRODUCT_CATEGORY_TABS,
   getAllProductCategorySlugs,
   getProductCategoryLabel,
+  getSubsectionLabel,
   getSubsectionsForProductCategory,
+  mergeShopNavigation,
   productMatchesAdminCategoryTab,
   type AdminProductCategoryTabId,
 } from '@/lib/shopNavigation';
@@ -182,6 +184,7 @@ export default function ProductsTab() {
           ...DEFAULT_SITE_CONTENT,
           ...(data.content || {}),
           features: mergeSiteFeatures(data.content?.features),
+          shopNavigation: mergeShopNavigation(data.content?.shopNavigation),
         });
       }
     } catch {
@@ -525,6 +528,38 @@ export default function ProductsTab() {
     }
   };
 
+  const createSubsection = async (productCategory: string, label: string, productId: string) => {
+    const trimmed = label.trim();
+    if (!trimmed) {
+      setMessage('Enter a sub-section name.');
+      return null;
+    }
+
+    try {
+      const res = await adminFetch('/api/admin/products/subsections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productCategory, label: trimmed }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setMessage(data.error || 'Failed to create sub-section');
+        return null;
+      }
+
+      setSiteContent((prev) => ({
+        ...prev,
+        shopNavigation: mergeShopNavigation(data.shopNavigation),
+      }));
+      updateDraft(productId, 'subcategory', data.subsection.id);
+      setMessage(data.message || `Sub-section "${data.subsection.label}" ready`);
+      return data.subsection.id as string;
+    } catch {
+      setMessage('Failed to create sub-section');
+      return null;
+    }
+  };
+
   const uploadGalleryMedia = async (product: AdminProduct, files: FileList | File[]) => {
     const mediaFiles = [...files].filter(
       (file) => file.type.startsWith('image/') || file.type.startsWith('video/')
@@ -843,7 +878,9 @@ export default function ProductsTab() {
                           <span className="text-zinc-400">{getMerchSubcategoryLabel(draft.merchSubcategory)}</span>
                         )}
                         {product.category !== 'merch' && draft.subcategory && (
-                          <span className="text-zinc-400">{draft.subcategory}</span>
+                          <span className="text-zinc-400">
+                            {getSubsectionLabel(siteContent.shopNavigation, draft.category, draft.subcategory)}
+                          </span>
                         )}
                         {product.hidden && <span className="text-amber-400">Hidden</span>}
                         {product.isCustom && <span className="text-sky-400">Imported</span>}
@@ -937,6 +974,7 @@ export default function ProductsTab() {
               onToggleVisibility={() => toggleVisibility(selectedProduct)}
               onUploadGalleryMedia={(files) => uploadGalleryMedia(selectedProduct, files)}
               onMediaChange={(media) => updateMediaDraft(selectedProduct.id, media)}
+              onCreateSubsection={(label) => createSubsection(selectedProduct.category, label, selectedProduct.id)}
               onUploadOptionImage={(file) => uploadOptionImage(selectedProduct, file)}
               grokEnabled={grokEnabled}
               descriptionTone={descriptionTone}
@@ -997,6 +1035,7 @@ function ProductDetailPanel({
   onToggleVisibility,
   onUploadGalleryMedia,
   onMediaChange,
+  onCreateSubsection,
   onUploadOptionImage,
   grokEnabled,
   descriptionTone,
@@ -1030,9 +1069,13 @@ function ProductDetailPanel({
   onToggleVisibility: () => void;
   onUploadGalleryMedia: (files: FileList | File[]) => void;
   onMediaChange: (media: ProductMediaItem[]) => void;
+  onCreateSubsection: (label: string) => Promise<string | null>;
   onUploadOptionImage: (file: File) => Promise<string | null>;
 }) {
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [creatingSubsection, setCreatingSubsection] = useState(false);
+  const [newSubsectionName, setNewSubsectionName] = useState('');
+  const [showNewSubsection, setShowNewSubsection] = useState(false);
   const margin = getProductMargin(draft.price, draft.cost > 0 ? draft.cost : undefined);
   const selectedTone = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === descriptionTone);
   const coverUrl = getProductCoverUrl({ image: draft.image, media: draft.media });
@@ -1187,7 +1230,13 @@ function ProductDetailPanel({
             <label className="text-xs text-zinc-500 block mb-1">Sub-section</label>
             <select
               value={draft.subcategory}
-              onChange={(e) => onDraftChange('subcategory', e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === '__create__') {
+                  setShowNewSubsection(true);
+                  return;
+                }
+                onDraftChange('subcategory', e.target.value);
+              }}
               className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
             >
               <option value="">None</option>
@@ -1196,7 +1245,67 @@ function ProductDetailPanel({
                   {subsection.label}
                 </option>
               ))}
+              <option value="__create__">+ Create new sub-section...</option>
             </select>
+            {(showNewSubsection || draft.subcategory) && (
+              <div className="mt-3 p-3 rounded-xl border border-zinc-800 bg-zinc-950 space-y-2">
+                {draft.subcategory && (
+                  <p className="text-[11px] text-zinc-500">
+                    Current: {getSubsectionLabel(siteContent.shopNavigation, draft.category, draft.subcategory)}
+                  </p>
+                )}
+                {showNewSubsection && (
+                  <>
+                    <input
+                      value={newSubsectionName}
+                      onChange={(e) => setNewSubsectionName(e.target.value)}
+                      placeholder="e.g. Smalls, Indoor, Premium"
+                      className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={creatingSubsection || !newSubsectionName.trim()}
+                        onClick={async () => {
+                          setCreatingSubsection(true);
+                          const id = await onCreateSubsection(newSubsectionName);
+                          if (id) {
+                            setNewSubsectionName('');
+                            setShowNewSubsection(false);
+                          }
+                          setCreatingSubsection(false);
+                        }}
+                        className="bg-[#00ff9d] text-black px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+                      >
+                        {creatingSubsection ? 'Creating...' : 'Create & assign'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewSubsection(false);
+                          setNewSubsectionName('');
+                        }}
+                        className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg text-xs font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-zinc-500">
+                      Adds a shop filter tab under {getProductCategoryLabel(siteContent.shopNavigation, draft.category)}.
+                    </p>
+                  </>
+                )}
+                {!showNewSubsection && (
+                  <button
+                    type="button"
+                    onClick={() => setShowNewSubsection(true)}
+                    className="text-xs text-[#00ff9d] hover:underline"
+                  >
+                    + Create another sub-section
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
         <div className="md:col-span-2">
