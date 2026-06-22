@@ -74,6 +74,26 @@ body {
   background: #3f3f46;
 }
 
+.image-hover-zoom {
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.image-hover-zoom img,
+.image-hover-zoom video {
+  transition: transform 300ms ease-out;
+}
+
+.image-hover-zoom:hover img,
+.image-hover-zoom:hover video {
+  transform: scale(1.2);
+}
+
+.image-hover-zoom-sm:hover img,
+.image-hover-zoom-sm:hover video {
+  transform: scale(1.75);
+}
+
 .studio-banner {
   border: 1px solid rgb(0 255 157 / 0.15);
   box-shadow: 0 0 60px rgb(0 255 157 / 0.06);

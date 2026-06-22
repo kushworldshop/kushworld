@@ -307,11 +307,10 @@ export default function ProductOptionsEditor({
                 <div key={valueIndex} className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     {showAdvanced && option.image && (
-                      <img
-                        src={option.image}
-                        alt=""
-                        className="w-8 h-8 rounded-lg object-cover border border-zinc-700 flex-shrink-0"
-                      />
+                      <div className="image-hover-zoom image-hover-zoom-sm w-8 h-8 rounded-lg border border-zinc-700 flex-shrink-0 bg-black">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={option.image} alt="" className="w-full h-full object-cover" />
+                      </div>
                     )}
                     <input
                       value={option.label}

@@ -1067,11 +1067,10 @@ export default function ProductsTab() {
                     onClick={() => setSelectedId(product.id)}
                     className="min-w-0 flex-1 flex items-center gap-2.5 text-left"
                   >
-                    <img
-                      src={draft.image}
-                      alt=""
-                      className="w-10 h-10 object-cover rounded-lg border border-zinc-700 flex-shrink-0"
-                    />
+                    <div className="image-hover-zoom image-hover-zoom-sm w-10 h-10 rounded-lg border border-zinc-700 flex-shrink-0 bg-black">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={draft.image} alt="" className="w-full h-full object-cover" />
+                    </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-sm truncate">{draft.name}</p>
                       <p className="text-[11px] text-zinc-500 truncate">
@@ -1335,7 +1334,7 @@ function ProductDetailPanel({
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex-shrink-0 px-4 py-3 border-b border-zinc-800 flex items-center gap-3 bg-zinc-900/95">
-        <div className="w-11 h-11 rounded-lg border border-zinc-700 overflow-hidden bg-black flex-shrink-0">
+        <div className="image-hover-zoom image-hover-zoom-sm w-11 h-11 rounded-lg border border-zinc-700 bg-black flex-shrink-0">
           {draft.media.some((item) => item.url === coverUrl && item.type === 'video') ? (
             <video src={coverUrl} className="w-full h-full object-cover" muted playsInline preload="metadata" />
           ) : (
@@ -1466,7 +1465,7 @@ function ProductDetailPanel({
                       key={item.url}
                       className={`rounded-lg overflow-hidden border ${isCover ? 'border-[#00ff9d]' : 'border-zinc-700'}`}
                     >
-                      <div className="relative aspect-square bg-black">
+                      <div className="image-hover-zoom relative aspect-square bg-black">
                         <ProductMediaPreview
                           item={item}
                           alt={`${draft.name} ${index + 1}`}
