@@ -131,11 +131,14 @@ export default function ProductCard({ product }: { product: Product }) {
         )}
       </div>
 
-      <Link href={`/products/${getProductSlug(product)}`} className={`relative aspect-square block ${isMerch ? 'bg-white/5' : ''}`}>
+      <Link
+        href={`/products/${getProductSlug(product)}`}
+        className={`group/image relative aspect-square block overflow-hidden cursor-zoom-in ${isMerch ? 'bg-white/5' : ''}`}
+      >
         {coverIsVideo ? (
           <video
             src={coverUrl}
-            className={`w-full h-full ${isMerch ? 'object-contain p-4' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
+            className={`w-full h-full ${isMerch ? 'object-contain p-4' : 'object-cover'} transition-transform duration-300 ease-out group-hover/image:scale-[1.2]`}
             muted
             playsInline
             preload="metadata"
@@ -145,7 +148,7 @@ export default function ProductCard({ product }: { product: Product }) {
             src={coverUrl}
             alt={`${product.name} — ${isMerch ? 'Kush World Studio merch' : 'lab-tested ' + product.category + ' with COA'} | Kush World`}
             fill
-            className={`${isMerch ? 'object-contain p-4' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
+            className={`${isMerch ? 'object-contain p-4' : 'object-cover'} transition-transform duration-300 ease-out group-hover/image:scale-[1.2]`}
           />
         )}
       </Link>

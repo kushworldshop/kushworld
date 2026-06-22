@@ -43,12 +43,12 @@ export default function MerchSection() {
               href={`/products/${getProductSlug(product)}`}
               className="group bg-zinc-900/60 rounded-2xl overflow-hidden border border-zinc-800/80 hover:border-[#00ff9d]/30 transition"
             >
-              <div className="relative aspect-square bg-white/5">
+              <div className="relative aspect-square bg-white/5 overflow-hidden cursor-zoom-in">
                 <Image
                   src={product.image}
                   alt={`${product.name} — official Kush World Studio merch | Kush World`}
                   fill
-                  className="object-contain p-4 group-hover:scale-105 transition-transform duration-500"
+                  className="object-contain p-4 transition-transform duration-300 ease-out group-hover:scale-[1.2]"
                   sizes="(max-width: 768px) 50vw, 25vw"
                 />
               </div>

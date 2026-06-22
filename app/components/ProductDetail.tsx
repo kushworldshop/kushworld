@@ -140,7 +140,9 @@ export default function ProductDetail({ product }: { product: Product }) {
 
         <div className="grid md:grid-cols-2 gap-12">
           <div>
-            <div className={`relative aspect-square rounded-3xl overflow-hidden mb-4 ${isMerch ? 'bg-white/5 border border-zinc-800' : 'bg-zinc-900'}`}>
+            <div
+              className={`group/image relative aspect-square rounded-3xl overflow-hidden mb-4 cursor-zoom-in ${isMerch ? 'bg-white/5 border border-zinc-800' : 'bg-zinc-900'}`}
+            >
               {displayGallery[activeImage]?.type === 'video' ? (
                 <video
                   src={displayGallery[activeImage].url}
@@ -154,7 +156,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                   src={displayGallery[activeImage]?.url ?? product.image}
                   alt={`${product.name} — ${isMerch ? 'official Kush World Studio apparel' : 'premium lab-tested ' + product.category + ' with COA'} | Kush World`}
                   fill
-                  className={isMerch ? 'object-contain p-6' : 'object-cover'}
+                  className={`${isMerch ? 'object-contain p-6' : 'object-cover'} transition-transform duration-300 ease-out group-hover/image:scale-[1.2]`}
                   priority
                 />
               )}
