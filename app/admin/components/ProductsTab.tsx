@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type DragEvent,
+  type SetStateAction,
+} from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
@@ -46,6 +53,8 @@ interface AdminProduct {
   baseName?: string;
   basePrice?: number;
   baseImage?: string;
+  isCustom?: boolean;
+  images?: string[];
 }
 
 type ProductDraft = ReturnType<typeof buildProductDraft>;
@@ -124,6 +133,14 @@ export default function ProductsTab() {
     total: number;
     name: string;
   } | null>(null);
+  const [importDragActive, setImportDragActive] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importCategory, setImportCategory] = useState('flower');
+  const [importPrice, setImportPrice] = useState(700);
+  const [importMessage, setImportMessage] = useState('');
+  const [importResults, setImportResults] = useState<
+    Array<{ strain: string; status: string; message?: string }>
+  >([]);
 
   const grokEnabled = siteContent.features.grokAssistant.enabled;
 
@@ -510,6 +527,45 @@ export default function ProductsTab() {
     }
   };
 
+  const importProductImages = async (files: FileList | File[]) => {
+    const imageFiles = [...files].filter((file) => file.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      setImportMessage('Drop image files only (JPG, PNG, WEBP, GIF).');
+      return;
+    }
+
+    setImporting(true);
+    setImportMessage('');
+    setImportResults([]);
+
+    try {
+      const formData = new FormData();
+      formData.append('category', importCategory);
+      formData.append('defaultPrice', String(importPrice));
+      for (const file of imageFiles) {
+        formData.append('images', file);
+      }
+
+      const res = await adminFetch('/api/admin/products/import', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setImportMessage(data.message || 'Import complete');
+        setImportResults(data.results || []);
+        await loadProducts();
+      } else {
+        setImportMessage(data.error || 'Import failed');
+      }
+    } catch {
+      setImportMessage('Import failed');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const uploadOptionImage = async (product: AdminProduct, file: File): Promise<string | null> => {
     try {
       const formData = new FormData();
@@ -619,6 +675,25 @@ export default function ProductsTab() {
           })}
         </div>
 
+        {(categoryTab === 'flower' || categoryTab === 'all') && (
+          <ProductImportDropzone
+            dragActive={importDragActive}
+            importing={importing}
+            category={importCategory}
+            defaultPrice={importPrice}
+            message={importMessage}
+            results={importResults}
+            categoryOptions={getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => ({
+              value: slug,
+              label: getProductCategoryLabel(siteContent.shopNavigation, slug),
+            }))}
+            onDragActiveChange={setImportDragActive}
+            onCategoryChange={setImportCategory}
+            onDefaultPriceChange={setImportPrice}
+            onImportFiles={importProductImages}
+          />
+        )}
+
         {categoryTab === 'merch' && (
           <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-zinc-800">
             <button
@@ -719,7 +794,8 @@ export default function ProductsTab() {
                           <span className="text-zinc-400">{draft.subcategory}</span>
                         )}
                         {product.hidden && <span className="text-amber-400">Hidden</span>}
-                        {product.hasOverride && <span className="text-[#00ff9d]">Custom</span>}
+                        {product.isCustom && <span className="text-sky-400">Imported</span>}
+                        {product.hasOverride && <span className="text-[#00ff9d]">Edited</span>}
                         {draft.featured && <span>Featured</span>}
                         {draft.bestSeller && <span>Best seller</span>}
                         {draft.isNew && <span>New</span>}
@@ -1193,6 +1269,135 @@ function ProductDetailPanel({
           {saving ? 'Saving...' : dirty ? 'Save Changes' : 'Save'}
         </button>
       </div>
+    </div>
+  );
+}
+
+function ProductImportDropzone({
+  dragActive,
+  importing,
+  category,
+  defaultPrice,
+  message,
+  results,
+  categoryOptions,
+  onDragActiveChange,
+  onCategoryChange,
+  onDefaultPriceChange,
+  onImportFiles,
+}: {
+  dragActive: boolean;
+  importing: boolean;
+  category: string;
+  defaultPrice: number;
+  message: string;
+  results: Array<{ strain: string; status: string; message?: string }>;
+  categoryOptions: Array<{ value: string; label: string }>;
+  onDragActiveChange: (active: boolean) => void;
+  onCategoryChange: (category: string) => void;
+  onDefaultPriceChange: (price: number) => void;
+  onImportFiles: (files: FileList | File[]) => void;
+}) {
+  const handleDrop = (event: DragEvent) => {
+    event.preventDefault();
+    onDragActiveChange(false);
+    if (importing) return;
+    if (event.dataTransfer.files.length > 0) {
+      onImportFiles(event.dataTransfer.files);
+    }
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-zinc-800">
+      <div className="flex flex-wrap items-end gap-3 mb-3">
+        <div>
+          <label className="text-xs text-zinc-500 block mb-1">Import category</label>
+          <select
+            value={category}
+            onChange={(e) => onCategoryChange(e.target.value)}
+            disabled={importing}
+            className="bg-black border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+          >
+            {categoryOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-zinc-500 block mb-1">Default price ($)</label>
+          <AdminNumberInput
+            value={defaultPrice}
+            onChange={onDefaultPriceChange}
+            className="w-28 bg-black border border-zinc-700 rounded-xl px-3 py-2 text-sm disabled:opacity-50"
+          />
+        </div>
+      </div>
+
+      <div
+        onDragEnter={(e) => {
+          e.preventDefault();
+          onDragActiveChange(true);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          onDragActiveChange(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          onDragActiveChange(false);
+        }}
+        onDrop={handleDrop}
+        className={`relative rounded-2xl border-2 border-dashed px-6 py-8 text-center transition ${
+          dragActive
+            ? 'border-[#00ff9d] bg-[#00ff9d]/10'
+            : 'border-zinc-700 bg-black/40 hover:border-zinc-500'
+        } ${importing ? 'opacity-60 pointer-events-none' : ''}`}
+      >
+        <p className="text-sm font-medium mb-1">Drop product images to import</p>
+        <p className="text-xs text-zinc-500 mb-4">
+          Pair Hand + Bag shots per strain (e.g. &quot;WEDDING CRASHER Hand.jpg&quot; + &quot;Bag.jpg&quot;). Each strain becomes one product.
+        </p>
+        <label className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl text-sm font-medium cursor-pointer">
+          {importing ? 'Importing...' : 'Choose images'}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            className="hidden"
+            disabled={importing}
+            onChange={(e) => {
+              if (e.target.files?.length) {
+                onImportFiles(e.target.files);
+                e.target.value = '';
+              }
+            }}
+          />
+        </label>
+      </div>
+
+      {message && <p className="text-sm text-[#00ff9d] mt-3">{message}</p>}
+      {results.length > 0 && (
+        <ul className="mt-2 max-h-32 overflow-y-auto text-xs text-zinc-400 space-y-1">
+          {results.map((result) => (
+            <li key={result.strain}>
+              <span
+                className={
+                  result.status === 'created'
+                    ? 'text-[#00ff9d]'
+                    : result.status === 'skipped'
+                      ? 'text-amber-300'
+                      : 'text-red-400'
+                }
+              >
+                {result.strain}
+              </span>
+              {result.message ? ` — ${result.message}` : ` — ${result.status}`}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

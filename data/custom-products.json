@@ -1,0 +1,142 @@
+[
+  {
+    "id": "custom-bl3-junkie",
+    "name": "BL3 JUNKIE",
+    "slug": "bl3-junkie",
+    "price": 700,
+    "image": "/products/uploads/product-custom-bl3-junkie-1782115321068-j1fbun.jpg",
+    "images": [
+      "/products/uploads/product-custom-bl3-junkie-1782115321068-j1fbun.jpg",
+      "/products/uploads/product-custom-bl3-junkie-1782115321085-nijblz.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  },
+  {
+    "id": "custom-bl3-lobster-smalls",
+    "name": "BL3 LOBSTER - SMALLS",
+    "slug": "bl3-lobster-smalls",
+    "price": 700,
+    "image": "/products/uploads/product-custom-bl3-lobster-smalls-1782115321107-m5z2db.jpg",
+    "images": [
+      "/products/uploads/product-custom-bl3-lobster-smalls-1782115321107-m5z2db.jpg",
+      "/products/uploads/product-custom-bl3-lobster-smalls-1782115321117-xrup05.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  },
+  {
+    "id": "custom-black-candy-indoor-smalls",
+    "name": "BLACK CANDY - INDOOR SMALLS",
+    "slug": "black-candy-indoor-smalls",
+    "price": 700,
+    "image": "/products/uploads/product-custom-black-candy-indoor-smalls-1782115321134-ek924d.jpg",
+    "images": [
+      "/products/uploads/product-custom-black-candy-indoor-smalls-1782115321134-ek924d.jpg",
+      "/products/uploads/product-custom-black-candy-indoor-smalls-1782115321150-tuzyly.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  },
+  {
+    "id": "custom-candy-gruntz",
+    "name": "CANDY GRUNTZ",
+    "slug": "candy-gruntz",
+    "price": 700,
+    "image": "/products/uploads/product-custom-candy-gruntz-1782115321165-r2jy81.jpg",
+    "images": [
+      "/products/uploads/product-custom-candy-gruntz-1782115321165-r2jy81.jpg",
+      "/products/uploads/product-custom-candy-gruntz-1782115321181-jrl2go.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  },
+  {
+    "id": "custom-candy-popperz-smalls",
+    "name": "CANDY POPPERZ - SMALLS",
+    "slug": "candy-popperz-smalls",
+    "price": 700,
+    "image": "/products/uploads/product-custom-candy-popperz-smalls-1782115321198-btk82o.jpg",
+    "images": [
+      "/products/uploads/product-custom-candy-popperz-smalls-1782115321198-btk82o.jpg",
+      "/products/uploads/product-custom-candy-popperz-smalls-1782115321213-x7xjkg.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  },
+  {
+    "id": "custom-la-pop-rocks-indoor",
+    "name": "LA POP ROCKS INDOOR",
+    "slug": "la-pop-rocks-indoor",
+    "price": 700,
+    "image": "/products/uploads/product-custom-la-pop-rocks-indoor-1782115321230-u8odfq.jpg",
+    "images": [
+      "/products/uploads/product-custom-la-pop-rocks-indoor-1782115321230-u8odfq.jpg",
+      "/products/uploads/product-custom-la-pop-rocks-indoor-1782115321246-kqz3lt.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  },
+  {
+    "id": "custom-sprinklez",
+    "name": "SPRINKLEZ",
+    "slug": "sprinklez",
+    "price": 700,
+    "image": "/products/uploads/product-custom-sprinklez-1782115321262-vz98cs.jpg",
+    "images": [
+      "/products/uploads/product-custom-sprinklez-1782115321262-vz98cs.jpg",
+      "/products/uploads/product-custom-sprinklez-1782115321277-blw52m.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  },
+  {
+    "id": "custom-sprinklez-indoor-smalls",
+    "name": "SPRINKLEZ - INDOOR SMALLS",
+    "slug": "sprinklez-indoor-smalls",
+    "price": 700,
+    "image": "/products/uploads/product-custom-sprinklez-indoor-smalls-1782115321293-qruvpk.jpg",
+    "images": [
+      "/products/uploads/product-custom-sprinklez-indoor-smalls-1782115321293-qruvpk.jpg",
+      "/products/uploads/product-custom-sprinklez-indoor-smalls-1782115321309-5sx9y0.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  },
+  {
+    "id": "custom-wedding-crasher",
+    "name": "WEDDING CRASHER",
+    "slug": "wedding-crasher",
+    "price": 700,
+    "image": "/products/uploads/product-custom-wedding-crasher-1782115321325-pxaw2l.jpg",
+    "images": [
+      "/products/uploads/product-custom-wedding-crasher-1782115321325-pxaw2l.jpg",
+      "/products/uploads/product-custom-wedding-crasher-1782115321341-6mpsvy.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  },
+  {
+    "id": "custom-white-truffz",
+    "name": "WHITE TRUFFZ",
+    "slug": "white-truffz",
+    "price": 700,
+    "image": "/products/uploads/product-custom-white-truffz-1782115321357-fgvllk.jpg",
+    "images": [
+      "/products/uploads/product-custom-white-truffz-1782115321357-fgvllk.jpg",
+      "/products/uploads/product-custom-white-truffz-1782115321373-42rq7m.jpg"
+    ],
+    "category": "flower",
+    "sizes": [],
+    "isNew": true
+  }
+]

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { updateProductOverride } from '@/lib/productCatalog';
+import { updateProduct } from '@/lib/productCatalog';
 import {
   ALLOWED_PRODUCT_IMAGE_TYPES,
   MAX_PRODUCT_IMAGE_BYTES,
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     const image = getPublicProductImagePath(filename);
 
     if (saveToProduct) {
-      const product = await updateProductOverride(productId, { image });
+      const product = await updateProduct(productId, { image });
       if (!product) {
         return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
       }

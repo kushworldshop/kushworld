@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { getAdminProducts, setProductsHidden, updateProductOverride } from '@/lib/productCatalog';
+import { getAdminProducts, setProductsHidden, updateProduct } from '@/lib/productCatalog';
 
 export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {
@@ -57,7 +57,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Product id required' }, { status: 400 });
     }
 
-    const product = await updateProductOverride(id, {
+    const product = await updateProduct(id, {
       name: typeof name === 'string' ? name : undefined,
       price: price !== undefined ? Number(price) : undefined,
       cost: cost !== undefined ? Number(cost) : undefined,

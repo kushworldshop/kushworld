@@ -1,5 +1,5 @@
 import { isFirstOrderBonusLineItem } from '@/lib/firstOrderBonus';
-import { getAllProducts, updateProductOverride } from '@/lib/productCatalog';
+import { getAllProducts, updateProduct } from '@/lib/productCatalog';
 
 export interface OrderLineItem {
   id: string;
@@ -58,7 +58,7 @@ export async function deductInventoryForOrder(items: OrderLineItem[]): Promise<v
     if (!product || !isInventoryTracked(product.inventory)) continue;
 
     const newInventory = Math.max(0, (product.inventory ?? 0) - qty);
-    await updateProductOverride(productId, { inventory: newInventory });
+    await updateProduct(productId, { inventory: newInventory });
   }
 }
 
@@ -72,6 +72,6 @@ export async function restoreInventoryForOrder(items: OrderLineItem[]): Promise<
     if (!product || !isInventoryTracked(product.inventory)) continue;
 
     const newInventory = (product.inventory ?? 0) + qty;
-    await updateProductOverride(productId, { inventory: newInventory });
+    await updateProduct(productId, { inventory: newInventory });
   }
 }

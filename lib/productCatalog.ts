@@ -7,6 +7,12 @@ import {
   getProductDescription,
 } from '@/lib/products';
 import { clampProductOptionGroups, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
+import {
+  isCustomProductId,
+  readCustomProducts,
+  updateCustomProduct,
+  type CustomProductUpdate,
+} from '@/lib/customProducts';
 
 const OVERRIDES_FILE = path.join(process.cwd(), 'data', 'product-overrides.json');
 
@@ -86,9 +92,15 @@ function mergeProduct(base: Product, override?: ProductOverride): Product {
   return merged;
 }
 
-export async function getAllProducts(): Promise<Product[]> {
+async function getBaseProductsMerged(): Promise<Product[]> {
   const overrides = await readProductOverrides();
   return baseProducts.map((product) => mergeProduct(product, overrides[product.id]));
+}
+
+export async function getAllProducts(): Promise<Product[]> {
+  const base = await getBaseProductsMerged();
+  const custom = await readCustomProducts();
+  return [...base, ...custom];
 }
 
 export async function getProducts(): Promise<Product[]> {
@@ -116,6 +128,16 @@ export async function searchProducts(query: string): Promise<Product[]> {
       product.category.toLowerCase().includes(q) ||
       getProductDescription(product).toLowerCase().includes(q)
   );
+}
+
+export async function updateProduct(
+  id: string,
+  updates: ProductOverride & { clearInventory?: boolean; images?: string[] }
+): Promise<Product | null> {
+  if (isCustomProductId(id)) {
+    return updateCustomProduct(id, updates as CustomProductUpdate);
+  }
+  return updateProductOverride(id, updates);
 }
 
 export async function updateProductOverride(
@@ -222,9 +244,27 @@ function cleanOverrideForStorage(base: Product, next: ProductOverride): ProductO
 export async function setProductsHidden(ids: string[], hidden: boolean): Promise<number> {
   const uniqueIds = [...new Set(ids)];
   const overrides = await readProductOverrides();
+  const customProducts = await readCustomProducts();
   let updated = 0;
+  let customChanged = false;
+  let overridesChanged = false;
 
   for (const id of uniqueIds) {
+    if (isCustomProductId(id)) {
+      const index = customProducts.findIndex((product) => product.id === id);
+      if (index === -1) continue;
+      if (isProductHidden(customProducts[index]) === hidden) continue;
+      if (hidden) customProducts[index] = { ...customProducts[index], hidden: true };
+      else {
+        const next = { ...customProducts[index] };
+        delete next.hidden;
+        customProducts[index] = next;
+      }
+      customChanged = true;
+      updated += 1;
+      continue;
+    }
+
     const base = baseProducts.find((product) => product.id === id);
     if (!base) continue;
 
@@ -241,10 +281,15 @@ export async function setProductsHidden(ids: string[], hidden: boolean): Promise
     } else {
       overrides[id] = cleaned;
     }
+    overridesChanged = true;
     updated += 1;
   }
 
-  if (updated > 0) {
+  if (customChanged) {
+    const { writeCustomProducts } = await import('@/lib/customProducts');
+    await writeCustomProducts(customProducts);
+  }
+  if (overridesChanged) {
     await writeProductOverrides(overrides);
   }
 
@@ -267,11 +312,12 @@ export async function getAdminProducts(): Promise<
       basePrice: number;
       baseName: string;
       baseImage: string;
+      isCustom?: boolean;
     }
   >
 > {
   const overrides = await readProductOverrides();
-  return baseProducts.map((base) => {
+  const baseAdmin = baseProducts.map((base) => {
     const merged = mergeProduct(base, overrides[base.id]);
     return {
       ...merged,
@@ -280,6 +326,20 @@ export async function getAdminProducts(): Promise<
       basePrice: base.price,
       baseName: base.name,
       baseImage: base.image,
+      isCustom: false,
     };
   });
+
+  const custom = await readCustomProducts();
+  const customAdmin = custom.map((product) => ({
+    ...product,
+    hidden: isProductHidden(product),
+    hasOverride: false,
+    basePrice: product.price,
+    baseName: product.name,
+    baseImage: product.image,
+    isCustom: true,
+  }));
+
+  return [...baseAdmin, ...customAdmin];
 }
