@@ -10,10 +10,11 @@ import CustomersTab from '@/app/admin/components/CustomersTab';
 import OrdersTab from '@/app/admin/components/OrdersTab';
 import ProductsTab from '@/app/admin/components/ProductsTab';
 import SpinWheelTab from '@/app/admin/components/SpinWheelTab';
+import SubscriptionsTab from '@/app/admin/components/SubscriptionsTab';
 import TurnstileField from '@/app/components/TurnstileField';
 import { useTurnstileConfig } from '@/lib/useTurnstileConfig';
 
-type AdminTab = 'orders' | 'members' | 'products' | 'wheel' | 'wishlist' | 'settings';
+type AdminTab = 'orders' | 'members' | 'products' | 'wheel' | 'wishlist' | 'subscriptions' | 'settings';
 
 interface WishlistStat {
   id: string;
@@ -213,6 +214,12 @@ export default function AdminOrders() {
             Wishlist
           </button>
           <button
+            onClick={() => setTab('subscriptions')}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'subscriptions' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Subscriptions
+          </button>
+          <button
             onClick={() => { setTab('settings'); loadSiteContent(); }}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'settings' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
@@ -231,6 +238,10 @@ export default function AdminOrders() {
               <SiteContentTab content={siteContent} onContentChange={setSiteContent} />
             </div>
           </div>
+        )}
+
+        {tab === 'subscriptions' && (
+          <SubscriptionsTab featureEnabled={siteContent.features.subscriptions?.enabled ?? false} />
         )}
 
         {tab === 'members' && <CustomersTab />}

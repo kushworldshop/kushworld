@@ -80,6 +80,12 @@ export interface SiteFeatures {
   auctions: FeatureToggle;
   raffles: FeatureToggle;
   mysteryBoxes: FeatureToggle;
+  subscriptions: FeatureToggle & {
+    label: string;
+    tagline: string;
+    monthlyPrice: number;
+    perksHeadline: string;
+  };
   grokAssistant: FeatureToggle;
 }
 
@@ -168,6 +174,13 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
   auctions: { enabled: false },
   raffles: { enabled: false },
   mysteryBoxes: { enabled: false },
+  subscriptions: {
+    enabled: false,
+    label: 'Kush Club Monthly',
+    tagline: 'Curated monthly drops, member pricing, and loyalty perks.',
+    monthlyPrice: 49.99,
+    perksHeadline: 'What members get every month',
+  },
   grokAssistant: { enabled: true },
 };
 

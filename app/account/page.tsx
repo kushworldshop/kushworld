@@ -16,6 +16,7 @@ import OrderShippingStatus from '@/app/components/OrderShippingStatus';
 import OrderTracker from '@/app/components/OrderTracker';
 import TurnstileField from '@/app/components/TurnstileField';
 import { useTurnstileConfig } from '@/lib/useTurnstileConfig';
+import SubscriptionPanel from '@/app/components/SubscriptionPanel';
 
 interface PromoTerms {
   customerDiscount: number;
@@ -25,7 +26,7 @@ interface PromoTerms {
   referrerRewardPoints: number;
 }
 
-type Tab = 'profile' | 'loyalty' | 'wheel' | 'referrals' | 'orders';
+type Tab = 'profile' | 'loyalty' | 'wheel' | 'referrals' | 'subscription' | 'orders';
 
 const emptySocials: UserSocials = {
   instagram: '',
@@ -197,7 +198,14 @@ export default function Account() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
-    if (tabParam === 'wheel' || tabParam === 'loyalty' || tabParam === 'referrals' || tabParam === 'orders' || tabParam === 'profile') {
+    if (
+      tabParam === 'wheel' ||
+      tabParam === 'loyalty' ||
+      tabParam === 'referrals' ||
+      tabParam === 'subscription' ||
+      tabParam === 'orders' ||
+      tabParam === 'profile'
+    ) {
       setTab(tabParam);
     }
     const resetParam = params.get('reset');
@@ -884,6 +892,7 @@ export default function Account() {
               ...(features.loyaltyProgram?.enabled ? (['loyalty'] as Tab[]) : []),
               ...(features.spinWheel?.enabled ? (['wheel'] as Tab[]) : []),
               ...(features.referrals?.enabled ? (['referrals'] as Tab[]) : []),
+              ...(features.subscriptions?.enabled ? (['subscription'] as Tab[]) : []),
               'orders',
             ] as Tab[]
           ).map((t) => (
@@ -1215,6 +1224,10 @@ export default function Account() {
               onMarkRead={() => markReferralNotificationsRead(true)}
             />
           </div>
+        )}
+
+        {tab === 'subscription' && features.subscriptions?.enabled && (
+          <SubscriptionPanel user={user} />
         )}
 
         {tab === 'orders' && (

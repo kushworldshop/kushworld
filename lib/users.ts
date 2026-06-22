@@ -26,6 +26,7 @@ import {
 } from '@/lib/spinWheelTypes';
 import type { UserIdVerification } from '@/lib/verification';
 import { normalizePhone } from '@/lib/accountVerification';
+import type { PublicSubscriptionSummary } from '@/lib/subscriptionTypes';
 
 const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
 
@@ -83,6 +84,7 @@ export interface UserProfile {
     state: string;
     zip: string;
   };
+  subscriptionId?: string;
 }
 
 export interface PublicUserProfile {
@@ -117,6 +119,7 @@ export interface PublicUserProfile {
   freeEighthReceivedAt?: string;
   freeEighthOrderId?: string;
   shippingAddress?: UserProfile['shippingAddress'];
+  subscription?: PublicSubscriptionSummary | null;
   referralStats?: {
     clicks: number;
     conversions: number;
@@ -572,14 +575,22 @@ export async function getUserDashboard(userId: string): Promise<PublicUserProfil
     };
   }
 
-  const [referralNotifications, unreadReferralNotificationCount] = await Promise.all([
+  const [referralNotifications, unreadReferralNotificationCount, subscription] = await Promise.all([
     getReferralNotificationsForEmail(user.email),
     getUnreadReferralNotificationCount(user.email),
+    (async () => {
+      const { getActiveSubscriptionForUser, toPublicSubscriptionSummary } = await import(
+        '@/lib/subscriptions'
+      );
+      const record = await getActiveSubscriptionForUser(user.id);
+      return record ? toPublicSubscriptionSummary(record) : null;
+    })(),
   ]);
 
   const profile = toPublicProfile(user, referralStats);
   return {
     ...profile,
+    subscription,
     referralNotifications,
     unreadReferralNotificationCount,
   };

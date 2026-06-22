@@ -288,6 +288,38 @@ export default function FeaturesTab({
             <Toggle label="Auctions (coming soon)" checked={features.auctions.enabled} onChange={(enabled) => patchFeatures({ auctions: { enabled } })} />
             <Toggle label="Raffles / giveaways (coming soon)" checked={features.raffles.enabled} onChange={(enabled) => patchFeatures({ raffles: { enabled } })} />
             <Toggle label="Mystery boxes (coming soon)" checked={features.mysteryBoxes.enabled} onChange={(enabled) => patchFeatures({ mysteryBoxes: { enabled } })} />
+            <Toggle
+              label="Monthly subscriptions (Kush Club)"
+              description="Off by default until payment processor is connected. Shows /subscribe and account membership tab when on."
+              checked={features.subscriptions.enabled}
+              onChange={(enabled) => patchFeatures({ subscriptions: { enabled } })}
+            />
+            {features.subscriptions.enabled && (
+              <div className="space-y-4 pl-2 border-l border-zinc-800">
+                <Field
+                  label="Plan name"
+                  value={features.subscriptions.label}
+                  onChange={(v) => patchFeatures({ subscriptions: { label: v } })}
+                />
+                <Field
+                  label="Tagline"
+                  value={features.subscriptions.tagline}
+                  onChange={(v) => patchFeatures({ subscriptions: { tagline: v } })}
+                  multiline
+                />
+                <Field
+                  label="Monthly price (USD)"
+                  value={features.subscriptions.monthlyPrice}
+                  type="number"
+                  onChange={(v) => patchFeatures({ subscriptions: { monthlyPrice: Number(v) || 49.99 } })}
+                />
+                <Field
+                  label="Perks section headline"
+                  value={features.subscriptions.perksHeadline}
+                  onChange={(v) => patchFeatures({ subscriptions: { perksHeadline: v } })}
+                />
+              </div>
+            )}
           </>
         )}
 
