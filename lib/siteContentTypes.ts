@@ -154,7 +154,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     copyright: '© 2026 Kush World. 21+ only.',
   },
   contact: {
-    email: 'kushworldshop@gmail.com',
+    email: 'kushworldshop@outlook.com',
     responseTime: '24–48 hours',
     pageTitle: 'Contact Us',
     pageSubtitle: 'Questions about orders, COAs, or wholesale? Reach out.',

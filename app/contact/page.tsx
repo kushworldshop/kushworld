@@ -8,7 +8,35 @@ import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function Contact() {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
   const { content } = useSiteContent();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, message }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Could not send message');
+        return;
+      }
+      setSubmitted(true);
+    } catch {
+      setError('Network error. Please try again or email us directly.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SiteLayout>
@@ -51,19 +79,38 @@ export default function Contact() {
         )}
 
         {!submitted ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setSubmitted(true);
-            }}
-            className="space-y-4"
-          >
-            <input required placeholder="Your name" className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4" />
-            <input required type="email" placeholder="Email" className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4" />
-            <textarea required placeholder="Message" rows={5} className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4" />
-            <button type="submit" className="w-full bg-[#00ff9d] text-black py-4 rounded-xl font-bold">
-              Send Message
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <input
+              required
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4"
+            />
+            <input
+              required
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4"
+            />
+            <textarea
+              required
+              placeholder="Message"
+              rows={5}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#00ff9d] text-black py-4 rounded-xl font-bold disabled:opacity-50"
+            >
+              {loading ? 'Sending...' : 'Send Message'}
             </button>
+            {error && <p className="text-sm text-red-400 text-center">{error}</p>}
           </form>
         ) : (
           <p className="text-center text-[#00ff9d] py-8">{content.contact.formSuccessMessage}</p>

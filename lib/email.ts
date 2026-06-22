@@ -1,6 +1,15 @@
 const FROM_EMAIL = process.env.EMAIL_FROM || 'orders@kushworld.shop';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
+/** Where contact + wholesale form submissions are delivered */
+export function getContactInboxEmail(): string {
+  return (
+    process.env.CONTACT_INBOX_EMAIL?.trim() ||
+    process.env.SUPPORT_INBOX_EMAIL?.trim() ||
+    'kushworldshop@outlook.com'
+  );
+}
+
 export async function sendOrderConfirmation(
   to: string,
   order: {
@@ -266,6 +275,78 @@ Live Kush Tracker (full progress): ${siteUrl}/track/${order.id}
       sent: false,
       stub: false,
       error: 'Could not send shipping notification email.',
+    };
+  }
+}
+
+export async function sendInquiryEmail(input: {
+  type: 'contact' | 'wholesale';
+  name: string;
+  email: string;
+  message: string;
+  businessName?: string;
+  phone?: string;
+}): Promise<EmailSendResult> {
+  const inbox = getContactInboxEmail();
+  const isWholesale = input.type === 'wholesale';
+  const subject = isWholesale
+    ? `[Wholesale] ${input.businessName || input.name}`
+    : `[Contact] ${input.name}`;
+
+  const lines = [
+    isWholesale ? 'New wholesale program application' : 'New contact form message',
+    '',
+    isWholesale && input.businessName ? `Business: ${input.businessName}` : null,
+    `Name: ${input.name}`,
+    `Email: ${input.email}`,
+    input.phone ? `Phone: ${input.phone}` : null,
+    '',
+    'Message:',
+    input.message.trim(),
+    '',
+    '— Kush World website',
+  ].filter((line): line is string => line !== null);
+
+  const body = lines.join('\n');
+
+  if (!RESEND_API_KEY) {
+    console.log(`[Email stub] To: ${inbox}\nReply-To: ${input.email}\nSubject: ${subject}\n${body}`);
+    return { sent: false, stub: true };
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to: inbox,
+        reply_to: input.email,
+        subject,
+        text: body,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('[Resend] Inquiry email failed:', res.status, errBody);
+      return {
+        sent: false,
+        stub: false,
+        error: 'Could not deliver your message. Please email us directly.',
+      };
+    }
+
+    return { sent: true, stub: false };
+  } catch (err) {
+    console.error('[Resend] Inquiry email error:', err);
+    return {
+      sent: false,
+      stub: false,
+      error: 'Could not deliver your message. Please email us directly.',
     };
   }
 }
