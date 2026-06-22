@@ -28,12 +28,10 @@ function emptyValue(): ProductOptionValue {
 }
 
 function normalizeGroups(groups: ProductOptionGroup[]): ProductOptionGroup[] {
-  return groups
-    .map((group) => ({
-      name: group.name,
-      values: group.values.length > 0 ? group.values : [emptyValue()],
-    }))
-    .filter((group) => group.name.trim() || group.values.some((value) => value.label.trim()));
+  return groups.map((group) => ({
+    name: group.name ?? '',
+    values: group.values.length > 0 ? group.values : [emptyValue()],
+  }));
 }
 
 export default function ProductOptionsEditor({
@@ -53,32 +51,23 @@ export default function ProductOptionsEditor({
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
 
   const commitGroups = (next: ProductOptionGroup[]) => {
-    const cleaned = next
-      .map((group) => ({
-        name: group.name.trim(),
-        values: group.values
-          .map((item) => ({
-            label: item.label.trim(),
-            priceAdjustment:
-              item.priceAdjustment !== undefined &&
-              item.priceAdjustment !== null &&
-              !Number.isNaN(Number(item.priceAdjustment))
-                ? Number(item.priceAdjustment)
-                : undefined,
-            sku: item.sku?.trim() || undefined,
-            image: item.image?.trim() || undefined,
-          }))
-          .filter(
-            (item) =>
-              item.label ||
-              item.priceAdjustment !== undefined ||
-              item.sku ||
-              item.image
-          )
-          .slice(0, MAX_PRODUCT_OPTION_VALUES_PER_GROUP),
-      }))
-      .filter((group) => group.name || group.values.length > 0);
-    onChange(cleaned);
+    const draft = next.slice(0, MAX_PRODUCT_OPTION_GROUPS).map((group) => ({
+      name: group.name,
+      values: (group.values.length > 0 ? group.values : [emptyValue()])
+        .slice(0, MAX_PRODUCT_OPTION_VALUES_PER_GROUP)
+        .map((item) => ({
+          label: item.label,
+          priceAdjustment:
+            item.priceAdjustment !== undefined &&
+            item.priceAdjustment !== null &&
+            !Number.isNaN(Number(item.priceAdjustment))
+              ? Number(item.priceAdjustment)
+              : undefined,
+          sku: item.sku,
+          image: item.image,
+        })),
+    }));
+    onChange(draft);
   };
 
   const updateGroup = (index: number, next: ProductOptionGroup) => {
