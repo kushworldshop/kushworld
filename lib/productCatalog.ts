@@ -13,6 +13,7 @@ import {
   updateCustomProduct,
   type CustomProductUpdate,
 } from '@/lib/customProducts';
+import { getProductMedia, type ProductMediaItem } from '@/lib/productMedia';
 
 const OVERRIDES_FILE = path.join(process.cwd(), 'data', 'product-overrides.json');
 
@@ -24,6 +25,8 @@ export type ProductOverride = Partial<
     | 'cost'
     | 'inventory'
     | 'image'
+    | 'images'
+    | 'media'
     | 'description'
     | 'optionGroups'
     | 'hidden'
@@ -132,7 +135,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
 
 export async function updateProduct(
   id: string,
-  updates: ProductOverride & { clearInventory?: boolean; images?: string[] }
+  updates: ProductOverride & { clearInventory?: boolean }
 ): Promise<Product | null> {
   if (isCustomProductId(id)) {
     return updateCustomProduct(id, updates as CustomProductUpdate);
@@ -164,6 +167,14 @@ export async function updateProductOverride(
     next.inventory = Math.max(0, Math.floor(Number(updates.inventory)));
   }
   if (updates.image !== undefined) next.image = updates.image.trim() || base.image;
+  if (updates.images !== undefined) {
+    if (updates.images.length > 0) next.images = updates.images;
+    else delete next.images;
+  }
+  if (updates.media !== undefined) {
+    if (updates.media.length > 0) next.media = updates.media;
+    else delete next.media;
+  }
   if (updates.description !== undefined) {
     const desc = updates.description.trim();
     if (desc) next.description = desc;
@@ -234,6 +245,12 @@ function cleanOverrideForStorage(base: Product, next: ProductOverride): ProductO
       if (key === 'inventory') return typeof value === 'number' && value >= 0;
       if (key === 'optionGroups') {
         return JSON.stringify(value) !== JSON.stringify(getProductOptionGroups(base));
+      }
+      if (key === 'media') {
+        return JSON.stringify(value) !== JSON.stringify(getProductMedia(base));
+      }
+      if (key === 'images') {
+        return JSON.stringify(value) !== JSON.stringify(base.images ?? []);
       }
       const baseValue = base[key as keyof Product];
       return value !== baseValue;

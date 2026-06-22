@@ -29,6 +29,15 @@ import {
   PRODUCT_DESCRIPTION_TONES,
   type ProductDescriptionTone,
 } from '@/lib/grokProductDescriptionTones';
+import {
+  getProductCoverUrl,
+  getProductMedia,
+  removeProductMedia,
+  setProductCoverMedia,
+  syncProductMediaFields,
+  type ProductMediaItem,
+} from '@/lib/productMedia';
+import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 
 interface AdminProduct {
   id: string;
@@ -55,6 +64,7 @@ interface AdminProduct {
   baseImage?: string;
   isCustom?: boolean;
   images?: string[];
+  media?: ProductMediaItem[];
 }
 
 type ProductDraft = ReturnType<typeof buildProductDraft>;
@@ -74,6 +84,7 @@ function buildProductDraft(
     trackInventory,
     inventory: patch?.inventory ?? product.inventory ?? 0,
     image: patch?.image ?? product.image,
+    media: patch?.media ?? getProductMedia(product),
     description: patch?.description ?? product.description ?? '',
     category: patch?.category ?? product.category,
     subcategory: patch?.subcategory ?? product.subcategory ?? '',
@@ -88,6 +99,7 @@ function buildProductDraft(
 
 function buildProductSavePayload(productId: string, draft: ProductDraft) {
   const isMerch = draft.category === 'merch';
+  const synced = syncProductMediaFields(draft.media);
   return {
     id: productId,
     name: draft.name,
@@ -95,7 +107,9 @@ function buildProductSavePayload(productId: string, draft: ProductDraft) {
     cost: draft.cost,
     trackInventory: draft.trackInventory,
     inventory: draft.trackInventory ? draft.inventory : undefined,
-    image: draft.image,
+    image: synced.image || draft.image,
+    images: synced.images,
+    media: synced.media,
     description: draft.description,
     optionGroups: draft.optionGroups,
     category: draft.category,
@@ -254,10 +268,22 @@ export default function ProductsTab() {
 
   const getDraft = (product: AdminProduct) => buildProductDraft(product, edits);
 
+  const updateMediaDraft = (id: string, media: ProductMediaItem[]) => {
+    const synced = syncProductMediaFields(media);
+    setEdits((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        media: synced.media,
+        image: synced.image,
+      },
+    }));
+  };
+
   const updateDraft = (
     id: string,
     field: keyof AdminProduct | 'trackInventory',
-    value: string | number | boolean | ProductOptionGroup[]
+    value: string | number | boolean | ProductOptionGroup[] | ProductMediaItem[]
   ) => {
     setEdits((prev) => {
       const patch = { ...prev[id], [field]: value };
@@ -499,32 +525,58 @@ export default function ProductsTab() {
     }
   };
 
-  const uploadImage = async (product: AdminProduct, file: File) => {
+  const uploadGalleryMedia = async (product: AdminProduct, files: FileList | File[]) => {
+    const mediaFiles = [...files].filter(
+      (file) => file.type.startsWith('image/') || file.type.startsWith('video/')
+    );
+    if (mediaFiles.length === 0) {
+      setMessage('Add image or video files only.');
+      return;
+    }
+
     setUploadingImageId(product.id);
     setMessage('');
-    try {
-      const formData = new FormData();
-      formData.append('productId', product.id);
-      formData.append('image', file);
 
-      const res = await adminFetch('/api/admin/products/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
+    let uploaded = 0;
+    let failed = 0;
+    let lastError = '';
 
-      if (data.success) {
-        setMessage(`Image uploaded for ${product.name}`);
-        clearEdits(product.id);
-        await loadProducts();
-      } else {
-        setMessage(data.error || 'Failed to upload image');
+    for (const file of mediaFiles) {
+      try {
+        const formData = new FormData();
+        formData.append('productId', product.id);
+        formData.append('image', file);
+        formData.append('mode', 'gallery');
+
+        const res = await adminFetch('/api/admin/products/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          uploaded += 1;
+        } else {
+          failed += 1;
+          lastError = data.error || 'Upload failed';
+        }
+      } catch {
+        failed += 1;
+        lastError = 'Upload failed';
       }
-    } catch {
-      setMessage('Failed to upload image');
-    } finally {
-      setUploadingImageId(null);
     }
+
+    if (failed === 0) {
+      setMessage(`Added ${uploaded} file${uploaded === 1 ? '' : 's'} to ${product.name}`);
+      clearEdits(product.id);
+    } else {
+      setMessage(
+        `Uploaded ${uploaded}, failed ${failed}${lastError ? ` — ${lastError}` : ''}`
+      );
+    }
+
+    await loadProducts();
+    setUploadingImageId(null);
   };
 
   const importProductImages = async (files: FileList | File[]) => {
@@ -883,7 +935,8 @@ export default function ProductsTab() {
               onDraftChange={(field, value) => updateDraft(selectedProduct.id, field, value)}
               onSave={() => saveProduct(selectedProduct)}
               onToggleVisibility={() => toggleVisibility(selectedProduct)}
-              onUploadImage={(file) => uploadImage(selectedProduct, file)}
+              onUploadGalleryMedia={(files) => uploadGalleryMedia(selectedProduct, files)}
+              onMediaChange={(media) => updateMediaDraft(selectedProduct.id, media)}
               onUploadOptionImage={(file) => uploadOptionImage(selectedProduct, file)}
               grokEnabled={grokEnabled}
               descriptionTone={descriptionTone}
@@ -942,7 +995,8 @@ function ProductDetailPanel({
   onDraftChange,
   onSave,
   onToggleVisibility,
-  onUploadImage,
+  onUploadGalleryMedia,
+  onMediaChange,
   onUploadOptionImage,
   grokEnabled,
   descriptionTone,
@@ -974,12 +1028,14 @@ function ProductDetailPanel({
   ) => void;
   onSave: () => void;
   onToggleVisibility: () => void;
-  onUploadImage: (file: File) => void;
+  onUploadGalleryMedia: (files: FileList | File[]) => void;
+  onMediaChange: (media: ProductMediaItem[]) => void;
   onUploadOptionImage: (file: File) => Promise<string | null>;
 }) {
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const margin = getProductMargin(draft.price, draft.cost > 0 ? draft.cost : undefined);
   const selectedTone = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === descriptionTone);
+  const coverUrl = getProductCoverUrl({ image: draft.image, media: draft.media });
 
   const generateDescription = async () => {
     if (!grokEnabled) {
@@ -1007,11 +1063,14 @@ function ProductDetailPanel({
   return (
     <div>
       <div className="flex flex-col sm:flex-row gap-5 mb-6">
-        <img
-          src={draft.image}
-          alt={draft.name}
-          className="w-28 h-28 object-cover rounded-2xl border border-zinc-700 flex-shrink-0"
-        />
+        <div className="w-28 h-28 rounded-2xl border border-zinc-700 flex-shrink-0 overflow-hidden bg-black relative">
+          {draft.media.some((item) => item.url === coverUrl && item.type === 'video') ? (
+            <video src={coverUrl} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={coverUrl} alt={draft.name} className="w-full h-full object-cover" />
+          )}
+        </div>
         <div className="min-w-0">
           <h3 className="text-xl font-bold truncate">{draft.name}</h3>
           <p className="text-xs text-zinc-500 mt-1">
@@ -1141,29 +1200,83 @@ function ProductDetailPanel({
           </div>
         )}
         <div className="md:col-span-2">
-          <label className="text-xs text-zinc-500 block mb-1">Product Image</label>
-          <input
-            value={draft.image}
-            onChange={(e) => onDraftChange('image', e.target.value)}
-            placeholder="/products/uploads/your-image.jpg"
-            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 mb-3"
-          />
+          <label className="text-xs text-zinc-500 block mb-1">Product Gallery</label>
+          <p className="text-[11px] text-zinc-500 mb-3">
+            Add multiple images and videos. The first image is used as the shop cover thumbnail.
+          </p>
+          {draft.media.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+              {draft.media.map((item, index) => {
+                const isCover = item.url === coverUrl;
+                return (
+                  <div
+                    key={item.url}
+                    className={`relative rounded-2xl overflow-hidden border ${
+                      isCover ? 'border-[#00ff9d]' : 'border-zinc-700'
+                    }`}
+                  >
+                    <div className="relative aspect-square bg-black">
+                      <ProductMediaPreview
+                        item={item}
+                        alt={`${draft.name} media ${index + 1}`}
+                        fill
+                        className="object-cover"
+                        videoClassName="w-full h-full object-cover"
+                      />
+                      {item.type === 'video' && (
+                        <span className="absolute top-2 left-2 bg-black/70 text-white text-[10px] font-bold px-2 py-1 rounded-full">
+                          VIDEO
+                        </span>
+                      )}
+                      {isCover && (
+                        <span className="absolute top-2 right-2 bg-[#00ff9d] text-black text-[10px] font-bold px-2 py-1 rounded-full">
+                          COVER
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1 p-2 bg-zinc-950">
+                      {!isCover && (
+                        <button
+                          type="button"
+                          onClick={() => onMediaChange(setProductCoverMedia({ image: draft.image, media: draft.media }, item.url).media)}
+                          className="text-[10px] px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700"
+                        >
+                          Set cover
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onMediaChange(removeProductMedia({ image: draft.image, media: draft.media }, item.url).media)}
+                        className="text-[10px] px-2 py-1 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <label className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl text-sm font-medium cursor-pointer">
-              {uploadingImage ? 'Uploading...' : 'Choose Image'}
+              {uploadingImage ? 'Uploading...' : 'Add images or videos'}
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                multiple
                 className="hidden"
                 disabled={uploadingImage}
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) onUploadImage(file);
-                  e.target.value = '';
+                  if (e.target.files?.length) {
+                    onUploadGalleryMedia(e.target.files);
+                    e.target.value = '';
+                  }
                 }}
               />
             </label>
-            <span className="text-xs text-zinc-500">JPG, PNG, WEBP, or GIF · max 5MB</span>
+            <span className="text-xs text-zinc-500">
+              Images up to 5MB · videos up to 50MB · select multiple files at once
+            </span>
           </div>
         </div>
         <div className="md:col-span-2">

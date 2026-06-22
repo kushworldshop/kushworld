@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import type { Product } from '@/lib/products';
+import { inferMediaType, syncProductMediaFields, type ProductMediaItem } from '@/lib/productMedia';
 import {
   buildCustomProductId,
   createCustomProduct,
@@ -108,13 +109,20 @@ export async function importStrainGroups(
         imagePaths.push(await saveProductImage(productId, file));
       }
 
+      const media: ProductMediaItem[] = imagePaths.map((url) => ({
+        type: inferMediaType(url),
+        url,
+      }));
+      const synced = syncProductMediaFields(media);
+
       const product = await createCustomProduct({
         id: productId,
         name: group.strain,
         slug: slugifyProductName(group.strain),
         price: options.defaultPrice,
-        image: imagePaths[0],
-        images: imagePaths.length > 1 ? imagePaths : undefined,
+        image: synced.image,
+        images: synced.images,
+        media: synced.media,
         category: options.category,
         sizes: [],
         isNew: true,

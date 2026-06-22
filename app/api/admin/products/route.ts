@@ -31,6 +31,8 @@ export async function PATCH(request: NextRequest) {
       inventory,
       trackInventory,
       image,
+      images,
+      media,
       description,
       optionGroups,
       hidden,
@@ -64,6 +66,16 @@ export async function PATCH(request: NextRequest) {
       inventory: inventory !== undefined ? Number(inventory) : undefined,
       clearInventory: trackInventory === false,
       image: typeof image === 'string' ? image : undefined,
+      images: Array.isArray(images) ? images.filter((value): value is string => typeof value === 'string') : undefined,
+      media: Array.isArray(media)
+        ? media.filter(
+            (value): value is { type: 'image' | 'video'; url: string } =>
+              !!value &&
+              typeof value === 'object' &&
+              (value.type === 'image' || value.type === 'video') &&
+              typeof value.url === 'string'
+          )
+        : undefined,
       description: typeof description === 'string' ? description : undefined,
       optionGroups: Array.isArray(optionGroups) ? optionGroups : undefined,
       hidden: typeof hidden === 'boolean' ? hidden : undefined,

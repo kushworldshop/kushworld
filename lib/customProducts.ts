@@ -78,6 +78,7 @@ export type CustomProductUpdate = Partial<
     | 'inventory'
     | 'image'
     | 'images'
+    | 'media'
     | 'description'
     | 'optionGroups'
     | 'hidden'
@@ -118,6 +119,10 @@ export async function updateCustomProduct(
   }
   if (updates.image !== undefined) next.image = updates.image.trim() || current.image;
   if (updates.images !== undefined) next.images = updates.images;
+  if (updates.media !== undefined) {
+    if (updates.media.length > 0) next.media = updates.media;
+    else delete next.media;
+  }
   if (updates.description !== undefined) {
     const desc = updates.description.trim();
     if (desc) next.description = desc;

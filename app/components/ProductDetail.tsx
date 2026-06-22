@@ -32,6 +32,8 @@ import ProductReviews from './ProductReviews';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
 import { getShopCategoryLabel, getShopPathForProduct } from '@/lib/shopNavigation';
+import { getProductMedia, type ProductMediaItem } from '@/lib/productMedia';
+import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 
 export default function ProductDetail({ product }: { product: Product }) {
   const { isMerchOnly, ready } = useAgeAccess();
@@ -39,14 +41,14 @@ export default function ProductDetail({ product }: { product: Product }) {
   const { features } = content;
   const isMerch = product.category === 'merch';
   const blocked = ready && isMerchOnly && !isMerch;
-  const baseGallery = product.images?.length ? product.images : [product.image];
+  const baseGallery = useMemo(() => getProductMedia(product), [product]);
   const [activeImage, setActiveImage] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState(() => getDefaultSelectedOptions(product));
   const displayGallery = useMemo(() => {
     const optionImage = getSelectedOptionsImage(product, selectedOptions);
-    return optionImage
-      ? [optionImage, ...baseGallery.filter((img) => img !== optionImage)]
-      : baseGallery;
+    if (!optionImage) return baseGallery;
+    const optionMedia: ProductMediaItem = { type: 'image', url: optionImage };
+    return [optionMedia, ...baseGallery.filter((item) => item.url !== optionImage)];
   }, [product, selectedOptions, baseGallery]);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -139,25 +141,46 @@ export default function ProductDetail({ product }: { product: Product }) {
         <div className="grid md:grid-cols-2 gap-12">
           <div>
             <div className={`relative aspect-square rounded-3xl overflow-hidden mb-4 ${isMerch ? 'bg-white/5 border border-zinc-800' : 'bg-zinc-900'}`}>
-              <Image
-                src={displayGallery[activeImage]}
-                alt={`${product.name} — ${isMerch ? 'official Kush World Studio apparel' : 'premium lab-tested ' + product.category + ' with COA'} | Kush World`}
-                fill
-                className={isMerch ? 'object-contain p-6' : 'object-cover'}
-                priority
-              />
+              {displayGallery[activeImage]?.type === 'video' ? (
+                <video
+                  src={displayGallery[activeImage].url}
+                  className={`w-full h-full ${isMerch ? 'object-contain p-6' : 'object-cover'}`}
+                  controls
+                  playsInline
+                  preload="metadata"
+                />
+              ) : (
+                <Image
+                  src={displayGallery[activeImage]?.url ?? product.image}
+                  alt={`${product.name} — ${isMerch ? 'official Kush World Studio apparel' : 'premium lab-tested ' + product.category + ' with COA'} | Kush World`}
+                  fill
+                  className={isMerch ? 'object-contain p-6' : 'object-cover'}
+                  priority
+                />
+              )}
             </div>
             {displayGallery.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {displayGallery.map((src, i) => (
+                {displayGallery.map((item, i) => (
                   <button
-                    key={src}
+                    key={item.url}
                     onClick={() => setActiveImage(i)}
                     className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border-2 ${
                       activeImage === i ? 'border-[#00ff9d]' : 'border-zinc-700'
                     }`}
                   >
-                    <Image src={src} alt={`${product.name} view ${i + 1}`} fill className="object-contain p-1 bg-white/5" />
+                    <ProductMediaPreview
+                      item={item}
+                      alt={`${product.name} view ${i + 1}`}
+                      fill
+                      className="object-contain p-1 bg-white/5"
+                      videoClassName="w-full h-full object-cover"
+                    />
+                    {item.type === 'video' && (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-xs font-bold">
+                        ▶
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>

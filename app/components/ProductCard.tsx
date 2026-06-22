@@ -22,6 +22,7 @@ import ProductOptionSelector from './ProductOptionSelector';
 import ProductRatingBadge from './ProductRatingBadge';
 import { useSiteContent } from '@/lib/useSiteContent';
 import { isOnSale } from '@/lib/productCollections';
+import { getProductCoverUrl, isVideoMediaUrl } from '@/lib/productMedia';
 
 export default function ProductCard({ product }: { product: Product }) {
   const { content } = useSiteContent();
@@ -37,6 +38,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const hasOptions = productHasOptions(product);
   const inStock = isProductInStock(product);
   const onSale = isOnSale(product);
+  const coverUrl = getProductCoverUrl(product);
+  const coverIsVideo = isVideoMediaUrl(coverUrl);
   const unitPrice = useMemo(
     () => getSelectedOptionsUnitPrice(product, selectedOptions),
     [product, selectedOptions]
@@ -129,12 +132,22 @@ export default function ProductCard({ product }: { product: Product }) {
       </div>
 
       <Link href={`/products/${getProductSlug(product)}`} className={`relative aspect-square block ${isMerch ? 'bg-white/5' : ''}`}>
-        <Image
-          src={product.image}
-          alt={`${product.name} — ${isMerch ? 'Kush World Studio merch' : 'lab-tested ' + product.category + ' with COA'} | Kush World`}
-          fill
-          className={`${isMerch ? 'object-contain p-4' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
-        />
+        {coverIsVideo ? (
+          <video
+            src={coverUrl}
+            className={`w-full h-full ${isMerch ? 'object-contain p-4' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
+            muted
+            playsInline
+            preload="metadata"
+          />
+        ) : (
+          <Image
+            src={coverUrl}
+            alt={`${product.name} — ${isMerch ? 'Kush World Studio merch' : 'lab-tested ' + product.category + ' with COA'} | Kush World`}
+            fill
+            className={`${isMerch ? 'object-contain p-4' : 'object-cover'} group-hover:scale-105 transition-transform duration-500`}
+          />
+        )}
       </Link>
 
       <div className="p-6">

@@ -4,6 +4,9 @@ export interface TierPrice {
 }
 
 import type { ProductOptionGroup } from '@/lib/productOptions';
+import type { ProductMediaItem } from '@/lib/productMedia';
+
+export type { ProductMediaItem } from '@/lib/productMedia';
 
 export interface Product {
   id: string;
@@ -18,6 +21,7 @@ export interface Product {
   colors?: string[];
   optionGroups?: ProductOptionGroup[];
   images?: string[];
+  media?: ProductMediaItem[];
   category: string;
   description?: string;
   coaPdf?: string;
