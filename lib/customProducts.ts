@@ -178,6 +178,17 @@ export async function getCustomProductById(id: string): Promise<Product | undefi
   return products.find((product) => product.id === id);
 }
 
+export async function deleteCustomProducts(ids: string[]): Promise<number> {
+  const idSet = new Set(ids.filter(isCustomProductId));
+  if (idSet.size === 0) return 0;
+
+  const products = await readCustomProducts();
+  const next = products.filter((product) => !idSet.has(product.id));
+  const removed = products.length - next.length;
+  if (removed > 0) await writeCustomProducts(next);
+  return removed;
+}
+
 export function getCustomProductSlug(product: Product): string {
   return product.slug || getProductSlug(product);
 }

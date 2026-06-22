@@ -8,6 +8,7 @@ import {
 } from '@/lib/products';
 import { clampProductOptionGroups, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
 import {
+  deleteCustomProducts,
   isCustomProductId,
   readCustomProducts,
   updateCustomProduct,
@@ -319,6 +320,16 @@ function sanitizeOptionGroups(groups: ProductOptionGroup[]): ProductOptionGroup[
 
 export async function setProductHidden(id: string, hidden: boolean): Promise<Product | null> {
   return updateProductOverride(id, { hidden });
+}
+
+export async function deleteProducts(
+  ids: string[]
+): Promise<{ deleted: number; skippedCatalogIds: string[] }> {
+  const uniqueIds = [...new Set(ids.filter((id) => typeof id === 'string' && id.length > 0))];
+  const customIds = uniqueIds.filter(isCustomProductId);
+  const skippedCatalogIds = uniqueIds.filter((id) => !isCustomProductId(id));
+  const deleted = customIds.length > 0 ? await deleteCustomProducts(customIds) : 0;
+  return { deleted, skippedCatalogIds };
 }
 
 export async function getAdminProducts(): Promise<

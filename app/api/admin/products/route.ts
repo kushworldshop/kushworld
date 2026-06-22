@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { getAdminProducts, setProductsHidden, updateProduct } from '@/lib/productCatalog';
+import { deleteProducts, getAdminProducts, setProductsHidden, updateProduct } from '@/lib/productCatalog';
 
 export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {
@@ -12,6 +12,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, products });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to load products' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const ids = Array.isArray(body.ids)
+      ? body.ids.filter(
+          (value: unknown): value is string => typeof value === 'string' && value.length > 0
+        )
+      : [];
+
+    if (ids.length === 0) {
+      return NextResponse.json({ success: false, error: 'Product ids required' }, { status: 400 });
+    }
+
+    const { deleted, skippedCatalogIds } = await deleteProducts(ids);
+    return NextResponse.json({ success: true, deleted, skippedCatalogIds });
+  } catch {
+    return NextResponse.json({ success: false, error: 'Failed to delete products' }, { status: 500 });
   }
 }
 

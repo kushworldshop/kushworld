@@ -159,6 +159,8 @@ export default function ProductsTab() {
   >([]);
   const [showImportPanel, setShowImportPanel] = useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [checkedIds, setCheckedIds] = useState<string[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const grokEnabled = siteContent.features.grokAssistant.enabled;
   const selectedProduct = useMemo(
@@ -246,14 +248,31 @@ export default function ProductsTab() {
     [edits, products]
   );
 
-  const hideableCount = useMemo(
-    () => filteredProducts.filter((product) => !product.hidden).length,
-    [filteredProducts]
+  const filteredIds = useMemo(() => filteredProducts.map((product) => product.id), [filteredProducts]);
+
+  const bulkTargets = useMemo(() => {
+    if (checkedIds.length === 0) return filteredProducts;
+    const checkedSet = new Set(checkedIds);
+    return filteredProducts.filter((product) => checkedSet.has(product.id));
+  }, [filteredProducts, checkedIds]);
+
+  const usingSelection = checkedIds.length > 0;
+  const allFilteredChecked =
+    filteredIds.length > 0 && filteredIds.every((id) => checkedIds.includes(id));
+
+  const hideableBulkCount = useMemo(
+    () => bulkTargets.filter((product) => !product.hidden).length,
+    [bulkTargets]
   );
 
-  const unhideableCount = useMemo(
-    () => filteredProducts.filter((product) => product.hidden).length,
-    [filteredProducts]
+  const unhideableBulkCount = useMemo(
+    () => bulkTargets.filter((product) => product.hidden).length,
+    [bulkTargets]
+  );
+
+  const deletableBulkCount = useMemo(
+    () => bulkTargets.filter((product) => product.isCustom).length,
+    [bulkTargets]
   );
 
   const bulkVisibilityLabel = useMemo(() => {
@@ -268,8 +287,31 @@ export default function ProductsTab() {
     }
     if (visibilityFilter === 'visible') parts.push('currently visible');
     if (visibilityFilter === 'hidden') parts.push('currently hidden');
-    return parts.length > 0 ? parts.join(', ') : 'all products';
-  }, [search, categoryTab, merchTypeFilter, visibilityFilter]);
+    if (usingSelection) parts.unshift(`${checkedIds.length} selected`);
+    return parts.length > 0 ? parts.join(', ') : usingSelection ? `${checkedIds.length} selected` : 'all products';
+  }, [search, categoryTab, merchTypeFilter, visibilityFilter, usingSelection, checkedIds.length]);
+
+  useEffect(() => {
+    const validIds = new Set(products.map((product) => product.id));
+    setCheckedIds((prev) => prev.filter((id) => validIds.has(id)));
+  }, [products]);
+
+  const toggleProductCheck = (id: string) => {
+    setCheckedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleCheckAllFiltered = () => {
+    if (allFilteredChecked) {
+      const filteredSet = new Set(filteredIds);
+      setCheckedIds((prev) => prev.filter((id) => !filteredSet.has(id)));
+      return;
+    }
+    setCheckedIds((prev) => [...new Set([...prev, ...filteredIds])]);
+  };
+
+  const clearChecked = () => setCheckedIds([]);
 
   const getDraft = (product: AdminProduct) => buildProductDraft(product, edits);
 
@@ -375,15 +417,16 @@ export default function ProductsTab() {
   };
 
   const setBulkVisibilityForFiltered = async (hidden: boolean) => {
-    const targets = filteredProducts.filter((product) => product.hidden !== hidden);
+    const targets = bulkTargets.filter((product) => product.hidden !== hidden);
     if (targets.length === 0) {
       setMessage(hidden ? 'No visible products to hide' : 'No hidden products to unhide');
       return;
     }
 
     const action = hidden ? 'hide' : 'unhide';
+    const scope = usingSelection ? 'selected' : 'filtered';
     const confirmed = window.confirm(
-      `${hidden ? 'Hide' : 'Unhide'} ${targets.length} product${targets.length === 1 ? '' : 's'} (${bulkVisibilityLabel})?`
+      `${hidden ? 'Hide' : 'Unhide'} ${targets.length} ${scope} product${targets.length === 1 ? '' : 's'} (${bulkVisibilityLabel})?`
     );
     if (!confirmed) return;
 
@@ -413,6 +456,63 @@ export default function ProductsTab() {
       setMessage(`Failed to ${action} products`);
     } finally {
       setBulkVisibility(null);
+    }
+  };
+
+  const deleteSelectedProducts = async () => {
+    if (bulkTargets.length === 0) {
+      setMessage('No products to delete.');
+      return;
+    }
+
+    const customTargets = bulkTargets.filter((product) => product.isCustom);
+    const catalogCount = bulkTargets.length - customTargets.length;
+
+    if (customTargets.length === 0) {
+      setMessage('Only custom/imported products can be deleted. Catalog products can be hidden instead.');
+      return;
+    }
+
+    let confirmText = `Permanently delete ${customTargets.length} custom product${customTargets.length === 1 ? '' : 's'}? This cannot be undone.`;
+    if (catalogCount > 0) {
+      confirmText += `\n\n${catalogCount} catalog product${catalogCount === 1 ? '' : 's'} will be skipped (hide those instead).`;
+    }
+    if (!window.confirm(confirmText)) return;
+
+    setBulkDeleting(true);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/products', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: bulkTargets.map((product) => product.id) }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setMessage(data.error || 'Failed to delete products');
+        return;
+      }
+
+      const deleted = data.deleted ?? 0;
+      const skipped = Array.isArray(data.skippedCatalogIds) ? data.skippedCatalogIds.length : 0;
+      setCheckedIds((prev) => prev.filter((id) => !customTargets.some((product) => product.id === id)));
+      setEdits((prev) => {
+        const next = { ...prev };
+        for (const product of customTargets) delete next[product.id];
+        return next;
+      });
+      if (selectedId && customTargets.some((product) => product.id === selectedId)) {
+        setSelectedId(null);
+      }
+
+      let result = `Deleted ${deleted} product${deleted === 1 ? '' : 's'}`;
+      if (skipped > 0) result += ` · ${skipped} catalog product${skipped === 1 ? '' : 's'} skipped`;
+      setMessage(result);
+      await loadProducts();
+    } catch {
+      setMessage('Failed to delete products');
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -472,23 +572,24 @@ export default function ProductsTab() {
       setMessage('Enable Grok in Admin → Features first.');
       return;
     }
-    if (filteredProducts.length === 0) {
-      setMessage('No products match your filters.');
+    if (bulkTargets.length === 0) {
+      setMessage(usingSelection ? 'No products selected.' : 'No products match your filters.');
       return;
     }
 
+    const targets = bulkTargets;
     const toneLabel = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === descriptionTone)?.label ?? 'TVN-style';
-    const flowerCount = filteredProducts.filter((p) => getDraft(p).category === 'flower').length;
+    const flowerCount = targets.filter((p) => getDraft(p).category === 'flower').length;
     const strainNote =
       flowerCount > 0
         ? `\n\n${flowerCount} flower product${flowerCount === 1 ? '' : 's'} will include strain research from photos + public databases.`
         : '';
     const confirmed = window.confirm(
-      `Write SEO descriptions for ${filteredProducts.length} product${filteredProducts.length === 1 ? '' : 's'} (${bulkVisibilityLabel}) using ${toneLabel} tone?${strainNote}\n\nDescriptions load as drafts — review and use Save all when ready.`
+      `Write SEO descriptions for ${targets.length} product${targets.length === 1 ? '' : 's'} (${bulkVisibilityLabel}) using ${toneLabel} tone?${strainNote}\n\nDescriptions load as drafts — review and use Save all when ready.`
     );
     if (!confirmed) return;
 
-    setBulkGrokProgress({ current: 0, total: filteredProducts.length, name: '' });
+    setBulkGrokProgress({ current: 0, total: targets.length, name: '' });
     setMessage('');
     setDescriptionMessage('');
 
@@ -496,12 +597,12 @@ export default function ProductsTab() {
     let failed = 0;
     let lastError = '';
 
-    for (let index = 0; index < filteredProducts.length; index += 1) {
-      const product = filteredProducts[index];
+    for (let index = 0; index < targets.length; index += 1) {
+      const product = targets[index];
       const draft = getDraft(product);
       setBulkGrokProgress({
         current: index + 1,
-        total: filteredProducts.length,
+        total: targets.length,
         name: draft.name,
       });
 
@@ -525,7 +626,7 @@ export default function ProductsTab() {
     }
 
     setBulkGrokProgress(null);
-    if (failed === 0) {
+    if (failed === 0 && succeeded > 0) {
       setMessage(
         `Grok wrote ${succeeded} description${succeeded === 1 ? '' : 's'} — review and save when ready.`
       );
@@ -736,19 +837,55 @@ export default function ProductsTab() {
 
       {showBulkActions && (
         <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-xl border border-zinc-800 bg-zinc-950/80">
+          {usingSelection && (
+            <span className="text-xs text-zinc-400 mr-1">
+              {checkedIds.length} selected
+              <button
+                type="button"
+                onClick={clearChecked}
+                className="ml-2 text-zinc-500 hover:text-white underline"
+              >
+                Clear
+              </button>
+            </span>
+          )}
           <button
             onClick={() => setBulkVisibilityForFiltered(true)}
-            disabled={loading || bulkVisibility !== null || hideableCount === 0}
+            disabled={loading || bulkVisibility !== null || bulkDeleting || hideableBulkCount === 0}
             className="bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
           >
-            {bulkVisibility === 'hide' ? 'Hiding...' : `Hide all (${hideableCount})`}
+            {bulkVisibility === 'hide'
+              ? 'Hiding...'
+              : `${usingSelection ? 'Hide selected' : 'Hide all'} (${hideableBulkCount})`}
           </button>
           <button
             onClick={() => setBulkVisibilityForFiltered(false)}
-            disabled={loading || bulkVisibility !== null || unhideableCount === 0}
+            disabled={loading || bulkVisibility !== null || bulkDeleting || unhideableBulkCount === 0}
             className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
           >
-            {bulkVisibility === 'unhide' ? 'Unhiding...' : `Unhide all (${unhideableCount})`}
+            {bulkVisibility === 'unhide'
+              ? 'Unhiding...'
+              : `${usingSelection ? 'Unhide selected' : 'Unhide all'} (${unhideableBulkCount})`}
+          </button>
+          <button
+            onClick={deleteSelectedProducts}
+            disabled={
+              loading ||
+              bulkVisibility !== null ||
+              bulkDeleting ||
+              bulkGrokProgress !== null ||
+              deletableBulkCount === 0
+            }
+            className="bg-red-500/10 text-red-300 hover:bg-red-500/20 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+            title={
+              deletableBulkCount === 0
+                ? 'Only custom/imported products can be deleted'
+                : undefined
+            }
+          >
+            {bulkDeleting
+              ? 'Deleting...'
+              : `${usingSelection ? 'Delete selected' : 'Delete custom'} (${deletableBulkCount})`}
           </button>
           {grokEnabled && (
             <>
@@ -758,14 +895,15 @@ export default function ProductsTab() {
                 disabled={
                   loading ||
                   bulkVisibility !== null ||
+                  bulkDeleting ||
                   bulkGrokProgress !== null ||
-                  filteredProducts.length === 0
+                  bulkTargets.length === 0
                 }
                 className="bg-[#00ff9d]/15 text-[#00ff9d] hover:bg-[#00ff9d]/25 border border-[#00ff9d]/40 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
               >
                 {bulkGrokProgress
                   ? `Grok ${bulkGrokProgress.current}/${bulkGrokProgress.total}…`
-                  : `Grok descriptions (${filteredProducts.length})`}
+                  : `Grok descriptions (${bulkTargets.length})`}
               </button>
             </>
           )}
@@ -877,46 +1015,76 @@ export default function ProductsTab() {
             </select>
           </div>
 
-          <p className="text-[11px] text-zinc-500 mb-2 px-0.5">
-            {loading ? 'Loading...' : `${filteredProducts.length} products`}
-            {dirtyIds.length > 0 && <span className="text-amber-300 ml-1">· {dirtyIds.length} unsaved</span>}
-          </p>
+          <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
+            <p className="text-[11px] text-zinc-500">
+              {loading ? 'Loading...' : `${filteredProducts.length} products`}
+              {checkedIds.length > 0 && (
+                <span className="text-[#00ff9d] ml-1">· {checkedIds.length} checked</span>
+              )}
+              {dirtyIds.length > 0 && <span className="text-amber-300 ml-1">· {dirtyIds.length} unsaved</span>}
+            </p>
+            {!loading && filteredProducts.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleCheckAllFiltered}
+                className="text-[11px] text-[#00ff9d] hover:underline whitespace-nowrap"
+              >
+                {allFilteredChecked ? 'Uncheck all' : 'Check all'}
+              </button>
+            )}
+          </div>
 
           <div className="flex-1 overflow-y-auto space-y-1 pr-0.5">
             {filteredProducts.map((product) => {
               const draft = getDraft(product);
               const dirty = !!edits[product.id];
               const active = product.id === selectedId;
+              const checked = checkedIds.includes(product.id);
 
               return (
-                <button
+                <div
                   key={product.id}
-                  type="button"
-                  onClick={() => setSelectedId(product.id)}
-                  className={`w-full text-left rounded-xl border px-2.5 py-2 flex items-center gap-2.5 transition ${
+                  className={`w-full rounded-xl border px-2 py-2 flex items-center gap-2 transition ${
                     active
                       ? 'border-[#00ff9d] bg-[#00ff9d]/10'
-                      : product.hidden
-                        ? 'border-zinc-800/80 bg-black/20 opacity-75 hover:border-zinc-600'
-                        : 'border-transparent bg-black/30 hover:border-zinc-700 hover:bg-black/50'
+                      : checked
+                        ? 'border-[#00ff9d]/40 bg-[#00ff9d]/5'
+                        : product.hidden
+                          ? 'border-zinc-800/80 bg-black/20 opacity-75 hover:border-zinc-600'
+                          : 'border-transparent bg-black/30 hover:border-zinc-700 hover:bg-black/50'
                   }`}
                 >
-                  <img
-                    src={draft.image}
-                    alt=""
-                    className="w-10 h-10 object-cover rounded-lg border border-zinc-700 flex-shrink-0"
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleProductCheck(product.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-4 h-4 accent-[#00ff9d] flex-shrink-0 cursor-pointer"
+                    aria-label={`Select ${draft.name}`}
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate">{draft.name}</p>
-                    <p className="text-[11px] text-zinc-500 truncate">
-                      ${draft.price}
-                      {product.hidden && <span className="text-amber-400 ml-1">· Hidden</span>}
-                    </p>
-                  </div>
-                  {dirty && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" title="Unsaved changes" />
-                  )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(product.id)}
+                    className="min-w-0 flex-1 flex items-center gap-2.5 text-left"
+                  >
+                    <img
+                      src={draft.image}
+                      alt=""
+                      className="w-10 h-10 object-cover rounded-lg border border-zinc-700 flex-shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm truncate">{draft.name}</p>
+                      <p className="text-[11px] text-zinc-500 truncate">
+                        ${draft.price}
+                        {product.hidden && <span className="text-amber-400 ml-1">· Hidden</span>}
+                        {product.isCustom && <span className="text-zinc-600 ml-1">· Custom</span>}
+                      </p>
+                    </div>
+                    {dirty && (
+                      <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" title="Unsaved changes" />
+                    )}
+                  </button>
+                </div>
               );
             })}
             {!loading && filteredProducts.length === 0 && (
