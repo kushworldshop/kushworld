@@ -190,7 +190,14 @@ export async function sendPhoneVerificationCode(userId: string): Promise<Verific
     return resolveStubSendResult(code, 'phone');
   }
 
-  const result = await sendVerificationSms(user.phone!, code);
+  const result = await sendVerificationSms(
+    {
+      customerPhone: user.phone!,
+      email: user.email,
+      purpose: user.signupVerificationChannel === 'phone' && !user.phoneVerifiedAt ? 'signup' : 'profile',
+    },
+    code
+  );
   if (result.stub) {
     return resolveStubSendResult(code, 'phone');
   }
