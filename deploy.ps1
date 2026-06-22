@@ -16,7 +16,7 @@ $remoteCmd = @'
 cd /var/www/kushworld && \
 git pull && \
 pm2 stop kushworld || true && \
-rm -rf node_modules .next /root/.npm package-lock.json && \
+rm -rf node_modules .next package-lock.json && \
 npm cache clean --force && \
 npm install --legacy-peer-deps && \
 npx next build && \
