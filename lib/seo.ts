@@ -36,7 +36,7 @@ export const DEFAULT_KEYWORDS = [
   'hemp COA',
   'disposable vapes',
   'hemp concentrates',
-  'exotic flower',
+  'hemp flower',
   'Kush World Studio merch',
   'hemp apparel',
   'head shop online',
@@ -67,10 +67,10 @@ export const CATEGORY_SEO: Record<
     keywords: ['hemp concentrates', 'hemp crumble', 'hemp badder', 'lab tested concentrate', 'COA concentrate'],
   },
   flower: {
-    title: 'Exotic Hemp Flower — Lab-Tested Strains | Kush World',
+    title: 'Hemp Flower — Lab-Tested Strains | Kush World',
     description:
-      'Hand-selected exotic hemp flower strains. Every batch lab-tested with COA available. Discreet shipping nationwide. 21+ only.',
-    keywords: ['exotic hemp flower', 'hemp flower online', 'lab tested flower', 'hemp strain COA'],
+      'Shop premium hemp flower — indoor, smalls, exotic, and more. Every batch lab-tested with COA available. Discreet shipping nationwide. 21+ only.',
+    keywords: ['hemp flower online', 'lab tested flower', 'indoor hemp flower', 'hemp strain COA'],
   },
   moonrocks: {
     title: 'Hemp Moonrocks — Lab-Tested | Kush World',

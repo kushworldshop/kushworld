@@ -55,8 +55,8 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
     },
     {
       id: 'flower',
-      label: 'Exotic Flower',
-      description: 'Hand-selected exotic hemp flower strains. Every batch lab-tested. 21+ only.',
+      label: 'Flower',
+      description: 'Premium hemp flower in every style — indoor, smalls, exotic, and more. Lab-tested with COAs. 21+ only.',
       productCategories: ['flower'],
       subsections: [],
       enabled: true,
@@ -122,10 +122,25 @@ export function mergeShopNavigation(partial?: Partial<ShopNavigation>): ShopNavi
     }
   }
 
+  const flowerDefaults = DEFAULT_SHOP_NAVIGATION.categories.find((category) => category.id === 'flower');
+  const normalizedCategories = flowerDefaults
+    ? categories.map((category) => {
+        if (category.id !== 'flower') return category;
+        if (category.label === 'Exotic Flower') {
+          return {
+            ...category,
+            label: flowerDefaults.label,
+            description: flowerDefaults.description,
+          };
+        }
+        return category;
+      })
+    : categories;
+
   return {
     ...DEFAULT_SHOP_NAVIGATION,
     ...partial,
-    categories,
+    categories: normalizedCategories,
   };
 }
 
