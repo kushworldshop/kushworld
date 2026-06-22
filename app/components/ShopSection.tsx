@@ -53,7 +53,6 @@ export default function ShopSection({
   const [activeSubsection, setActiveSubsection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('name-asc');
-  const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(BUDGET_FILTER_MAX);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -129,15 +128,14 @@ export default function ShopSection({
   const defaultMaxPrice = Math.min(priceBounds.max, BUDGET_FILTER_MAX);
 
   useEffect(() => {
-    setMinPrice(priceBounds.min);
     setMaxPrice(defaultMaxPrice);
-  }, [priceBounds.min, defaultMaxPrice]);
+  }, [defaultMaxPrice]);
 
-  const budgetActive = minPrice > priceBounds.min || maxPrice < defaultMaxPrice;
+  const budgetActive = maxPrice < defaultMaxPrice;
 
   const filteredProducts = useMemo(() => {
     const result = categoryProducts.filter(
-      (product) => product.price >= minPrice && product.price <= maxPrice
+      (product) => product.price >= priceBounds.min && product.price <= maxPrice
     );
 
     result.sort((a, b) => {
@@ -154,7 +152,7 @@ export default function ShopSection({
     });
 
     return result;
-  }, [categoryProducts, sortBy, minPrice, maxPrice]);
+  }, [categoryProducts, sortBy, maxPrice, priceBounds.min]);
 
   const showCategoryFilters = !merchOnly && !isMerchShopCategory(activeFilter);
 
@@ -255,10 +253,7 @@ export default function ShopSection({
                 {budgetActive && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setMinPrice(priceBounds.min);
-                      setMaxPrice(defaultMaxPrice);
-                    }}
+                    onClick={() => setMaxPrice(defaultMaxPrice)}
                     className="text-[#00ff9d] hover:underline"
                   >
                     Reset
@@ -267,68 +262,45 @@ export default function ShopSection({
               </div>
             </div>
 
-            <p className="text-sm text-[#00ff9d]">
-              ${minPrice} – ${maxPrice}
-              <span className="text-zinc-500 ml-2">
-                (store range ${priceBounds.min} – ${priceBounds.max}
-                {priceBounds.max > BUDGET_FILTER_MAX ? ` · filter capped at $${BUDGET_FILTER_MAX}` : ''})
-              </span>
-            </p>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span>Min</span>
-                  <input
-                    type="number"
-                    min={priceBounds.min}
-                    max={maxPrice}
-                    step={1}
-                    value={minPrice}
-                    onChange={(e) => {
-                      const next = Math.min(Number(e.target.value) || 0, maxPrice);
-                      setMinPrice(Math.max(priceBounds.min, Math.round(next)));
-                    }}
-                    className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-right text-zinc-200"
-                  />
-                </div>
-                <input
-                  type="range"
-                  min={priceBounds.min}
-                  max={BUDGET_FILTER_MAX}
-                  step={1}
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(Math.min(Number(e.target.value), maxPrice))}
-                  className="w-full accent-[#00ff9d]"
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span>Max</span>
-                  <input
-                    type="number"
-                    min={minPrice}
-                    max={BUDGET_FILTER_MAX}
-                    step={1}
-                    value={maxPrice}
-                    onChange={(e) => {
-                      const next = Math.max(Number(e.target.value) || 0, minPrice);
-                      setMaxPrice(Math.min(BUDGET_FILTER_MAX, Math.round(next)));
-                    }}
-                    className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-right text-zinc-200"
-                  />
-                </div>
-                <input
-                  type="range"
-                  min={priceBounds.min}
-                  max={BUDGET_FILTER_MAX}
-                  step={1}
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(Math.max(Number(e.target.value), minPrice))}
-                  className="w-full accent-[#00ff9d]"
-                />
-              </div>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <p className="text-[#00ff9d]">
+                Up to ${maxPrice}
+                <span className="text-zinc-500 ml-2 text-xs">
+                  (from ${priceBounds.min}
+                  {priceBounds.max > BUDGET_FILTER_MAX ? ` · capped at $${BUDGET_FILTER_MAX}` : ''})
+                </span>
+              </p>
+              <input
+                type="number"
+                min={priceBounds.min}
+                max={BUDGET_FILTER_MAX}
+                step={1}
+                value={maxPrice}
+                onChange={(e) => {
+                  const next = Number(e.target.value) || priceBounds.min;
+                  setMaxPrice(
+                    Math.min(BUDGET_FILTER_MAX, Math.max(priceBounds.min, Math.round(next)))
+                  );
+                }}
+                className="w-24 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-right text-zinc-200 text-sm"
+                aria-label="Maximum budget"
+              />
             </div>
+
+            <input
+              type="range"
+              min={priceBounds.min}
+              max={BUDGET_FILTER_MAX}
+              step={1}
+              value={maxPrice}
+              onChange={(e) =>
+                setMaxPrice(
+                  Math.max(priceBounds.min, Math.min(BUDGET_FILTER_MAX, Number(e.target.value)))
+                )
+              }
+              className="w-full accent-[#00ff9d]"
+              aria-label="Maximum budget"
+            />
           </div>
         </div>
 
@@ -337,7 +309,7 @@ export default function ShopSection({
         ) : filteredProducts.length === 0 ? (
           <p className="text-center text-zinc-400 py-20">
             {categoryProducts.length > 0 && budgetActive
-              ? `No products between $${minPrice} and $${maxPrice} — try widening your budget.`
+              ? `No products up to $${maxPrice} — try raising your budget.`
               : 'No products match your filters.'}
           </p>
         ) : (
