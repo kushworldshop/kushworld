@@ -12,10 +12,16 @@ import {
 import { resolveSignupVerificationChannel } from '@/lib/signupBonus';
 import { updateReferralCode } from '@/lib/referrals';
 import { createUser, getUserDashboard, updateUser } from '@/lib/users';
+import { getClientIp } from '@/lib/rateLimit';
+import { verifyTurnstileToken } from '@/lib/turnstile';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, name, phone, promoCode } = await request.json();
+    const { email, password, name, phone, promoCode, turnstileToken } = await request.json();
+    const captcha = await verifyTurnstileToken(turnstileToken, getClientIp(request));
+    if (!captcha.ok) {
+      return NextResponse.json({ success: false, error: captcha.error }, { status: 400 });
+    }
 
     if (!email || !password) {
       return NextResponse.json({ success: false, error: 'Email and password required' }, { status: 400 });

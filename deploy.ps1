@@ -42,8 +42,8 @@ if ($token -and $zone) {
   Write-Host "Auto-purging Cloudflare cache for zone $zone ..." -ForegroundColor Green
   try {
     $headers = @{ Authorization = "Bearer $token"; "Content-Type" = "application/json" }
-    $body = '{"purge_everything": true}'
-    $resp = curl.exe -s -X POST "https://api.cloudflare.com/client/v4/zones/$zone/purge_cache" -H "Authorization: Bearer $token" -H "Content-Type: application/json" --data $body | ConvertFrom-Json
+    $body = @{ purge_everything = $true } | ConvertTo-Json -Compress
+    $resp = Invoke-RestMethod -Uri "https://api.cloudflare.com/client/v4/zones/$zone/purge_cache" -Method Post -Headers $headers -Body $body
     if ($resp.success) {
       Write-Host "SUCCESS: Cloudflare cache purged (everything)." -ForegroundColor Green
     } else {

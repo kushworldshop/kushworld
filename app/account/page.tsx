@@ -14,6 +14,8 @@ import DiscordCommunityAccess from '@/app/components/DiscordCommunityAccess';
 import DiscordSocialLink from '@/app/components/DiscordSocialLink';
 import OrderShippingStatus from '@/app/components/OrderShippingStatus';
 import OrderTracker from '@/app/components/OrderTracker';
+import TurnstileField from '@/app/components/TurnstileField';
+import { useTurnstileConfig } from '@/lib/useTurnstileConfig';
 
 interface PromoTerms {
   customerDiscount: number;
@@ -66,6 +68,7 @@ export default function Account() {
   const [signupName, setSignupName] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [signupPromoCode, setSignupPromoCode] = useState('');
+  const turnstile = useTurnstileConfig();
 
   const [emailCode, setEmailCode] = useState('');
   const [phoneCode, setPhoneCode] = useState('');
@@ -346,15 +349,20 @@ export default function Account() {
   const handleAuth = async () => {
     setMessage('');
     setError('');
+    if (turnstile.enabled && !turnstile.token) {
+      setError('Please complete the security check.');
+      return;
+    }
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     const body = isLogin
-      ? { email, password }
+      ? { email, password, turnstileToken: turnstile.token || undefined }
       : {
           email,
           password,
           name: signupName || undefined,
           phone: signupPhone || undefined,
           promoCode: signupPromoCode.trim() || undefined,
+          turnstileToken: turnstile.token || undefined,
         };
 
     try {
@@ -384,9 +392,11 @@ export default function Account() {
         setTab('profile');
       } else {
         setError(data.error || 'Something went wrong');
+        turnstile.clearToken();
       }
     } catch {
       setError('Network error. Please try again.');
+      turnstile.clearToken();
     }
   };
 
@@ -719,9 +729,18 @@ export default function Account() {
                   </p>
                 )}
 
+                {turnstile.enabled && turnstile.siteKey && (
+                  <TurnstileField
+                    siteKey={turnstile.siteKey}
+                    onToken={turnstile.onToken}
+                    onExpire={turnstile.clearToken}
+                    className="flex justify-center mb-4"
+                  />
+                )}
+
                 <button
                   onClick={handleAuth}
-                  disabled={authLoading}
+                  disabled={authLoading || (turnstile.enabled && !turnstile.token)}
                   className="w-full bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black py-4 rounded-2xl font-bold text-lg mb-4 disabled:opacity-50"
                 >
                   {isLogin ? 'Login' : 'Sign Up'}
@@ -752,6 +771,7 @@ export default function Account() {
                       setAuthView(isLogin ? 'signup' : 'login');
                       setError('');
                       setMessage('');
+                      turnstile.clearToken();
                     }}
                     className="text-[#00ff9d] hover:underline font-medium"
                   >

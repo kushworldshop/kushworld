@@ -7,10 +7,16 @@ import {
 } from '@/lib/auth';
 import { claimReferralPoints } from '@/lib/referrals';
 import { addLoyaltyPoints, getUserByEmail, getUserDashboard, isUserBlocked } from '@/lib/users';
+import { getClientIp } from '@/lib/rateLimit';
+import { verifyTurnstileToken } from '@/lib/turnstile';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email, password, turnstileToken } = await request.json();
+    const captcha = await verifyTurnstileToken(turnstileToken, getClientIp(request));
+    if (!captcha.ok) {
+      return NextResponse.json({ success: false, error: captcha.error }, { status: 400 });
+    }
     const user = await getUserByEmail(email);
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
