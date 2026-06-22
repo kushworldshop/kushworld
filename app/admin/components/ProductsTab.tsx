@@ -157,8 +157,15 @@ export default function ProductsTab() {
   const [importResults, setImportResults] = useState<
     Array<{ strain: string; status: string; message?: string }>
   >([]);
+  const [showImportPanel, setShowImportPanel] = useState(false);
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
   const grokEnabled = siteContent.features.grokAssistant.enabled;
+  const selectedProduct = useMemo(
+    () => products.find((product) => product.id === selectedId) ?? null,
+    [products, selectedId]
+  );
+  const selectedDirty = selectedId ? !!edits[selectedId] : false;
 
   const loadProducts = async () => {
     setLoading(true);
@@ -233,11 +240,6 @@ export default function ProductsTab() {
       setSelectedId(filteredProducts[0].id);
     }
   }, [filteredProducts, selectedId]);
-
-  const selectedProduct = useMemo(
-    () => products.find((product) => product.id === selectedId) ?? null,
-    [products, selectedId]
-  );
 
   const dirtyIds = useMemo(
     () => Object.keys(edits).filter((id) => products.some((product) => product.id === id)),
@@ -671,48 +673,80 @@ export default function ProductsTab() {
     }
   };
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault();
+        if (selectedProduct && edits[selectedProduct.id]) {
+          void saveProduct(selectedProduct);
+        } else if (dirtyIds.length > 0) {
+          void saveAllDirty();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedProduct, edits, dirtyIds.length]);
+
   return (
     <div className="mb-10">
-      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
-        <h2 className="text-2xl font-bold mb-2">Product Catalog</h2>
-        <p className="text-zinc-400 text-sm mb-4">
-          Quick-edit price and stock from the list, then open a product for the full editor. Cost is admin-only.
-          Inventory restores when you approve a cancel or refund.
-        </p>
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-xl font-bold">Products</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Pick a product · edit in tabs · press Ctrl+S to save
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           {dirtyIds.length > 0 && (
             <button
               onClick={saveAllDirty}
               disabled={savingAll || bulkVisibility !== null}
-              className="bg-[#00ff9d] text-black px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
+              className="bg-[#00ff9d] text-black px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
             >
-              {savingAll ? 'Saving all...' : `Save ${dirtyIds.length} change${dirtyIds.length === 1 ? '' : 's'}`}
+              {savingAll ? 'Saving...' : `Save all (${dirtyIds.length})`}
             </button>
           )}
           <button
+            onClick={loadProducts}
+            disabled={loading || bulkVisibility !== null || bulkGrokProgress !== null}
+            className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+          >
+            {loading ? '...' : 'Refresh'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowBulkActions((open) => !open)}
+            className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            {showBulkActions ? 'Less' : 'Bulk actions'}
+          </button>
+        </div>
+      </div>
+
+      {message && (
+        <p className="text-sm text-[#00ff9d] mb-3 px-1">{message}</p>
+      )}
+
+      {showBulkActions && (
+        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-xl border border-zinc-800 bg-zinc-950/80">
+          <button
             onClick={() => setBulkVisibilityForFiltered(true)}
             disabled={loading || bulkVisibility !== null || hideableCount === 0}
-            className="bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
+            className="bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
           >
             {bulkVisibility === 'hide' ? 'Hiding...' : `Hide all (${hideableCount})`}
           </button>
           <button
             onClick={() => setBulkVisibilityForFiltered(false)}
             disabled={loading || bulkVisibility !== null || unhideableCount === 0}
-            className="bg-zinc-800 hover:bg-zinc-700 px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
+            className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
           >
             {bulkVisibility === 'unhide' ? 'Unhiding...' : `Unhide all (${unhideableCount})`}
           </button>
-          <button
-            onClick={loadProducts}
-            disabled={loading || bulkVisibility !== null || bulkGrokProgress !== null}
-            className="bg-zinc-800 hover:bg-zinc-700 px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
           {grokEnabled && (
             <>
-              <DescriptionToneSelect value={descriptionTone} onChange={setDescriptionTone} />
+              <DescriptionToneSelect value={descriptionTone} onChange={setDescriptionTone} compact />
               <button
                 onClick={grokAllFilteredDescriptions}
                 disabled={
@@ -721,24 +755,21 @@ export default function ProductsTab() {
                   bulkGrokProgress !== null ||
                   filteredProducts.length === 0
                 }
-                className="bg-[#00ff9d]/15 text-[#00ff9d] hover:bg-[#00ff9d]/25 border border-[#00ff9d]/40 px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                className="bg-[#00ff9d]/15 text-[#00ff9d] hover:bg-[#00ff9d]/25 border border-[#00ff9d]/40 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
               >
                 {bulkGrokProgress
                   ? `Grok ${bulkGrokProgress.current}/${bulkGrokProgress.total}…`
-                  : `✦ Grok all descriptions (${filteredProducts.length})`}
+                  : `Grok descriptions (${filteredProducts.length})`}
               </button>
             </>
           )}
-          {message && <p className="text-sm text-[#00ff9d]">{message}</p>}
           {bulkGrokProgress && (
-            <p className="text-sm text-zinc-400 w-full">
-              Writing: {bulkGrokProgress.name}
-            </p>
+            <span className="text-xs text-zinc-500">Writing: {bulkGrokProgress.name}</span>
           )}
         </div>
-      </div>
+      )}
 
-      <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 mb-4">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3 mb-3">
         <div className="flex gap-2 overflow-x-auto pb-1">
           {ADMIN_PRODUCT_CATEGORY_TABS.map((tab) => {
             const active = categoryTab === tab.id;
@@ -763,22 +794,33 @@ export default function ProductsTab() {
         </div>
 
         {(categoryTab === 'flower' || categoryTab === 'all') && (
-          <ProductImportDropzone
-            dragActive={importDragActive}
-            importing={importing}
-            category={importCategory}
-            defaultPrice={importPrice}
-            message={importMessage}
-            results={importResults}
-            categoryOptions={getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => ({
-              value: slug,
-              label: getProductCategoryLabel(siteContent.shopNavigation, slug),
-            }))}
-            onDragActiveChange={setImportDragActive}
-            onCategoryChange={setImportCategory}
-            onDefaultPriceChange={setImportPrice}
-            onImportFiles={importProductImages}
-          />
+          <div className="mt-3 pt-3 border-t border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setShowImportPanel((open) => !open)}
+              className="text-xs font-medium text-zinc-400 hover:text-white"
+            >
+              {showImportPanel ? '▾ Hide image import' : '▸ Import products from images'}
+            </button>
+            {showImportPanel && (
+              <ProductImportDropzone
+                dragActive={importDragActive}
+                importing={importing}
+                category={importCategory}
+                defaultPrice={importPrice}
+                message={importMessage}
+                results={importResults}
+                categoryOptions={getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => ({
+                  value: slug,
+                  label: getProductCategoryLabel(siteContent.shopNavigation, slug),
+                }))}
+                onDragActiveChange={setImportDragActive}
+                onCategoryChange={setImportCategory}
+                onDefaultPriceChange={setImportPrice}
+                onImportFiles={importProductImages}
+              />
+            )}
+          </div>
         )}
 
         {categoryTab === 'merch' && (
@@ -808,169 +850,92 @@ export default function ProductsTab() {
         )}
       </div>
 
-      <div className="grid lg:grid-cols-[380px_1fr] gap-6 min-h-[640px]">
-        <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 flex flex-col max-h-[calc(100vh-12rem)] lg:max-h-[calc(100vh-10rem)]">
-          <div className="space-y-3 mb-3">
+      <div className="grid lg:grid-cols-[minmax(260px,300px)_1fr] gap-4 h-[calc(100vh-11rem)] min-h-[520px]">
+        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3 flex flex-col min-h-0">
+          <div className="flex gap-2 mb-2">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products..."
-              className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
+              placeholder="Search..."
+              className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm"
             />
             <select
               value={visibilityFilter}
               onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'visible' | 'hidden')}
-              className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-2 text-sm"
+              className="bg-black border border-zinc-700 rounded-lg px-2 py-2 text-xs max-w-[7rem]"
+              title="Visibility filter"
             >
-              <option value="all">All visibility</option>
-              <option value="visible">Visible only</option>
-              <option value="hidden">Hidden only</option>
+              <option value="all">All</option>
+              <option value="visible">Visible</option>
+              <option value="hidden">Hidden</option>
             </select>
           </div>
 
-          <p className="text-xs text-zinc-500 mb-3 px-1">
-            {loading ? 'Loading...' : `${filteredProducts.length} product${filteredProducts.length === 1 ? '' : 's'}`}
-            {dirtyIds.length > 0 && (
-              <span className="text-amber-300 ml-2">· {dirtyIds.length} unsaved</span>
-            )}
+          <p className="text-[11px] text-zinc-500 mb-2 px-0.5">
+            {loading ? 'Loading...' : `${filteredProducts.length} products`}
+            {dirtyIds.length > 0 && <span className="text-amber-300 ml-1">· {dirtyIds.length} unsaved</span>}
           </p>
 
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-1 pr-0.5">
             {filteredProducts.map((product) => {
               const draft = getDraft(product);
               const dirty = !!edits[product.id];
               const active = product.id === selectedId;
-              const stockTracked = draft.trackInventory;
-              const stock = draft.inventory;
-              const lowStock = stockTracked && stock <= 5;
 
               return (
-                <div
+                <button
                   key={product.id}
-                  className={`rounded-2xl border transition ${
+                  type="button"
+                  onClick={() => setSelectedId(product.id)}
+                  className={`w-full text-left rounded-xl border px-2.5 py-2 flex items-center gap-2.5 transition ${
                     active
                       ? 'border-[#00ff9d] bg-[#00ff9d]/10'
                       : product.hidden
-                        ? 'border-zinc-800 bg-black/30 opacity-80 hover:border-zinc-600'
-                        : 'border-zinc-800 bg-black/40 hover:border-zinc-600'
+                        ? 'border-zinc-800/80 bg-black/20 opacity-75 hover:border-zinc-600'
+                        : 'border-transparent bg-black/30 hover:border-zinc-700 hover:bg-black/50'
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setSelectedId(product.id)}
-                    className="w-full text-left px-3 pt-3 pb-2 flex items-start gap-3"
-                  >
-                    <img
-                      src={draft.image}
-                      alt=""
-                      className="w-12 h-12 object-cover rounded-lg border border-zinc-700 flex-shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start gap-2">
-                        <p className="font-medium text-sm truncate flex-1">{draft.name}</p>
-                        {dirty && (
-                          <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 mt-1.5" title="Unsaved changes" />
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 mt-1 text-[10px] text-zinc-500">
-                        <span>{getProductCategoryLabel(siteContent.shopNavigation, product.category)}</span>
-                        {product.category === 'merch' && draft.merchSubcategory && (
-                          <span className="text-zinc-400">{getMerchSubcategoryLabel(draft.merchSubcategory)}</span>
-                        )}
-                        {product.category !== 'merch' && draft.subcategory && (
-                          <span className="text-zinc-400">
-                            {getSubsectionLabel(siteContent.shopNavigation, draft.category, draft.subcategory)}
-                          </span>
-                        )}
-                        {product.hidden && <span className="text-amber-400">Hidden</span>}
-                        {product.isCustom && <span className="text-sky-400">Imported</span>}
-                        {product.hasOverride && <span className="text-[#00ff9d]">Edited</span>}
-                        {draft.featured && <span>Featured</span>}
-                        {draft.bestSeller && <span>Best seller</span>}
-                        {draft.isNew && <span>New</span>}
-                      </div>
-                    </div>
-                  </button>
-
-                  <div
-                    className="px-3 pb-3 flex flex-wrap items-center gap-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <label className="flex items-center gap-1.5 text-[11px] text-zinc-500">
-                      $
-                      <AdminNumberInput
-                        value={draft.price}
-                        onChange={(price) => updateDraft(product.id, 'price', price)}
-                        className="w-20 bg-black border border-zinc-700 rounded-lg px-2 py-1 text-sm text-white"
-                      />
-                    </label>
-                    {stockTracked ? (
-                      <label className="flex items-center gap-1.5 text-[11px] text-zinc-500">
-                        Stock
-                        <AdminNumberInput
-                          value={stock}
-                          onChange={(inventory) => updateDraft(product.id, 'inventory', inventory)}
-                          integer
-                          className={`w-16 bg-black border rounded-lg px-2 py-1 text-sm text-white ${
-                            stock === 0
-                              ? 'border-red-700'
-                              : lowStock
-                                ? 'border-amber-700'
-                                : 'border-zinc-700'
-                          }`}
-                        />
-                      </label>
-                    ) : (
-                      <span className="text-[11px] text-zinc-600">No stock tracking</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => toggleVisibility(product)}
-                      disabled={togglingVisibilityId === product.id}
-                      className="ml-auto text-[11px] px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
-                    >
-                      {togglingVisibilityId === product.id
-                        ? '...'
-                        : product.hidden
-                          ? 'Unhide'
-                          : 'Hide'}
-                    </button>
-                    {dirty && (
-                      <button
-                        type="button"
-                        onClick={() => saveProduct(product)}
-                        disabled={savingId === product.id}
-                        className="text-[11px] px-2 py-1 rounded-lg bg-[#00ff9d] text-black font-medium disabled:opacity-50"
-                      >
-                        {savingId === product.id ? '...' : 'Save'}
-                      </button>
-                    )}
+                  <img
+                    src={draft.image}
+                    alt=""
+                    className="w-10 h-10 object-cover rounded-lg border border-zinc-700 flex-shrink-0"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{draft.name}</p>
+                    <p className="text-[11px] text-zinc-500 truncate">
+                      ${draft.price}
+                      {product.hidden && <span className="text-amber-400 ml-1">· Hidden</span>}
+                    </p>
                   </div>
-                </div>
+                  {dirty && (
+                    <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" title="Unsaved changes" />
+                  )}
+                </button>
               );
             })}
             {!loading && filteredProducts.length === 0 && (
-              <p className="text-center text-zinc-500 text-sm py-10">No products match your filters.</p>
+              <p className="text-center text-zinc-500 text-sm py-10">No matches</p>
             )}
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 lg:p-8 overflow-y-auto max-h-[calc(100vh-12rem)] lg:max-h-[calc(100vh-10rem)]">
+        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl min-h-0 flex flex-col overflow-hidden">
           {!selectedProduct ? (
-            <div className="h-full flex items-center justify-center text-zinc-500">
-              Select a product to edit details
+            <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
+              Select a product to edit
             </div>
           ) : (
             <ProductDetailPanel
               product={selectedProduct}
               draft={getDraft(selectedProduct)}
-              dirty={!!edits[selectedProduct.id]}
+              dirty={selectedDirty}
               saving={savingId === selectedProduct.id}
               togglingVisibility={togglingVisibilityId === selectedProduct.id}
               uploadingImage={uploadingImageId === selectedProduct.id}
               siteContent={siteContent}
               onDraftChange={(field, value) => updateDraft(selectedProduct.id, field, value)}
               onSave={() => saveProduct(selectedProduct)}
+              onDiscard={() => clearEdits(selectedProduct.id)}
               onToggleVisibility={() => toggleVisibility(selectedProduct)}
               onUploadGalleryMedia={(files) => uploadGalleryMedia(selectedProduct, files)}
               onMediaChange={(media) => updateMediaDraft(selectedProduct.id, media)}
@@ -1022,6 +987,18 @@ function DescriptionToneSelect({
   );
 }
 
+type EditorTab = 'basics' | 'media' | 'description' | 'more';
+
+const EDITOR_TABS: Array<{ id: EditorTab; label: string }> = [
+  { id: 'basics', label: 'Basics' },
+  { id: 'media', label: 'Photos' },
+  { id: 'description', label: 'Description' },
+  { id: 'more', label: 'Stock & more' },
+];
+
+const fieldClass = 'w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm';
+const labelClass = 'text-[11px] text-zinc-500 block mb-1';
+
 function ProductDetailPanel({
   product,
   draft,
@@ -1032,6 +1009,7 @@ function ProductDetailPanel({
   siteContent,
   onDraftChange,
   onSave,
+  onDiscard,
   onToggleVisibility,
   onUploadGalleryMedia,
   onMediaChange,
@@ -1066,12 +1044,14 @@ function ProductDetailPanel({
     value: string | number | boolean | ProductOptionGroup[]
   ) => void;
   onSave: () => void;
+  onDiscard: () => void;
   onToggleVisibility: () => void;
   onUploadGalleryMedia: (files: FileList | File[]) => void;
   onMediaChange: (media: ProductMediaItem[]) => void;
   onCreateSubsection: (label: string) => Promise<string | null>;
   onUploadOptionImage: (file: File) => Promise<string | null>;
 }) {
+  const [editorTab, setEditorTab] = useState<EditorTab>('basics');
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const [creatingSubsection, setCreatingSubsection] = useState(false);
   const [newSubsectionName, setNewSubsectionName] = useState('');
@@ -1079,6 +1059,12 @@ function ProductDetailPanel({
   const margin = getProductMargin(draft.price, draft.cost > 0 ? draft.cost : undefined);
   const selectedTone = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === descriptionTone);
   const coverUrl = getProductCoverUrl({ image: draft.image, media: draft.media });
+
+  useEffect(() => {
+    setEditorTab('basics');
+    setShowNewSubsection(false);
+    setNewSubsectionName('');
+  }, [product.id]);
 
   const generateDescription = async () => {
     if (!grokEnabled) {
@@ -1095,7 +1081,8 @@ function ProductDetailPanel({
         return;
       }
       onDraftChange('description', result.description);
-      onDescriptionMessage('Grok wrote a new SEO description — review and save when ready.');
+      onDescriptionMessage('Description ready — click Save.');
+      setEditorTab('description');
     } catch {
       onDescriptionMessage('Failed to reach Grok. Try again.');
     } finally {
@@ -1103,272 +1090,248 @@ function ProductDetailPanel({
     }
   };
 
+  const subcategoryField =
+    draft.category === 'merch' ? (
+      <div>
+        <label className={labelClass}>Merch type</label>
+        <select
+          value={draft.merchSubcategory}
+          onChange={(e) => onDraftChange('merchSubcategory', e.target.value)}
+          className={fieldClass}
+        >
+          <option value="">Select type...</option>
+          {MERCH_SUBCATEGORIES.map((sub) => (
+            <option key={sub.id} value={sub.id}>
+              {sub.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    ) : (
+      <div>
+        <label className={labelClass}>Sub-section</label>
+        <select
+          value={draft.subcategory}
+          onChange={(e) => {
+            if (e.target.value === '__create__') {
+              setShowNewSubsection(true);
+              return;
+            }
+            onDraftChange('subcategory', e.target.value);
+          }}
+          className={fieldClass}
+        >
+          <option value="">None</option>
+          {getSubsectionsForProductCategory(siteContent.shopNavigation, draft.category).map((subsection) => (
+            <option key={subsection.id} value={subsection.id}>
+              {subsection.label}
+            </option>
+          ))}
+          <option value="__create__">+ New sub-section...</option>
+        </select>
+        {showNewSubsection && (
+          <div className="mt-2 flex gap-2">
+            <input
+              value={newSubsectionName}
+              onChange={(e) => setNewSubsectionName(e.target.value)}
+              placeholder="e.g. Indoor, Smalls"
+              className={`${fieldClass} flex-1`}
+            />
+            <button
+              type="button"
+              disabled={creatingSubsection || !newSubsectionName.trim()}
+              onClick={async () => {
+                setCreatingSubsection(true);
+                const id = await onCreateSubsection(newSubsectionName);
+                if (id) {
+                  setNewSubsectionName('');
+                  setShowNewSubsection(false);
+                }
+                setCreatingSubsection(false);
+              }}
+              className="bg-[#00ff9d] text-black px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-50 whitespace-nowrap"
+            >
+              {creatingSubsection ? '...' : 'Add'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row gap-5 mb-6">
-        <div className="w-28 h-28 rounded-2xl border border-zinc-700 flex-shrink-0 overflow-hidden bg-black relative">
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-zinc-800 flex items-center gap-3 bg-zinc-900/95">
+        <div className="w-11 h-11 rounded-lg border border-zinc-700 overflow-hidden bg-black flex-shrink-0">
           {draft.media.some((item) => item.url === coverUrl && item.type === 'video') ? (
             <video src={coverUrl} className="w-full h-full object-cover" muted playsInline preload="metadata" />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverUrl} alt={draft.name} className="w-full h-full object-cover" />
+            <img src={coverUrl} alt="" className="w-full h-full object-cover" />
           )}
         </div>
-        <div className="min-w-0">
-          <h3 className="text-xl font-bold truncate">{draft.name}</h3>
-          <p className="text-xs text-zinc-500 mt-1">
-            ID: {product.id} · {getProductCategoryLabel(siteContent.shopNavigation, draft.category)}
-            {draft.category === 'merch' && draft.merchSubcategory && (
-              <span className="ml-2">· {getMerchSubcategoryLabel(draft.merchSubcategory)}</span>
-            )}
-            {product.hidden && <span className="text-amber-400 ml-2">Hidden from shop</span>}
-            {product.hasOverride && <span className="text-[#00ff9d] ml-2">Customized</span>}
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-sm truncate">{draft.name}</p>
+          <p className="text-[11px] text-zinc-500 truncate">
+            ${draft.price} · {getProductCategoryLabel(siteContent.shopNavigation, draft.category)}
+            {product.hidden && <span className="text-amber-400 ml-1">· Hidden</span>}
           </p>
+        </div>
+        {dirty && <span className="text-[10px] text-amber-300 font-medium">Unsaved</span>}
+        <button
+          type="button"
+          onClick={onDiscard}
+          disabled={!dirty || saving}
+          className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40"
+        >
+          Discard
+        </button>
+        <button
+          type="button"
+          onClick={onToggleVisibility}
+          disabled={togglingVisibility}
+          className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
+        >
+          {togglingVisibility ? '...' : product.hidden ? 'Unhide' : 'Hide'}
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="text-sm px-4 py-1.5 rounded-lg bg-[#00ff9d] text-black font-semibold disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+
+      <div className="flex-shrink-0 px-4 pt-3">
+        <div className="flex gap-1 p-1 bg-zinc-950 rounded-lg border border-zinc-800">
+          {EDITOR_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setEditorTab(tab.id)}
+              className={`flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition ${
+                editorTab === tab.id
+                  ? 'bg-[#00ff9d] text-black'
+                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <div>
-          <label className="text-xs text-zinc-500 block mb-1">Name</label>
-          <input
-            value={draft.name}
-            onChange={(e) => onDraftChange('name', e.target.value)}
-            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-          />
-        </div>
-        <div>
-          <label className="text-xs text-zinc-500 block mb-1">Sell price ($)</label>
-          <AdminNumberInput
-            value={draft.price}
-            onChange={(price) => onDraftChange('price', price)}
-            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-          />
-          <p className="text-[11px] text-zinc-500 mt-1">Customer-facing shop price</p>
-        </div>
-        <div>
-          <label className="text-xs text-zinc-500 block mb-1">Cost ($)</label>
-          <AdminNumberInput
-            value={draft.cost}
-            onChange={(cost) => onDraftChange('cost', cost)}
-            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-          />
-          <p className="text-[11px] text-zinc-500 mt-1">Admin only — never shown on shop</p>
-        </div>
-        <div className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3">
-          <label className="flex items-center gap-3 text-sm cursor-pointer">
-            <input
-              type="checkbox"
-              checked={draft.trackInventory}
-              onChange={(e) => onDraftChange('trackInventory', e.target.checked)}
-              className="w-4 h-4 accent-[#00ff9d]"
-            />
-            <span>Track inventory for this product</span>
-          </label>
-          {draft.trackInventory && (
-            <div className="mt-3 flex flex-wrap items-end gap-4">
-              <div>
-                <label className="text-xs text-zinc-500 block mb-1">Stock count</label>
-                <AdminNumberInput
-                  value={draft.inventory}
-                  onChange={(inventory) => onDraftChange('inventory', inventory)}
-                  integer
-                  className="w-32 bg-black border border-zinc-700 rounded-xl px-4 py-3"
-                />
-              </div>
-              {draft.inventory <= 5 && (
-                <p className={`text-sm ${draft.inventory === 0 ? 'text-red-400' : 'text-amber-400'}`}>
-                  {draft.inventory === 0 ? 'Out of stock on shop' : 'Low stock'}
-                </p>
-              )}
+      <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
+        {editorTab === 'basics' && (
+          <div className="grid sm:grid-cols-2 gap-3 max-w-3xl">
+            <div className="sm:col-span-2">
+              <label className={labelClass}>Name</label>
+              <input
+                value={draft.name}
+                onChange={(e) => onDraftChange('name', e.target.value)}
+                className={fieldClass}
+              />
             </div>
-          )}
-        </div>
-        {margin && (
-          <div className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 text-sm">
-            <p className="text-zinc-400">
-              Margin:{' '}
-              <span className={margin.profit >= 0 ? 'text-[#00ff9d]' : 'text-red-400'}>
-                {formatCurrency(margin.profit)} profit
-              </span>{' '}
-              · {formatPercent(margin.marginPercent)} margin · {formatPercent(margin.markupPercent)} markup
-            </p>
-          </div>
-        )}
-        <div>
-          <label className="text-xs text-zinc-500 block mb-1">Product category</label>
-          <select
-            value={draft.category}
-            onChange={(e) => onDraftChange('category', e.target.value)}
-            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-          >
-            {getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => (
-              <option key={slug} value={slug}>
-                {getProductCategoryLabel(siteContent.shopNavigation, slug)}
-              </option>
-            ))}
-          </select>
-        </div>
-        {draft.category === 'merch' ? (
-          <div>
-            <label className="text-xs text-zinc-500 block mb-1">Merch type</label>
-            <select
-              value={draft.merchSubcategory}
-              onChange={(e) => onDraftChange('merchSubcategory', e.target.value)}
-              className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-            >
-              <option value="">Select type...</option>
-              {MERCH_SUBCATEGORIES.map((sub) => (
-                <option key={sub.id} value={sub.id}>
-                  {sub.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-[11px] text-zinc-500 mt-1">T-shirt, hoodie, hat, etc.</p>
-          </div>
-        ) : (
-          <div>
-            <label className="text-xs text-zinc-500 block mb-1">Sub-section</label>
-            <select
-              value={draft.subcategory}
-              onChange={(e) => {
-                if (e.target.value === '__create__') {
-                  setShowNewSubsection(true);
-                  return;
-                }
-                onDraftChange('subcategory', e.target.value);
-              }}
-              className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-            >
-              <option value="">None</option>
-              {getSubsectionsForProductCategory(siteContent.shopNavigation, draft.category).map((subsection) => (
-                <option key={subsection.id} value={subsection.id}>
-                  {subsection.label}
-                </option>
-              ))}
-              <option value="__create__">+ Create new sub-section...</option>
-            </select>
-            {(showNewSubsection || draft.subcategory) && (
-              <div className="mt-3 p-3 rounded-xl border border-zinc-800 bg-zinc-950 space-y-2">
-                {draft.subcategory && (
-                  <p className="text-[11px] text-zinc-500">
-                    Current: {getSubsectionLabel(siteContent.shopNavigation, draft.category, draft.subcategory)}
-                  </p>
-                )}
-                {showNewSubsection && (
-                  <>
-                    <input
-                      value={newSubsectionName}
-                      onChange={(e) => setNewSubsectionName(e.target.value)}
-                      placeholder="e.g. Smalls, Indoor, Premium"
-                      className="w-full bg-black border border-zinc-700 rounded-xl px-3 py-2 text-sm"
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={creatingSubsection || !newSubsectionName.trim()}
-                        onClick={async () => {
-                          setCreatingSubsection(true);
-                          const id = await onCreateSubsection(newSubsectionName);
-                          if (id) {
-                            setNewSubsectionName('');
-                            setShowNewSubsection(false);
-                          }
-                          setCreatingSubsection(false);
-                        }}
-                        className="bg-[#00ff9d] text-black px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
-                      >
-                        {creatingSubsection ? 'Creating...' : 'Create & assign'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowNewSubsection(false);
-                          setNewSubsectionName('');
-                        }}
-                        className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg text-xs font-medium"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-zinc-500">
-                      Adds a shop filter tab under {getProductCategoryLabel(siteContent.shopNavigation, draft.category)}.
-                    </p>
-                  </>
-                )}
-                {!showNewSubsection && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewSubsection(true)}
-                    className="text-xs text-[#00ff9d] hover:underline"
-                  >
-                    + Create another sub-section
-                  </button>
-                )}
+            <div>
+              <label className={labelClass}>Sell price ($)</label>
+              <AdminNumberInput
+                value={draft.price}
+                onChange={(price) => onDraftChange('price', price)}
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Cost ($)</label>
+              <AdminNumberInput
+                value={draft.cost}
+                onChange={(cost) => onDraftChange('cost', cost)}
+                className={fieldClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Compare-at price ($)</label>
+              <AdminNumberInput
+                value={draft.compareAtPrice}
+                onChange={(compareAtPrice) => onDraftChange('compareAtPrice', compareAtPrice)}
+                className={fieldClass}
+              />
+            </div>
+            {margin && (
+              <div className="flex items-center text-xs text-zinc-500 px-1">
+                Margin {formatCurrency(margin.profit)} · {formatPercent(margin.marginPercent)}
               </div>
             )}
+            <div>
+              <label className={labelClass}>Category</label>
+              <select
+                value={draft.category}
+                onChange={(e) => onDraftChange('category', e.target.value)}
+                className={fieldClass}
+              >
+                {getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => (
+                  <option key={slug} value={slug}>
+                    {getProductCategoryLabel(siteContent.shopNavigation, slug)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {subcategoryField}
           </div>
         )}
-        <div className="md:col-span-2">
-          <label className="text-xs text-zinc-500 block mb-1">Product Gallery</label>
-          <p className="text-[11px] text-zinc-500 mb-3">
-            Add multiple images and videos. The first image is used as the shop cover thumbnail.
-          </p>
-          {draft.media.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-              {draft.media.map((item, index) => {
-                const isCover = item.url === coverUrl;
-                return (
-                  <div
-                    key={item.url}
-                    className={`relative rounded-2xl overflow-hidden border ${
-                      isCover ? 'border-[#00ff9d]' : 'border-zinc-700'
-                    }`}
-                  >
-                    <div className="relative aspect-square bg-black">
-                      <ProductMediaPreview
-                        item={item}
-                        alt={`${draft.name} media ${index + 1}`}
-                        fill
-                        className="object-cover"
-                        videoClassName="w-full h-full object-cover"
-                      />
-                      {item.type === 'video' && (
-                        <span className="absolute top-2 left-2 bg-black/70 text-white text-[10px] font-bold px-2 py-1 rounded-full">
-                          VIDEO
-                        </span>
-                      )}
-                      {isCover && (
-                        <span className="absolute top-2 right-2 bg-[#00ff9d] text-black text-[10px] font-bold px-2 py-1 rounded-full">
-                          COVER
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-1 p-2 bg-zinc-950">
-                      {!isCover && (
+
+        {editorTab === 'media' && (
+          <div className="max-w-2xl">
+            <p className="text-[11px] text-zinc-500 mb-3">First image = shop thumbnail. Uploads save immediately.</p>
+            {draft.media.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
+                {draft.media.map((item, index) => {
+                  const isCover = item.url === coverUrl;
+                  return (
+                    <div
+                      key={item.url}
+                      className={`rounded-lg overflow-hidden border ${isCover ? 'border-[#00ff9d]' : 'border-zinc-700'}`}
+                    >
+                      <div className="relative aspect-square bg-black">
+                        <ProductMediaPreview
+                          item={item}
+                          alt={`${draft.name} ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          videoClassName="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex gap-1 p-1.5 bg-zinc-950">
+                        {!isCover && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onMediaChange(
+                                setProductCoverMedia({ image: draft.image, media: draft.media }, item.url).media
+                              )
+                            }
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800"
+                          >
+                            Cover
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => onMediaChange(setProductCoverMedia({ image: draft.image, media: draft.media }, item.url).media)}
-                          className="text-[10px] px-2 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700"
+                          onClick={() =>
+                            onMediaChange(removeProductMedia({ image: draft.image, media: draft.media }, item.url).media)
+                          }
+                          className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-300 ml-auto"
                         >
-                          Set cover
+                          Remove
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => onMediaChange(removeProductMedia({ image: draft.image, media: draft.media }, item.url).media)}
-                        className="text-[10px] px-2 py-1 rounded-lg bg-red-500/10 text-red-300 hover:bg-red-500/20"
-                      >
-                        Remove
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl text-sm font-medium cursor-pointer">
-              {uploadingImage ? 'Uploading...' : 'Add images or videos'}
+                  );
+                })}
+              </div>
+            )}
+            <label className="inline-flex bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer">
+              {uploadingImage ? 'Uploading...' : '+ Add photos or video'}
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
@@ -1383,113 +1346,104 @@ function ProductDetailPanel({
                 }}
               />
             </label>
-            <span className="text-xs text-zinc-500">
-              Images up to 5MB · videos up to 50MB · select multiple files at once
-            </span>
           </div>
-        </div>
-        <div className="md:col-span-2">
-          <label className="text-xs text-zinc-500 block mb-1">Description</label>
-          <textarea
-            value={draft.description}
-            onChange={(e) => onDraftChange('description', e.target.value)}
-            rows={6}
-            className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-          />
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            {grokEnabled && (
-              <DescriptionToneSelect
-                value={descriptionTone}
-                onChange={onDescriptionToneChange}
-                compact
-              />
-            )}
-            <button
-              type="button"
-              onClick={generateDescription}
-              disabled={generatingDescription || !grokEnabled}
-              className="bg-[#00ff9d]/15 text-[#00ff9d] hover:bg-[#00ff9d]/25 border border-[#00ff9d]/40 px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {generatingDescription ? 'Grok is writing...' : '✦ Write SEO description with Grok'}
-            </button>
-            <p className="text-xs text-zinc-500 max-w-md">
-              {selectedTone?.hint ?? 'Compliant hemp copy + SEO keywords'}. Review before saving — Grok does not auto-publish.
-            </p>
-          </div>
-          {descriptionMessage && (
-            <p className="text-xs text-[#00ff9d] mt-2">{descriptionMessage}</p>
-          )}
-          {!grokEnabled && (
-            <p className="text-xs text-amber-300 mt-2">Turn on Grok assistant in Features to use this.</p>
-          )}
-        </div>
-        <ProductOptionsEditor
-          value={draft.optionGroups}
-          onChange={(groups) => onDraftChange('optionGroups', groups)}
-          productCategory={draft.category}
-          onUploadOptionImage={onUploadOptionImage}
-        />
-        <div className="md:col-span-2 grid md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs text-zinc-500 block mb-1">Compare-at price ($)</label>
-            <AdminNumberInput
-              value={draft.compareAtPrice}
-              onChange={(compareAtPrice) => onDraftChange('compareAtPrice', compareAtPrice)}
-              className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3"
-            />
-            <p className="text-[11px] text-zinc-500 mt-1">Set higher than sell price to show as on sale</p>
-          </div>
-          <div className="bg-zinc-950 border border-zinc-800 rounded-2xl px-4 py-3 space-y-3">
-            <label className="flex items-center gap-3 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={draft.featured}
-                onChange={(e) => onDraftChange('featured', e.target.checked)}
-                className="w-4 h-4 accent-[#00ff9d]"
-              />
-              <span>Featured product</span>
-            </label>
-            <label className="flex items-center gap-3 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={draft.bestSeller}
-                onChange={(e) => onDraftChange('bestSeller', e.target.checked)}
-                className="w-4 h-4 accent-[#00ff9d]"
-              />
-              <span>Best seller</span>
-            </label>
-            <label className="flex items-center gap-3 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={draft.isNew}
-                onChange={(e) => onDraftChange('isNew', e.target.checked)}
-                className="w-4 h-4 accent-[#00ff9d]"
-              />
-              <span>New arrival</span>
-            </label>
-          </div>
-        </div>
-      </div>
+        )}
 
-      <div className="flex flex-wrap items-center justify-end gap-3 mt-6 pt-5 border-t border-zinc-800">
-        <button
-          onClick={onToggleVisibility}
-          disabled={togglingVisibility}
-          className={`px-6 py-3 rounded-xl font-medium disabled:opacity-50 ${
-            product.hidden
-              ? 'bg-zinc-800 hover:bg-zinc-700 text-white'
-              : 'bg-amber-500/10 text-amber-300 hover:bg-amber-500/20'
-          }`}
-        >
-          {togglingVisibility ? 'Updating...' : product.hidden ? 'Unhide Product' : 'Hide Product'}
-        </button>
-        <button
-          onClick={onSave}
-          disabled={saving}
-          className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-medium disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : dirty ? 'Save Changes' : 'Save'}
-        </button>
+        {editorTab === 'description' && (
+          <div className="max-w-2xl space-y-3">
+            <textarea
+              value={draft.description}
+              onChange={(e) => onDraftChange('description', e.target.value)}
+              rows={10}
+              placeholder="Product description for the shop page..."
+              className={`${fieldClass} resize-y min-h-[200px]`}
+            />
+            {grokEnabled && (
+              <div className="flex flex-wrap items-center gap-2">
+                <DescriptionToneSelect value={descriptionTone} onChange={onDescriptionToneChange} compact />
+                <button
+                  type="button"
+                  onClick={generateDescription}
+                  disabled={generatingDescription}
+                  className="bg-[#00ff9d]/15 text-[#00ff9d] border border-[#00ff9d]/40 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
+                >
+                  {generatingDescription ? 'Writing...' : '✦ Grok write'}
+                </button>
+              </div>
+            )}
+            {descriptionMessage && <p className="text-xs text-[#00ff9d]">{descriptionMessage}</p>}
+            {!grokEnabled && (
+              <p className="text-xs text-zinc-500">Enable Grok in Features for AI descriptions.</p>
+            )}
+          </div>
+        )}
+
+        {editorTab === 'more' && (
+          <div className="space-y-4 max-w-3xl">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={draft.trackInventory}
+                  onChange={(e) => onDraftChange('trackInventory', e.target.checked)}
+                  className="w-4 h-4 accent-[#00ff9d]"
+                />
+                Track inventory
+              </label>
+              {draft.trackInventory && (
+                <div className="mt-3 flex items-center gap-3">
+                  <label className={labelClass}>Stock</label>
+                  <AdminNumberInput
+                    value={draft.inventory}
+                    onChange={(inventory) => onDraftChange('inventory', inventory)}
+                    integer
+                    className="w-24 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                  />
+                  {draft.inventory <= 5 && (
+                    <span className={`text-xs ${draft.inventory === 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                      {draft.inventory === 0 ? 'Out of stock' : 'Low stock'}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={draft.featured}
+                  onChange={(e) => onDraftChange('featured', e.target.checked)}
+                  className="w-4 h-4 accent-[#00ff9d]"
+                />
+                Featured
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={draft.bestSeller}
+                  onChange={(e) => onDraftChange('bestSeller', e.target.checked)}
+                  className="w-4 h-4 accent-[#00ff9d]"
+                />
+                Best seller
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={draft.isNew}
+                  onChange={(e) => onDraftChange('isNew', e.target.checked)}
+                  className="w-4 h-4 accent-[#00ff9d]"
+                />
+                New arrival
+              </label>
+            </div>
+            <ProductOptionsEditor
+              value={draft.optionGroups}
+              onChange={(groups) => onDraftChange('optionGroups', groups)}
+              productCategory={draft.category}
+              onUploadOptionImage={onUploadOptionImage}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
