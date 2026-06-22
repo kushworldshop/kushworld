@@ -62,6 +62,14 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       enabled: true,
     },
     {
+      id: 'moonrocks',
+      label: 'Moonrocks',
+      description: 'Premium hemp moonrocks — flower coated in concentrate and kief. Lab-tested with COAs. 21+ only.',
+      productCategories: ['moonrocks'],
+      subsections: [],
+      enabled: true,
+    },
+    {
       id: 'edibles',
       label: 'Edibles',
       description: 'Lab-tested hemp edibles. Verified potency and discreet shipping. 21+ only.',
@@ -102,6 +110,23 @@ const CATEGORY_ALIASES: Record<string, string> = {
 
 export function normalizeShopCategoryId(id: string): string {
   return CATEGORY_ALIASES[id] ?? id;
+}
+
+export function mergeShopNavigation(partial?: Partial<ShopNavigation>): ShopNavigation {
+  if (!partial) return { ...DEFAULT_SHOP_NAVIGATION, categories: [...DEFAULT_SHOP_NAVIGATION.categories] };
+
+  const categories = [...(partial.categories ?? DEFAULT_SHOP_NAVIGATION.categories)];
+  for (const defaults of DEFAULT_SHOP_NAVIGATION.categories) {
+    if (!categories.some((category) => category.id === defaults.id)) {
+      categories.push({ ...defaults });
+    }
+  }
+
+  return {
+    ...DEFAULT_SHOP_NAVIGATION,
+    ...partial,
+    categories,
+  };
 }
 
 export function getEnabledShopCategories(nav: ShopNavigation): ShopCategory[] {
@@ -177,6 +202,7 @@ export const ADMIN_PRODUCT_CATEGORY_TABS = [
   { id: 'vaporizers', label: 'Vaporizers' },
   { id: 'concentrates', label: 'Concentrates' },
   { id: 'flower', label: 'Flower' },
+  { id: 'moonrocks', label: 'Moonrocks' },
   { id: 'edibles', label: 'Edibles' },
   { id: 'pre-rolls', label: 'Pre Rolls' },
   { id: 'accessories', label: 'Accessories' },

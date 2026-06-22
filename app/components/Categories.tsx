@@ -5,6 +5,7 @@ const allCategories = [
   { label: 'Vapes & Disposables', icon: 'fa-bolt', id: 'vapes' },
   { label: 'Concentrates', icon: 'fa-fire', id: 'concentrates' },
   { label: 'Exotic Flower', icon: 'fa-leaf', id: 'flower' },
+  { label: 'Moonrocks', icon: 'fa-meteor', id: 'moonrocks' },
   { label: 'Mushrooms', icon: 'fa-seedling', id: 'mushrooms' },
 ];
 

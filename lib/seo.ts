@@ -72,6 +72,12 @@ export const CATEGORY_SEO: Record<
       'Hand-selected exotic hemp flower strains. Every batch lab-tested with COA available. Discreet shipping nationwide. 21+ only.',
     keywords: ['exotic hemp flower', 'hemp flower online', 'lab tested flower', 'hemp strain COA'],
   },
+  moonrocks: {
+    title: 'Hemp Moonrocks — Lab-Tested | Kush World',
+    description:
+      'Premium hemp moonrocks coated in concentrate and kief. Third-party lab COAs. Discreet nationwide shipping. 21+ only.',
+    keywords: ['hemp moonrocks', 'moon rocks', 'lab tested moonrocks', 'hemp moonrock COA'],
+  },
   mushrooms: {
     title: 'Premium Mushroom Products — Lab Verified | Kush World',
     description:
@@ -316,6 +322,7 @@ export const PUBLIC_PAGES: {
   { path: '/shop/vaporizers', priority: 0.9, changeFrequency: 'weekly' },
   { path: '/shop/concentrates', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/flower', priority: 0.85, changeFrequency: 'weekly' },
+  { path: '/shop/moonrocks', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/edibles', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/pre-rolls', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/accessories', priority: 0.85, changeFrequency: 'weekly' },
