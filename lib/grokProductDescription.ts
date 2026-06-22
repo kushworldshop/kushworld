@@ -1,3 +1,8 @@
+import {
+  buildFlowerStrainContext,
+  formatFlowerStrainContextForPrompt,
+  isFlowerProductCategory,
+} from '@/lib/flowerStrainResearch';
 import { getSiteContent } from '@/lib/siteContent';
 import { CATEGORY_SEO } from '@/lib/seo';
 import { getMerchSubcategoryLabel } from '@/lib/merch';
@@ -18,6 +23,7 @@ export interface ProductDescriptionInput {
   subcategory?: string;
   merchSubcategory?: string;
   price: number;
+  image?: string;
   existingDescription?: string;
   tone?: ProductDescriptionTone;
 }
@@ -30,9 +36,13 @@ function stripGeneratedDescription(text: string): string {
   return cleaned.replace(/^["']|["']$/g, '').trim();
 }
 
-function buildProductDescriptionPrompt(input: ProductDescriptionInput): string {
+function buildProductDescriptionPrompt(
+  input: ProductDescriptionInput,
+  flowerStrainSection?: string
+): string {
   const tone = normalizeProductDescriptionTone(input.tone);
   const content = CATEGORY_SEO[input.category];
+  const isFlower = isFlowerProductCategory(input.category);
   const categoryLabel =
     input.category === 'merch' && input.merchSubcategory
       ? `${getMerchSubcategoryLabel(input.merchSubcategory)}`
@@ -41,6 +51,13 @@ function buildProductDescriptionPrompt(input: ProductDescriptionInput): string {
   const seoKeywords = content?.keywords?.join(', ') ?? 'Kush World, lab tested hemp';
   const wordTarget =
     tone === 'concise' ? '80–120 words' : '140–220 words';
+
+  const strainRules = isFlower && flowerStrainSection
+    ? `- Use the STRAIN RESEARCH section below for lineage, aroma/flavor, and visual details.
+- Do not invent genetics or terpenes beyond what research provides.`
+    : isFlower
+      ? `- If strain lineage is unclear, use premium hemp flower language without inventing genetics.`
+      : `- Do not invent strain genetics, terpene profiles, or lab results not in the product data.`;
 
   return `You write product descriptions for Kush World (kushworld.shop), a premium hemp and studio merch retailer.
 
@@ -56,12 +73,14 @@ ${input.subcategory ? `- Sub-section: ${input.subcategory}` : ''}
 ${input.merchSubcategory ? `- Merch type: ${getMerchSubcategoryLabel(input.merchSubcategory)}` : ''}
 - Price: $${input.price.toFixed(2)}
 ${input.existingDescription ? `- Current description (improve/expand, do not copy verbatim):\n${input.existingDescription}` : ''}
+${flowerStrainSection ? `\n${flowerStrainSection}\n` : ''}
 
 SEO & STRUCTURE:
 - Open with a compelling sentence that includes the product name and a primary category keyword naturally.
 - Target ${wordTarget}. Use short paragraphs (2–3 sentences each) or a brief intro plus 3–4 bullet features.
 - Weave in relevant keywords naturally: ${seoKeywords}
 - Write for humans first; avoid keyword stuffing, ALL CAPS hype, or spammy repetition.
+${isFlower ? '- For flower: include strain lineage or type, aroma/flavor notes, and visual quality cues when research provides them.' : ''}
 
 COMPLIANCE (hemp categories — NOT merch):
 - Hemp products are for adults 21+ only.
@@ -77,7 +96,7 @@ MERCH CATEGORY:
 OUTPUT RULES:
 - Return ONLY the product description text — no title, no preamble, no "Here's the description".
 - No markdown headings. Plain text or simple bullet lines with "•" only.
-- Do not invent strain genetics, terpene profiles, or lab results not in the product data.`;
+${strainRules}`;
 }
 
 export async function generateProductDescriptionWithGrok(
@@ -94,7 +113,16 @@ export async function generateProductDescriptionWithGrok(
   const siteContent = await getSiteContent();
   const categoryLabel = getProductCategoryLabel(siteContent.shopNavigation, input.category);
 
-  const userPrompt = `${buildProductDescriptionPrompt(input)}
+  let flowerStrainSection: string | undefined;
+  if (isFlowerProductCategory(input.category)) {
+    const strainContext = await buildFlowerStrainContext({
+      productName: input.name,
+      imageUrl: input.image,
+    });
+    flowerStrainSection = formatFlowerStrainContextForPrompt(strainContext);
+  }
+
+  const userPrompt = `${buildProductDescriptionPrompt(input, flowerStrainSection)}
 
 Use display category label "${categoryLabel}" where it reads naturally in the copy.`;
 
@@ -102,13 +130,14 @@ Use display category label "${categoryLabel}" where it reads naturally in the co
     messages: [
       {
         role: 'system',
-        content:
-          'You are an expert e-commerce copywriter for regulated hemp retail. You write SEO-friendly, compliant product descriptions only.',
+        content: isFlowerProductCategory(input.category)
+          ? 'You are an expert e-commerce copywriter for regulated hemp retail. You write SEO-friendly, compliant flower descriptions using provided strain research from product photos and public databases.'
+          : 'You are an expert e-commerce copywriter for regulated hemp retail. You write SEO-friendly, compliant product descriptions only.',
       },
       { role: 'user', content: userPrompt },
     ],
     temperature: 0.35,
-    max_tokens: 700,
+    max_tokens: 900,
   });
 
   if (!reply) {

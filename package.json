@@ -14,7 +14,8 @@
     "discord:rebrand": "npm run rebrand --prefix discord-bot",
     "discord:audit": "npm run audit --prefix discord-bot",
     "discord:migrate-regions": "npm run migrate-regions --prefix discord-bot",
-    "discord:prune-invites": "npm run prune-invites --prefix discord-bot"
+    "discord:prune-invites": "npm run prune-invites --prefix discord-bot",
+    "generate:flower-descriptions": "npx tsx scripts/generate-flower-descriptions.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

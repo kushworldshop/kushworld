@@ -455,6 +455,7 @@ export default function ProductsTab() {
         subcategory: draft.subcategory,
         merchSubcategory: draft.merchSubcategory,
         price: draft.price,
+        image: draft.image || getProductCoverUrl({ image: draft.image, media: draft.media }),
         existingDescription: draft.description,
         tone,
       }),
@@ -477,8 +478,13 @@ export default function ProductsTab() {
     }
 
     const toneLabel = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === descriptionTone)?.label ?? 'TVN-style';
+    const flowerCount = filteredProducts.filter((p) => getDraft(p).category === 'flower').length;
+    const strainNote =
+      flowerCount > 0
+        ? `\n\n${flowerCount} flower product${flowerCount === 1 ? '' : 's'} will include strain research from photos + public databases.`
+        : '';
     const confirmed = window.confirm(
-      `Write SEO descriptions for ${filteredProducts.length} product${filteredProducts.length === 1 ? '' : 's'} (${bulkVisibilityLabel}) using ${toneLabel} tone?\n\nDescriptions load as drafts — review and use Save all when ready.`
+      `Write SEO descriptions for ${filteredProducts.length} product${filteredProducts.length === 1 ? '' : 's'} (${bulkVisibilityLabel}) using ${toneLabel} tone?${strainNote}\n\nDescriptions load as drafts — review and use Save all when ready.`
     );
     if (!confirmed) return;
 
@@ -1367,9 +1373,18 @@ function ProductDetailPanel({
                   disabled={generatingDescription}
                   className="bg-[#00ff9d]/15 text-[#00ff9d] border border-[#00ff9d]/40 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
                 >
-                  {generatingDescription ? 'Writing...' : '✦ Grok write'}
+                  {generatingDescription
+                    ? 'Researching strain...'
+                    : draft.category === 'flower'
+                      ? '✦ Grok write (strain + SEO)'
+                      : '✦ Grok write'}
                 </button>
               </div>
+            )}
+            {grokEnabled && draft.category === 'flower' && (
+              <p className="text-xs text-zinc-500">
+                Flower products: Grok analyzes your photos and cross-references public strain data for lineage, aroma, and visual details.
+              </p>
             )}
             {descriptionMessage && <p className="text-xs text-[#00ff9d]">{descriptionMessage}</p>}
             {!grokEnabled && (

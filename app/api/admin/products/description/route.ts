@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
       subcategory: typeof body.subcategory === 'string' ? body.subcategory : undefined,
       merchSubcategory: typeof body.merchSubcategory === 'string' ? body.merchSubcategory : undefined,
       price,
+      image: typeof body.image === 'string' ? body.image : undefined,
       existingDescription: typeof body.existingDescription === 'string' ? body.existingDescription : undefined,
       tone: body.tone,
     });
