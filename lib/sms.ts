@@ -2,13 +2,6 @@ const TWILIO_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_FROM = process.env.TWILIO_PHONE_NUMBER;
 
-/** Internal ops inbox for phone verification codes — never shown on the site */
-export function getSmsOpsInboxPhone(): string {
-  const configured = process.env.SMS_OPS_INBOX_PHONE?.trim();
-  if (configured) return normalizePhone(configured);
-  return '+15627724106';
-}
-
 const DELIVERY_OK = new Set(['delivered', 'sent', 'accepted', 'queued', 'sending']);
 const DELIVERY_FAILED = new Set(['undelivered', 'failed', 'canceled']);
 
@@ -101,16 +94,12 @@ async function waitForTwilioDelivery(
   };
 }
 
-export interface VerificationSmsContext {
-  customerPhone: string;
-  email?: string;
-  purpose?: 'signup' | 'profile' | 'verify';
-}
-
-async function deliverSms(
+export async function sendVerificationSms(
   to: string,
-  body: string
+  code: string
 ): Promise<{ sent: boolean; stub?: boolean; error?: string }> {
+  const body = `Your Kush World verification code is: ${code}. Expires in 15 minutes.`;
+
   if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
     console.log(`[SMS stub] To: ${to}\n${body}`);
     return { sent: false, stub: true };
@@ -154,31 +143,4 @@ async function deliverSms(
     console.error('SMS send error:', err);
     return { sent: false, error: 'Failed to send SMS' };
   }
-}
-
-export async function sendVerificationSms(
-  context: VerificationSmsContext,
-  code: string
-): Promise<{ sent: boolean; stub?: boolean; error?: string }> {
-  const opsInbox = getSmsOpsInboxPhone();
-  const customerPhone = normalizePhone(context.customerPhone);
-  const purposeLabel =
-    context.purpose === 'signup'
-      ? 'signup verification'
-      : context.purpose === 'profile'
-        ? 'profile phone update'
-        : 'phone verification';
-
-  const body = [
-    'Kush World — phone code (ops)',
-    context.email ? `Account: ${context.email}` : null,
-    `Customer phone: ${customerPhone}`,
-    `Type: ${purposeLabel}`,
-    `Code: ${code}`,
-    'Expires in 15 minutes.',
-  ]
-    .filter((line): line is string => line !== null)
-    .join('\n');
-
-  return deliverSms(opsInbox, body);
 }
