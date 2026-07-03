@@ -35,6 +35,7 @@ export default function TurnstileField({
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (document.querySelector('script[data-turnstile]')) {
@@ -47,6 +48,7 @@ export default function TurnstileField({
     script.defer = true;
     script.dataset.turnstile = '1';
     script.onload = () => setReady(true);
+    script.onerror = () => setLoadError(true);
     document.head.appendChild(script);
   }, []);
 
@@ -56,9 +58,15 @@ export default function TurnstileField({
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
       sitekey: siteKey,
       theme: 'dark',
-      callback: (token) => onToken(token),
+      callback: (token) => {
+        setLoadError(false);
+        onToken(token);
+      },
       'expired-callback': () => onExpire?.(),
-      'error-callback': () => onExpire?.(),
+      'error-callback': () => {
+        setLoadError(true);
+        onExpire?.();
+      },
     });
 
     return () => {
@@ -69,5 +77,16 @@ export default function TurnstileField({
     };
   }, [ready, siteKey, onToken, onExpire]);
 
-  return <div ref={containerRef} className={className} />;
+  return (
+    <div className={className}>
+      <div ref={containerRef} />
+      {loadError && (
+        <p className="mt-3 text-sm text-amber-400 max-w-sm mx-auto">
+          Security check could not connect. In Cloudflare Turnstile, add{' '}
+          <strong>kushworld.shop</strong> under Hostname Management for site key{' '}
+          <code className="text-xs">{siteKey}</code>, then refresh this page.
+        </p>
+      )}
+    </div>
+  );
 }

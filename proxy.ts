@@ -39,7 +39,9 @@ function applySecurityHeaders(response: NextResponse) {
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com https://cdn-cgi.cloudflare.com https://challenges.cloudflare.com",
-    "frame-src 'self' https://challenges.cloudflare.com",
+    "frame-src 'self' https://challenges.cloudflare.com blob:",
+    "child-src 'self' https://challenges.cloudflare.com blob:",
+    "worker-src 'self' blob:",
     "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: https://cdnjs.cloudflare.com",
