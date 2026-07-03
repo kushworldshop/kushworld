@@ -11,8 +11,7 @@ import OrdersTab from '@/app/admin/components/OrdersTab';
 import ProductsTab from '@/app/admin/components/ProductsTab';
 import SpinWheelTab from '@/app/admin/components/SpinWheelTab';
 import SubscriptionsTab from '@/app/admin/components/SubscriptionsTab';
-import TurnstileField from '@/app/components/TurnstileField';
-import { useTurnstileConfig } from '@/lib/useTurnstileConfig';
+
 
 type AdminTab = 'orders' | 'members' | 'products' | 'wheel' | 'wishlist' | 'subscriptions' | 'settings';
 
@@ -35,8 +34,6 @@ export default function AdminOrders() {
   const [wishlistMeta, setWishlistMeta] = useState({ totalWishlists: 0, uniqueProducts: 0, updatedAt: '' });
   const [loadingWishlist, setLoadingWishlist] = useState(false);
   const [siteContent, setSiteContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
-  const turnstile = useTurnstileConfig();
-
   const bootstrapAdmin = () => {
     loadWishlistStats();
     loadSiteContent();
@@ -59,23 +56,15 @@ export default function AdminOrders() {
 
   const handleLogin = async () => {
     setError('');
-    if (turnstile.enabled && !turnstile.token) {
-      setError('Please complete the security check.');
-      return;
-    }
     try {
       const res = await adminFetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          password: passwordInput,
-          turnstileToken: turnstile.token || undefined,
-        }),
+        body: JSON.stringify({ password: passwordInput }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Incorrect password');
-        turnstile.clearToken();
         return;
       }
       setAuthenticated(true);
@@ -83,7 +72,6 @@ export default function AdminOrders() {
       bootstrapAdmin();
     } catch {
       setError('Login failed');
-      turnstile.clearToken();
     }
   };
 
@@ -145,19 +133,9 @@ export default function AdminOrders() {
             className="w-full bg-black border border-zinc-700 p-5 rounded-2xl text-lg mb-6 focus:outline-none focus:border-[#00ff9d]"
           />
 
-          {turnstile.enabled && turnstile.siteKey && (
-            <TurnstileField
-              siteKey={turnstile.siteKey}
-              onToken={turnstile.onToken}
-              onExpire={turnstile.clearToken}
-              className="flex justify-center mb-6"
-            />
-          )}
-
           <button
             onClick={handleLogin}
-            disabled={turnstile.enabled && !turnstile.token}
-            className="w-full bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black py-5 rounded-2xl font-bold text-xl transition disabled:opacity-50"
+            className="w-full bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black py-5 rounded-2xl font-bold text-xl transition"
           >
             Login to Admin Panel
           </button>
