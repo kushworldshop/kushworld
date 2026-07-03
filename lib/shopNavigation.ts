@@ -294,6 +294,13 @@ export function productMatchesAdminCategoryTab(
   return product.category === tabId;
 }
 
+export function productCategoryToAdminTab(category: string): AdminProductCategoryTabId {
+  if (category === 'vapes') return 'vaporizers';
+  if (category === 'merch') return 'merch';
+  const match = ADMIN_PRODUCT_CATEGORY_TABS.find((tab) => tab.id === category);
+  return match?.id ?? 'all';
+}
+
 export function getShopCategoryLabel(nav: ShopNavigation, categoryId: string): string {
   if (isMerchShopCategory(categoryId)) return 'Studio Merch';
   return getShopCategoryById(nav, categoryId)?.label ?? categoryId;

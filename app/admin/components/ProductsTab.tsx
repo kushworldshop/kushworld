@@ -22,6 +22,7 @@ import {
   getSubsectionLabel,
   getSubsectionsForProductCategory,
   mergeShopNavigation,
+  productCategoryToAdminTab,
   productMatchesAdminCategoryTab,
   type AdminProductCategoryTabId,
 } from '@/lib/shopNavigation';
@@ -238,6 +239,9 @@ export default function ProductsTab() {
   }, [products, search, categoryTab, merchTypeFilter, visibilityFilter, edits]);
 
   useEffect(() => {
+    if (selectedId && products.some((product) => product.id === selectedId)) {
+      return;
+    }
     if (filteredProducts.length === 0) {
       setSelectedId(null);
       return;
@@ -245,7 +249,7 @@ export default function ProductsTab() {
     if (!filteredProducts.some((product) => product.id === selectedId)) {
       setSelectedId(filteredProducts[0].id);
     }
-  }, [filteredProducts, selectedId]);
+  }, [filteredProducts, selectedId, products]);
 
   const dirtyIds = useMemo(
     () => Object.keys(edits).filter((id) => products.some((product) => product.id === id)),
@@ -341,6 +345,87 @@ export default function ProductsTab() {
     });
   };
 
+  const clearDraftFields = (id: string, fields: Array<keyof AdminProduct | 'trackInventory'>) => {
+    setEdits((prev) => {
+      const patch = prev[id];
+      if (!patch) return prev;
+      const nextPatch = { ...patch };
+      for (const field of fields) {
+        delete nextPatch[field];
+      }
+      const next = { ...prev };
+      if (Object.keys(nextPatch).length === 0) {
+        delete next[id];
+      } else {
+        next[id] = nextPatch;
+      }
+      return next;
+    });
+  };
+
+  const persistProductPatch = async (
+    product: AdminProduct,
+    patch: Record<string, unknown>,
+    fieldsToClear: Array<keyof AdminProduct | 'trackInventory'> = []
+  ): Promise<boolean> => {
+    setSavingId(product.id);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: product.id, ...patch }),
+      });
+      const data = await res.json();
+      if (data.success && data.product) {
+        mergeProductIntoList(data.product);
+        if (fieldsToClear.length > 0) {
+          clearDraftFields(product.id, fieldsToClear);
+        }
+        return true;
+      }
+      setMessage(data.error || 'Failed to update product');
+      return false;
+    } catch {
+      setMessage('Failed to update product');
+      return false;
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleCategoryChange = async (product: AdminProduct, category: string) => {
+    const isMerch = category === 'merch';
+    setEdits((prev) => ({
+      ...prev,
+      [product.id]: {
+        ...prev[product.id],
+        category,
+        subcategory: '',
+        merchSubcategory: isMerch ? prev[product.id]?.merchSubcategory ?? product.merchSubcategory ?? '' : '',
+      },
+    }));
+
+    const saved = await persistProductPatch(
+      product,
+      {
+        category,
+        subcategory: '',
+        merchSubcategory: isMerch ? product.merchSubcategory ?? '' : '',
+      },
+      ['category', 'subcategory', 'merchSubcategory']
+    );
+
+    if (saved) {
+      const tabForCategory = productCategoryToAdminTab(category);
+      if (categoryTab !== 'all' && categoryTab !== tabForCategory) {
+        setCategoryTab(tabForCategory);
+      }
+      setSelectedId(product.id);
+      setMessage(`Moved ${product.name} to ${getProductCategoryLabel(siteContent.shopNavigation, category)}`);
+    }
+  };
+
   const persistProductMedia = async (product: AdminProduct, media: ProductMediaItem[]) => {
     const synced = syncProductMediaFields(media);
     setSavingId(product.id);
@@ -426,6 +511,11 @@ export default function ProductsTab() {
         setMessage(`Saved ${draft.name}`);
         clearEdits(product.id);
         await loadProducts();
+        setSelectedId(product.id);
+        const tabForCategory = productCategoryToAdminTab(draft.category);
+        if (categoryTab !== 'all' && categoryTab !== tabForCategory) {
+          setCategoryTab(tabForCategory);
+        }
       } else {
         setMessage(data.error || 'Failed to save product');
       }
@@ -1179,6 +1269,7 @@ export default function ProductsTab() {
               uploadingImage={uploadingImageId === selectedProduct.id}
               siteContent={siteContent}
               onDraftChange={(field, value) => updateDraft(selectedProduct.id, field, value)}
+              onCategoryChange={(category) => void handleCategoryChange(selectedProduct, category)}
               onSave={() => saveProduct(selectedProduct)}
               onDiscard={() => clearEdits(selectedProduct.id)}
               onToggleVisibility={() => toggleVisibility(selectedProduct)}
@@ -1254,6 +1345,7 @@ function ProductDetailPanel({
   uploadingImage,
   siteContent,
   onDraftChange,
+  onCategoryChange,
   onSave,
   onDiscard,
   onToggleVisibility,
@@ -1289,6 +1381,7 @@ function ProductDetailPanel({
     field: keyof AdminProduct | 'trackInventory',
     value: string | number | boolean | ProductOptionGroup[]
   ) => void;
+  onCategoryChange: (category: string) => void;
   onSave: () => void;
   onDiscard: () => void;
   onToggleVisibility: () => void;
@@ -1540,8 +1633,9 @@ function ProductDetailPanel({
               <label className={labelClass}>Category</label>
               <select
                 value={draft.category}
-                onChange={(e) => onDraftChange('category', e.target.value)}
-                className={fieldClass}
+                disabled={saving}
+                onChange={(e) => onCategoryChange(e.target.value)}
+                className={`${fieldClass} disabled:opacity-50`}
               >
                 {getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => (
                   <option key={slug} value={slug}>
