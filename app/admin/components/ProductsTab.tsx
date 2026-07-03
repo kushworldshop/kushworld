@@ -863,257 +863,100 @@ export default function ProductsTab() {
   }, [selectedProduct, edits, dirtyIds.length]);
 
   const selectionIndeterminate = checkedIds.length > 0 && !allFilteredChecked;
+  const bulkScopeLabel = usingSelection ? `${checkedIds.length} selected` : `${filteredProducts.length} shown`;
 
   return (
-    <div className="mb-10 flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold">Products</h2>
-          <p className="text-sm text-zinc-500 mt-1">
-            Select products to hide or unhide in bulk · Ctrl+S saves edits
-          </p>
-        </div>
+    <div className="mb-10 flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-bold">Products</h2>
         <div className="flex flex-wrap items-center gap-2">
           {dirtyIds.length > 0 && (
             <button
               onClick={saveAllDirty}
               disabled={savingAll || bulkVisibility !== null}
-              className="bg-[#00ff9d] text-black px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+              className="bg-[#00ff9d] text-black px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50"
             >
-              {savingAll ? 'Saving...' : `Save all (${dirtyIds.length})`}
+              {savingAll ? 'Saving...' : `Save (${dirtyIds.length})`}
             </button>
           )}
           <button
             onClick={loadProducts}
             disabled={loading || bulkVisibility !== null || bulkGrokProgress !== null}
-            className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+            className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowBulkActions((open) => !open)}
-            className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-medium"
-          >
-            {showBulkActions ? 'Hide tools' : 'More tools'}
+            {loading ? '...' : 'Refresh'}
           </button>
         </div>
       </div>
 
       {message && (
-        <div className="rounded-xl border border-[#00ff9d]/30 bg-[#00ff9d]/10 px-4 py-2.5 text-sm text-[#00ff9d]">
+        <div className="rounded-lg border border-[#00ff9d]/30 bg-[#00ff9d]/10 px-3 py-2 text-sm text-[#00ff9d]">
           {message}
         </div>
       )}
 
-      <div className="rounded-2xl border border-zinc-700 bg-zinc-900 p-3 sm:p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={allFilteredChecked && filteredProducts.length > 0}
-              ref={(element) => {
-                if (element) element.indeterminate = selectionIndeterminate;
-              }}
-              onChange={toggleCheckAllFiltered}
-              disabled={loading || filteredProducts.length === 0}
-              className="w-4 h-4 accent-[#00ff9d] cursor-pointer disabled:opacity-40"
-            />
-            <span className="text-sm font-medium">
-              {allFilteredChecked && filteredProducts.length > 0
-                ? `All ${filteredProducts.length} selected`
-                : checkedIds.length > 0
-                  ? `${checkedIds.length} selected`
-                  : 'Select products'}
-            </span>
-          </label>
-
-          {checkedIds.length > 0 && (
-            <button
-              type="button"
-              onClick={clearChecked}
-              className="text-xs text-zinc-400 hover:text-white underline"
-            >
-              Clear selection
-            </button>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-            <button
-              onClick={() => setBulkVisibilityForFiltered(true)}
-              disabled={loading || bulkVisibility !== null || bulkDeleting || hideableBulkCount === 0}
-              className="bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 border border-amber-500/30 px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-40"
-            >
-              {bulkVisibility === 'hide'
-                ? 'Hiding...'
-                : usingSelection
-                  ? `Hide selected (${hideableBulkCount})`
-                  : `Hide all visible (${hideableBulkCount})`}
-            </button>
-            <button
-              onClick={() => setBulkVisibilityForFiltered(false)}
-              disabled={loading || bulkVisibility !== null || bulkDeleting || unhideableBulkCount === 0}
-              className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-40"
-            >
-              {bulkVisibility === 'unhide'
-                ? 'Unhiding...'
-                : usingSelection
-                  ? `Unhide selected (${unhideableBulkCount})`
-                  : `Unhide all hidden (${unhideableBulkCount})`}
-            </button>
-          </div>
-        </div>
-
-        <p className="text-[11px] text-zinc-500 mt-2">
-          {usingSelection
-            ? 'Actions apply to checked products only.'
-            : 'No checkboxes selected — hide/unhide applies to the current filtered list.'}
-        </p>
-      </div>
-
-      {showBulkActions && (
-        <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border border-zinc-800 bg-zinc-950/80">
-          <span className="text-xs text-zinc-500 mr-1">Advanced</span>
-          <button
-            onClick={deleteSelectedProducts}
-            disabled={
-              loading ||
-              bulkVisibility !== null ||
-              bulkDeleting ||
-              bulkGrokProgress !== null ||
-              deletableBulkCount === 0
-            }
-            className="bg-red-500/10 text-red-300 hover:bg-red-500/20 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
-            title={
-              deletableBulkCount === 0
-                ? 'Only custom/imported products can be deleted'
-                : undefined
-            }
-          >
-            {bulkDeleting
-              ? 'Deleting...'
-              : `${usingSelection ? 'Delete selected' : 'Delete custom'} (${deletableBulkCount})`}
-          </button>
-          {grokEnabled && (
-            <>
-              <DescriptionToneSelect value={descriptionTone} onChange={setDescriptionTone} compact />
-              <button
-                onClick={grokAllFilteredDescriptions}
-                disabled={
-                  loading ||
-                  bulkVisibility !== null ||
-                  bulkDeleting ||
-                  bulkGrokProgress !== null ||
-                  bulkTargets.length === 0
-                }
-                className="bg-[#00ff9d]/15 text-[#00ff9d] hover:bg-[#00ff9d]/25 border border-[#00ff9d]/40 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
-              >
-                {bulkGrokProgress
-                  ? `Grok ${bulkGrokProgress.current}/${bulkGrokProgress.total}…`
-                  : `Grok descriptions (${bulkTargets.length})`}
-              </button>
-            </>
-          )}
-          {bulkGrokProgress && (
-            <span className="text-xs text-zinc-500">Writing: {bulkGrokProgress.name}</span>
-          )}
-        </div>
-      )}
-
-      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3 mb-3">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {ADMIN_PRODUCT_CATEGORY_TABS.map((tab) => {
-            const active = categoryTab === tab.id;
-            const count = products.filter((product) => productMatchesAdminCategoryTab(product, tab.id)).length;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setCategoryTab(tab.id);
-                  if (tab.id !== 'merch') setMerchTypeFilter('all');
-                }}
-                className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition ${
-                  active ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
-                }`}
-              >
-                {tab.label}
-                <span className={`ml-2 text-xs ${active ? 'text-black/70' : 'text-zinc-500'}`}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {(categoryTab === 'flower' || categoryTab === 'all') && (
-          <div className="mt-3 pt-3 border-t border-zinc-800">
-            <button
-              type="button"
-              onClick={() => setShowImportPanel((open) => !open)}
-              className="text-xs font-medium text-zinc-400 hover:text-white"
-            >
-              {showImportPanel ? '▾ Hide image import' : '▸ Import products from images'}
-            </button>
-            {showImportPanel && (
-              <ProductImportDropzone
-                dragActive={importDragActive}
-                importing={importing}
-                category={importCategory}
-                defaultPrice={importPrice}
-                message={importMessage}
-                results={importResults}
-                categoryOptions={getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => ({
-                  value: slug,
-                  label: getProductCategoryLabel(siteContent.shopNavigation, slug),
-                }))}
-                onDragActiveChange={setImportDragActive}
-                onCategoryChange={setImportCategory}
-                onDefaultPriceChange={setImportPrice}
-                onImportFiles={importProductImages}
-              />
-            )}
-          </div>
-        )}
-
-        {categoryTab === 'merch' && (
-          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-zinc-800">
-            <button
-              type="button"
-              onClick={() => setMerchTypeFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                merchTypeFilter === 'all' ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
-              }`}
-            >
-              All merch
-            </button>
-            {MERCH_SUBCATEGORIES.map((sub) => (
-              <button
-                key={sub.id}
-                type="button"
-                onClick={() => setMerchTypeFilter(sub.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                  merchTypeFilter === sub.id ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
-                }`}
-              >
-                {sub.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="grid lg:grid-cols-[minmax(280px,340px)_1fr] gap-4 min-h-[520px] lg:h-[min(760px,calc(100dvh-20rem))]">
+      <div className="grid lg:grid-cols-[minmax(280px,340px)_1fr] gap-4 min-h-[520px] lg:h-[min(760px,calc(100dvh-12rem))]">
         <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3 flex flex-col min-h-0 lg:max-h-full">
-          <div className="flex gap-2 mb-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 border-b border-zinc-800">
+            {ADMIN_PRODUCT_CATEGORY_TABS.map((tab) => {
+              const active = categoryTab === tab.id;
+              const count = products.filter((product) => productMatchesAdminCategoryTab(product, tab.id)).length;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setCategoryTab(tab.id);
+                    if (tab.id !== 'merch') setMerchTypeFilter('all');
+                  }}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    active ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`ml-1.5 ${active ? 'text-black/70' : 'text-zinc-500'}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {categoryTab === 'merch' && (
+            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2">
+              <button
+                type="button"
+                onClick={() => setMerchTypeFilter('all')}
+                className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium ${
+                  merchTypeFilter === 'all' ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
+                }`}
+              >
+                All
+              </button>
+              {MERCH_SUBCATEGORIES.map((sub) => (
+                <button
+                  key={sub.id}
+                  type="button"
+                  onClick={() => setMerchTypeFilter(sub.id)}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium ${
+                    merchTypeFilter === sub.id ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2 mb-2">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, id, category..."
-              className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2.5 text-sm"
+              placeholder="Search..."
+              className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm"
             />
             <select
               value={visibilityFilter}
               onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'visible' | 'hidden')}
-              className="bg-black border border-zinc-700 rounded-lg px-2.5 py-2.5 text-xs min-w-[6.5rem]"
+              className="bg-black border border-zinc-700 rounded-lg px-2 py-2 text-xs min-w-[5.5rem]"
               title="Visibility filter"
             >
               <option value="all">All</option>
@@ -1123,13 +966,33 @@ export default function ProductsTab() {
           </div>
 
           <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
-            <p className="text-xs text-zinc-500">
-              {loading ? 'Loading...' : `${filteredProducts.length} in list`}
-              {dirtyIds.length > 0 && <span className="text-amber-300 ml-1">· {dirtyIds.length} unsaved</span>}
-            </p>
+            <label className="inline-flex items-center gap-2 cursor-pointer select-none min-w-0">
+              <input
+                type="checkbox"
+                checked={allFilteredChecked && filteredProducts.length > 0}
+                ref={(element) => {
+                  if (element) element.indeterminate = selectionIndeterminate;
+                }}
+                onChange={toggleCheckAllFiltered}
+                disabled={loading || filteredProducts.length === 0}
+                className="w-4 h-4 accent-[#00ff9d] cursor-pointer disabled:opacity-40 flex-shrink-0"
+              />
+              <span className="text-xs text-zinc-400 truncate">
+                {checkedIds.length > 0 ? `${checkedIds.length} selected` : 'Select all'}
+              </span>
+            </label>
+            {checkedIds.length > 0 && (
+              <button
+                type="button"
+                onClick={clearChecked}
+                className="text-[11px] text-zinc-500 hover:text-white flex-shrink-0"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-[240px]">
+          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-[200px]">
             {filteredProducts.map((product) => {
               const draft = getDraft(product);
               const dirty = !!edits[product.id];
@@ -1192,9 +1055,114 @@ export default function ProductsTab() {
               <p className="text-center text-zinc-500 text-sm py-10">No matches</p>
             )}
           </div>
+
+          <div className="flex-shrink-0 pt-3 mt-2 border-t border-zinc-800 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setBulkVisibilityForFiltered(true)}
+                disabled={loading || bulkVisibility !== null || bulkDeleting || hideableBulkCount === 0}
+                className="bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 border border-amber-500/30 px-3 py-2.5 rounded-lg text-xs font-medium disabled:opacity-40"
+              >
+                {bulkVisibility === 'hide' ? 'Hiding...' : `Hide (${hideableBulkCount})`}
+              </button>
+              <button
+                onClick={() => setBulkVisibilityForFiltered(false)}
+                disabled={loading || bulkVisibility !== null || bulkDeleting || unhideableBulkCount === 0}
+                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 py-2.5 rounded-lg text-xs font-medium disabled:opacity-40"
+              >
+                {bulkVisibility === 'unhide' ? 'Unhiding...' : `Unhide (${unhideableBulkCount})`}
+              </button>
+            </div>
+            <p className="text-[10px] text-zinc-600 text-center">
+              {usingSelection ? `Applies to ${bulkScopeLabel}` : `No selection — applies to ${bulkScopeLabel}`}
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 pt-1">
+                {(categoryTab === 'flower' || categoryTab === 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => setShowImportPanel((open) => !open)}
+                    className="text-[11px] text-zinc-400 hover:text-white"
+                  >
+                    {showImportPanel ? 'Close import' : 'Import images'}
+                  </button>
+                )}
+                {deletableBulkCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={deleteSelectedProducts}
+                    disabled={
+                      loading ||
+                      bulkVisibility !== null ||
+                      bulkDeleting ||
+                      bulkGrokProgress !== null
+                    }
+                    className="text-[11px] text-red-300/80 hover:text-red-200 disabled:opacity-40"
+                  >
+                    {bulkDeleting ? 'Deleting...' : `Delete custom (${deletableBulkCount})`}
+                  </button>
+                )}
+                {grokEnabled && (
+                  <button
+                    type="button"
+                    onClick={grokAllFilteredDescriptions}
+                    disabled={
+                      loading ||
+                      bulkVisibility !== null ||
+                      bulkDeleting ||
+                      bulkGrokProgress !== null ||
+                      bulkTargets.length === 0
+                    }
+                    className="text-[11px] text-[#00ff9d]/80 hover:text-[#00ff9d] disabled:opacity-40"
+                  >
+                    {bulkGrokProgress
+                      ? `Grok ${bulkGrokProgress.current}/${bulkGrokProgress.total}`
+                      : `Grok descriptions (${bulkTargets.length})`}
+                  </button>
+                )}
+              </div>
+            {grokEnabled && bulkGrokProgress && (
+              <p className="text-[10px] text-zinc-600 text-center truncate">Writing: {bulkGrokProgress.name}</p>
+            )}
+            {grokEnabled && showBulkActions && (
+              <div className="flex justify-center pt-1">
+                <DescriptionToneSelect value={descriptionTone} onChange={setDescriptionTone} compact />
+              </div>
+            )}
+            {grokEnabled && (
+              <button
+                type="button"
+                onClick={() => setShowBulkActions((open) => !open)}
+                className="w-full text-[10px] text-zinc-600 hover:text-zinc-400"
+              >
+                {showBulkActions ? 'Hide Grok tone' : 'Grok tone options'}
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl min-h-[420px] lg:min-h-0 lg:max-h-full flex flex-col overflow-hidden">
+        <div className="flex flex-col gap-3 min-h-0 lg:max-h-full">
+          {(categoryTab === 'flower' || categoryTab === 'all') && showImportPanel && (
+            <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3 flex-shrink-0">
+              <ProductImportDropzone
+                dragActive={importDragActive}
+                importing={importing}
+                category={importCategory}
+                defaultPrice={importPrice}
+                message={importMessage}
+                results={importResults}
+                categoryOptions={getAllProductCategorySlugs(siteContent.shopNavigation).map((slug) => ({
+                  value: slug,
+                  label: getProductCategoryLabel(siteContent.shopNavigation, slug),
+                }))}
+                onDragActiveChange={setImportDragActive}
+                onCategoryChange={setImportCategory}
+                onDefaultPriceChange={setImportPrice}
+                onImportFiles={importProductImages}
+              />
+            </div>
+          )}
+
+        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl min-h-[420px] lg:min-h-0 lg:flex-1 flex flex-col overflow-hidden">
           {!selectedProduct ? (
             <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
               Select a product to edit
@@ -1224,6 +1192,7 @@ export default function ProductsTab() {
               onRequestGrokDescription={requestGrokDescription}
             />
           )}
+        </div>
         </div>
       </div>
     </div>
