@@ -22,20 +22,28 @@ export function inferMediaTypeFromMime(mimeType: string): ProductMediaType {
 }
 
 export function getProductMedia(product: Pick<Product, 'image' | 'images' | 'media'>): ProductMediaItem[] {
-  if (product.media?.length) return product.media;
+  if (product.media?.length) {
+    return normalizeProductMedia(product.media);
+  }
+  const legacy: ProductMediaItem[] = [];
   if (product.images?.length) {
-    return product.images.map((url) => ({ type: inferMediaType(url), url }));
+    for (const url of product.images) {
+      legacy.push({ type: inferMediaType(url), url });
+    }
   }
   if (product.image) {
-    return [{ type: inferMediaType(product.image), url: product.image }];
+    legacy.push({ type: inferMediaType(product.image), url: product.image });
   }
-  return [];
+  return normalizeProductMedia(legacy);
 }
 
 export function getProductCoverUrl(product: Pick<Product, 'image' | 'images' | 'media'>): string {
   const media = getProductMedia(product);
-  const firstImage = media.find((item) => item.type === 'image');
-  return firstImage?.url ?? media[0]?.url ?? product.image;
+  if (media.length > 0) {
+    const firstImage = media.find((item) => item.type === 'image');
+    return firstImage?.url ?? media[0].url;
+  }
+  return product.image ?? '';
 }
 
 export function normalizeProductMedia(media: ProductMediaItem[]): ProductMediaItem[] {

@@ -8,6 +8,7 @@ import {
   inferMediaTypeFromMime,
   setProductCoverMedia,
   syncProductMediaFields,
+  type ProductMediaItem,
 } from '@/lib/productMedia';
 import {
   buildProductImageFilename,
@@ -19,6 +20,24 @@ import {
 } from '@/lib/productImages';
 
 export const runtime = 'nodejs';
+
+function parseCurrentMedia(raw: FormDataEntryValue | null) {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    const items = parsed.filter(
+      (value): value is ProductMediaItem =>
+        !!value &&
+        typeof value === 'object' &&
+        (value.type === 'image' || value.type === 'video') &&
+        typeof value.url === 'string'
+    );
+    return syncProductMediaFields(items);
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   if (!isAdminRequest(request)) {
@@ -73,12 +92,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
       }
 
+      const draftMedia = parseCurrentMedia(formData.get('currentMedia'));
+      const mediaBase = draftMedia ?? existing;
+
       const synced =
         mode === 'cover'
-          ? setProductCoverMedia(existing, url)
+          ? setProductCoverMedia(mediaBase, url)
           : mode === 'primary'
             ? syncProductMediaFields([mediaItem])
-            : appendProductMedia(existing, mediaItem);
+            : appendProductMedia(mediaBase, mediaItem);
 
       const product = await updateProduct(productId, synced);
       if (!product) {

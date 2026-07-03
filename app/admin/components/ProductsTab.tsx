@@ -34,6 +34,7 @@ import {
 import {
   getProductCoverUrl,
   getProductMedia,
+  normalizeProductMedia,
   removeProductMedia,
   setProductCoverMedia,
   syncProductMediaFields,
@@ -78,6 +79,8 @@ function buildProductDraft(
   const patch = edits[product.id];
   const trackInventory =
     patch?.trackInventory !== undefined ? patch.trackInventory : product.inventory !== undefined;
+  const media = normalizeProductMedia(patch?.media ?? getProductMedia(product));
+  const syncedMedia = syncProductMediaFields(media);
 
   return {
     name: patch?.name ?? product.name,
@@ -85,8 +88,8 @@ function buildProductDraft(
     cost: patch?.cost ?? product.cost ?? 0,
     trackInventory,
     inventory: patch?.inventory ?? product.inventory ?? 0,
-    image: patch?.image ?? product.image,
-    media: patch?.media ?? getProductMedia(product),
+    image: patch?.image ?? (syncedMedia.image || product.image),
+    media: syncedMedia.media,
     description: patch?.description ?? product.description ?? '',
     category: patch?.category ?? product.category,
     subcategory: patch?.subcategory ?? product.subcategory ?? '',
@@ -315,16 +318,70 @@ export default function ProductsTab() {
 
   const getDraft = (product: AdminProduct) => buildProductDraft(product, edits);
 
-  const updateMediaDraft = (id: string, media: ProductMediaItem[]) => {
+  const mergeProductIntoList = (updated: AdminProduct) => {
+    setProducts((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+  };
+
+  const clearMediaEdits = (id: string) => {
+    setEdits((prev) => {
+      const patch = prev[id];
+      if (!patch) return prev;
+      const nextPatch = { ...patch };
+      delete nextPatch.media;
+      delete nextPatch.image;
+      delete nextPatch.images;
+      const next = { ...prev };
+      if (Object.keys(nextPatch).length === 0) {
+        delete next[id];
+      } else {
+        next[id] = nextPatch;
+      }
+      return next;
+    });
+  };
+
+  const persistProductMedia = async (product: AdminProduct, media: ProductMediaItem[]) => {
+    const synced = syncProductMediaFields(media);
+    setSavingId(product.id);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/products', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: product.id,
+          image: synced.image,
+          images: synced.images ?? [],
+          media: synced.media,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.product) {
+        mergeProductIntoList(data.product);
+        clearMediaEdits(product.id);
+        return true;
+      }
+      setMessage(data.error || 'Failed to update gallery');
+      return false;
+    } catch {
+      setMessage('Failed to update gallery');
+      return false;
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleMediaChange = async (product: AdminProduct, media: ProductMediaItem[]) => {
     const synced = syncProductMediaFields(media);
     setEdits((prev) => ({
       ...prev,
-      [id]: {
-        ...prev[id],
+      [product.id]: {
+        ...prev[product.id],
         media: synced.media,
         image: synced.image,
       },
     }));
+    await persistProductMedia(product, synced.media);
   };
 
   const updateDraft = (
@@ -684,6 +741,7 @@ export default function ProductsTab() {
     let uploaded = 0;
     let failed = 0;
     let lastError = '';
+    let workingMedia = getDraft(product).media;
 
     for (const file of mediaFiles) {
       try {
@@ -691,6 +749,7 @@ export default function ProductsTab() {
         formData.append('productId', product.id);
         formData.append('image', file);
         formData.append('mode', 'gallery');
+        formData.append('currentMedia', JSON.stringify(workingMedia));
 
         const res = await adminFetch('/api/admin/products/upload', {
           method: 'POST',
@@ -700,6 +759,12 @@ export default function ProductsTab() {
 
         if (data.success) {
           uploaded += 1;
+          if (data.product) {
+            mergeProductIntoList(data.product);
+            workingMedia = getProductMedia(data.product);
+          } else if (Array.isArray(data.media)) {
+            workingMedia = data.media;
+          }
         } else {
           failed += 1;
           lastError = data.error || 'Upload failed';
@@ -710,16 +775,16 @@ export default function ProductsTab() {
       }
     }
 
+    clearMediaEdits(product.id);
+
     if (failed === 0) {
       setMessage(`Added ${uploaded} file${uploaded === 1 ? '' : 's'} to ${product.name}`);
-      clearEdits(product.id);
     } else {
       setMessage(
         `Uploaded ${uploaded}, failed ${failed}${lastError ? ` — ${lastError}` : ''}`
       );
     }
 
-    await loadProducts();
     setUploadingImageId(null);
   };
 
@@ -1111,7 +1176,7 @@ export default function ProductsTab() {
               onDiscard={() => clearEdits(selectedProduct.id)}
               onToggleVisibility={() => toggleVisibility(selectedProduct)}
               onUploadGalleryMedia={(files) => uploadGalleryMedia(selectedProduct, files)}
-              onMediaChange={(media) => updateMediaDraft(selectedProduct.id, media)}
+              onMediaChange={(media) => void handleMediaChange(selectedProduct, media)}
               onCreateSubsection={(label) => createSubsection(selectedProduct.category, label, selectedProduct.id)}
               onUploadOptionImage={(file) => uploadOptionImage(selectedProduct, file)}
               grokEnabled={grokEnabled}
@@ -1455,7 +1520,9 @@ function ProductDetailPanel({
 
         {editorTab === 'media' && (
           <div className="max-w-2xl">
-            <p className="text-[11px] text-zinc-500 mb-3">First image = shop thumbnail. Uploads save immediately.</p>
+            <p className="text-[11px] text-zinc-500 mb-3">
+              First image = shop thumbnail. Gallery changes save immediately.
+            </p>
             {draft.media.length > 0 && (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
                 {draft.media.map((item, index) => {
@@ -1478,22 +1545,24 @@ function ProductDetailPanel({
                         {!isCover && (
                           <button
                             type="button"
+                            disabled={saving || uploadingImage}
                             onClick={() =>
                               onMediaChange(
                                 setProductCoverMedia({ image: draft.image, media: draft.media }, item.url).media
                               )
                             }
-                            className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800"
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 disabled:opacity-40"
                           >
                             Cover
                           </button>
                         )}
                         <button
                           type="button"
+                          disabled={saving || uploadingImage}
                           onClick={() =>
                             onMediaChange(removeProductMedia({ image: draft.image, media: draft.media }, item.url).media)
                           }
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-300 ml-auto"
+                          className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-300 ml-auto disabled:opacity-40"
                         >
                           Remove
                         </button>

@@ -173,8 +173,12 @@ export async function updateProductOverride(
     else delete next.images;
   }
   if (updates.media !== undefined) {
-    if (updates.media.length > 0) next.media = updates.media;
-    else delete next.media;
+    if (updates.media.length > 0) {
+      next.media = updates.media;
+    } else {
+      delete next.media;
+      delete next.images;
+    }
   }
   if (updates.description !== undefined) {
     const desc = updates.description.trim();
