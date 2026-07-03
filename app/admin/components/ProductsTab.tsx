@@ -895,57 +895,59 @@ export default function ProductsTab() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[minmax(280px,340px)_1fr] gap-4 min-h-[520px] lg:h-[min(760px,calc(100dvh-12rem))]">
-        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3 flex flex-col min-h-0 lg:max-h-full">
-          <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 border-b border-zinc-800">
-            {ADMIN_PRODUCT_CATEGORY_TABS.map((tab) => {
-              const active = categoryTab === tab.id;
-              const count = products.filter((product) => productMatchesAdminCategoryTab(product, tab.id)).length;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setCategoryTab(tab.id);
-                    if (tab.id !== 'merch') setMerchTypeFilter('all');
-                  }}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                    active ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
-                  }`}
-                >
-                  {tab.label}
-                  <span className={`ml-1.5 ${active ? 'text-black/70' : 'text-zinc-500'}`}>{count}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {categoryTab === 'merch' && (
-            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3">
+        <div className="flex flex-wrap gap-2">
+          {ADMIN_PRODUCT_CATEGORY_TABS.map((tab) => {
+            const active = categoryTab === tab.id;
+            const count = products.filter((product) => productMatchesAdminCategoryTab(product, tab.id)).length;
+            return (
               <button
+                key={tab.id}
                 type="button"
-                onClick={() => setMerchTypeFilter('all')}
-                className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium ${
-                  merchTypeFilter === 'all' ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
+                onClick={() => {
+                  setCategoryTab(tab.id);
+                  if (tab.id !== 'merch') setMerchTypeFilter('all');
+                }}
+                className={`px-3.5 py-2 rounded-xl text-sm font-medium transition ${
+                  active ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
                 }`}
               >
-                All
+                {tab.label}
+                <span className={`ml-1.5 text-xs ${active ? 'text-black/70' : 'text-zinc-500'}`}>{count}</span>
               </button>
-              {MERCH_SUBCATEGORIES.map((sub) => (
-                <button
-                  key={sub.id}
-                  type="button"
-                  onClick={() => setMerchTypeFilter(sub.id)}
-                  className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium ${
-                    merchTypeFilter === sub.id ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
-                  }`}
-                >
-                  {sub.label}
-                </button>
-              ))}
-            </div>
-          )}
+            );
+          })}
+        </div>
 
+        {categoryTab === 'merch' && (
+          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setMerchTypeFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                merchTypeFilter === 'all' ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
+              }`}
+            >
+              All merch
+            </button>
+            {MERCH_SUBCATEGORIES.map((sub) => (
+              <button
+                key={sub.id}
+                type="button"
+                onClick={() => setMerchTypeFilter(sub.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
+                  merchTypeFilter === sub.id ? 'bg-[#00ff9d]/20 text-[#00ff9d]' : 'bg-zinc-800 hover:bg-zinc-700'
+                }`}
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-[minmax(280px,340px)_1fr] gap-4 min-h-[520px] lg:h-[min(760px,calc(100dvh-16rem))]">
+        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3 flex flex-col min-h-0 lg:max-h-full">
           <div className="flex gap-2 mb-2">
             <input
               value={search}
