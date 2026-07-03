@@ -108,8 +108,36 @@ const CATEGORY_ALIASES: Record<string, string> = {
   vapes: 'vaporizers',
 };
 
+/** Maps shop URL ids and legacy values to canonical product.category slugs. */
+const PRODUCT_CATEGORY_ALIASES: Record<string, string> = {
+  vaporizers: 'vapes',
+  vape: 'vapes',
+  edible: 'edibles',
+  preroll: 'pre-rolls',
+  'pre-roll': 'pre-rolls',
+  prerolls: 'pre-rolls',
+  mushroom: 'mushrooms',
+  accessory: 'accessories',
+  concentrate: 'concentrates',
+  moonrock: 'moonrocks',
+};
+
 export function normalizeShopCategoryId(id: string): string {
   return CATEGORY_ALIASES[id] ?? id;
+}
+
+export function normalizeProductCategorySlug(
+  category: string | undefined,
+  nav: ShopNavigation = DEFAULT_SHOP_NAVIGATION
+): string {
+  const trimmed = (category ?? '').trim().toLowerCase();
+  if (!trimmed) return '';
+  const aliased = PRODUCT_CATEGORY_ALIASES[trimmed] ?? trimmed;
+  const validSlugs = getAllProductCategorySlugs(nav);
+  if (validSlugs.includes(aliased)) return aliased;
+  const shopMatch = nav.categories.find((item) => item.id === aliased);
+  if (shopMatch?.productCategories[0]) return shopMatch.productCategories[0];
+  return aliased;
 }
 
 export function mergeShopNavigation(partial?: Partial<ShopNavigation>): ShopNavigation {

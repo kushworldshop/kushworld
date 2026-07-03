@@ -14,7 +14,12 @@ import {
   updateCustomProduct,
   type CustomProductUpdate,
 } from '@/lib/customProducts';
-import { getProductMedia, type ProductMediaItem } from '@/lib/productMedia';
+import { getProductMedia, syncProductMediaFields, type ProductMediaItem } from '@/lib/productMedia';
+import {
+  DEFAULT_SHOP_NAVIGATION,
+  normalizeProductCategorySlug,
+  type ShopNavigation,
+} from '@/lib/shopNavigation';
 
 const OVERRIDES_FILE = path.join(process.cwd(), 'data', 'product-overrides.json');
 
@@ -60,6 +65,17 @@ export function filterVisibleProducts<T extends Pick<Product, 'hidden'>>(product
 
 export type ProductOverridesMap = Record<string, ProductOverride>;
 
+let overridesWriteLock: Promise<void> = Promise.resolve();
+
+async function withOverridesLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = overridesWriteLock.then(fn, fn);
+  overridesWriteLock = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
 async function ensureOverridesFile() {
   const dataDir = path.join(process.cwd(), 'data');
   await fs.mkdir(dataDir, { recursive: true });
@@ -70,18 +86,89 @@ async function ensureOverridesFile() {
   }
 }
 
-export async function readProductOverrides(): Promise<ProductOverridesMap> {
+async function readOverridesFileUnsafe(): Promise<ProductOverridesMap> {
   await ensureOverridesFile();
   const data = await fs.readFile(OVERRIDES_FILE, 'utf8');
   return JSON.parse(data) as ProductOverridesMap;
 }
 
-async function writeProductOverrides(overrides: ProductOverridesMap): Promise<void> {
+async function writeOverridesFileUnsafe(overrides: ProductOverridesMap): Promise<void> {
   await ensureOverridesFile();
   await fs.writeFile(OVERRIDES_FILE, JSON.stringify(overrides, null, 2));
 }
 
-function mergeProduct(base: Product, override?: ProductOverride): Product {
+function repairProductOverride(
+  base: Product,
+  override: ProductOverride,
+  nav: ShopNavigation = DEFAULT_SHOP_NAVIGATION
+): ProductOverride {
+  const repaired: ProductOverride = { ...override };
+
+  if (repaired.category !== undefined) {
+    const normalized = normalizeProductCategorySlug(repaired.category, nav);
+    if (normalized) repaired.category = normalized;
+    else delete repaired.category;
+  }
+
+  const mergedForMedia: Product = { ...base, ...repaired, price: repaired.price ?? base.price };
+  const syncedMedia = syncProductMediaFields(getProductMedia(mergedForMedia));
+  if (syncedMedia.media.length > 0) {
+    repaired.media = syncedMedia.media;
+    repaired.image = syncedMedia.image;
+    if (syncedMedia.images?.length) repaired.images = syncedMedia.images;
+    else delete repaired.images;
+  }
+
+  return repaired;
+}
+
+function applyMergedProductRepairs(base: Product, merged: Product, nav: ShopNavigation): Product {
+  const category = normalizeProductCategorySlug(merged.category, nav) || base.category;
+  const syncedMedia = syncProductMediaFields(getProductMedia(merged));
+  return {
+    ...merged,
+    category,
+    media: syncedMedia.media.length > 0 ? syncedMedia.media : merged.media,
+    image: syncedMedia.image || merged.image,
+    images: syncedMedia.images ?? merged.images,
+  };
+}
+
+export async function readProductOverrides(): Promise<ProductOverridesMap> {
+  return withOverridesLock(async () => {
+    const raw = await readOverridesFileUnsafe();
+    let changed = false;
+    const repaired: ProductOverridesMap = {};
+
+    for (const [id, override] of Object.entries(raw)) {
+      const base = baseProducts.find((product) => product.id === id);
+      if (!base || !override) {
+        repaired[id] = override;
+        continue;
+      }
+      const next = repairProductOverride(base, override);
+      const cleaned = cleanOverrideForStorage(base, next);
+      if (Object.keys(cleaned).length > 0) {
+        repaired[id] = cleaned;
+      }
+      if (JSON.stringify(cleaned) !== JSON.stringify(override)) {
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await writeOverridesFileUnsafe(repaired);
+    }
+
+    return repaired;
+  });
+}
+
+function mergeProduct(
+  base: Product,
+  override?: ProductOverride,
+  nav: ShopNavigation = DEFAULT_SHOP_NAVIGATION
+): Product {
   if (!override) return { ...base };
   const merged: Product = {
     ...base,
@@ -93,7 +180,7 @@ function mergeProduct(base: Product, override?: ProductOverride): Product {
     merged.optionGroups = override.optionGroups;
   }
 
-  return merged;
+  return applyMergedProductRepairs(base, merged, nav);
 }
 
 async function getBaseProductsMerged(): Promise<Product[]> {
@@ -144,15 +231,22 @@ export async function updateProduct(
   return updateProductOverride(id, updates);
 }
 
-export async function updateProductOverride(
-  id: string,
-  updates: ProductOverride & { clearInventory?: boolean }
-): Promise<Product | null> {
-  const base = baseProducts.find((product) => product.id === id);
-  if (!base) return null;
+async function mutateProductOverrides(
+  mutator: (overrides: ProductOverridesMap) => void
+): Promise<ProductOverridesMap> {
+  return withOverridesLock(async () => {
+    const overrides = await readOverridesFileUnsafe();
+    mutator(overrides);
+    await writeOverridesFileUnsafe(overrides);
+    return overrides;
+  });
+}
 
-  const overrides = await readProductOverrides();
-  const current = overrides[id] ?? {};
+function applyProductOverrideUpdates(
+  base: Product,
+  current: ProductOverride,
+  updates: ProductOverride & { clearInventory?: boolean }
+): ProductOverride {
   const next: ProductOverride = { ...current };
 
   if (updates.name !== undefined) next.name = updates.name.trim() || base.name;
@@ -195,7 +289,7 @@ export async function updateProductOverride(
     else delete next.hidden;
   }
   if (updates.category !== undefined) {
-    const category = updates.category.trim();
+    const category = normalizeProductCategorySlug(updates.category);
     if (category) next.category = category;
     else delete next.category;
   }
@@ -227,19 +321,37 @@ export async function updateProductOverride(
     else delete next.isNew;
   }
 
-  const cleaned = cleanOverrideForStorage(base, next);
+  return repairProductOverride(base, next);
+}
 
-  if (Object.keys(cleaned).length === 0) {
-    delete overrides[id];
-  } else {
-    overrides[id] = cleaned;
-  }
+export async function updateProductOverride(
+  id: string,
+  updates: ProductOverride & { clearInventory?: boolean }
+): Promise<Product | null> {
+  const base = baseProducts.find((product) => product.id === id);
+  if (!base) return null;
 
-  await writeProductOverrides(overrides);
-  return mergeProduct(base, overrides[id]);
+  let storedOverride: ProductOverride | undefined;
+
+  await mutateProductOverrides((overrides) => {
+    const current = overrides[id] ?? {};
+    const repaired = applyProductOverrideUpdates(base, current, updates);
+    const cleaned = cleanOverrideForStorage(base, repaired);
+
+    if (Object.keys(cleaned).length === 0) {
+      delete overrides[id];
+      storedOverride = undefined;
+    } else {
+      overrides[id] = cleaned;
+      storedOverride = cleaned;
+    }
+  });
+
+  return mergeProduct(base, storedOverride);
 }
 
 function cleanOverrideForStorage(base: Product, next: ProductOverride): ProductOverride {
+  const normalizedBaseCategory = normalizeProductCategorySlug(base.category);
   return Object.fromEntries(
     Object.entries(next).filter(([key, value]) => {
       if (value === undefined || value === '') return false;
@@ -248,6 +360,10 @@ function cleanOverrideForStorage(base: Product, next: ProductOverride): ProductO
       if (key === 'compareAtPrice') return typeof value === 'number' && value > 0;
       if (key === 'cost') return typeof value === 'number' && value > 0;
       if (key === 'inventory') return typeof value === 'number' && value >= 0;
+      if (key === 'category') {
+        const normalized = normalizeProductCategorySlug(String(value));
+        return normalized !== normalizedBaseCategory;
+      }
       if (key === 'optionGroups') {
         return JSON.stringify(value) !== JSON.stringify(getProductOptionGroups(base));
       }
@@ -255,7 +371,15 @@ function cleanOverrideForStorage(base: Product, next: ProductOverride): ProductO
         return JSON.stringify(value) !== JSON.stringify(getProductMedia(base));
       }
       if (key === 'images') {
-        return JSON.stringify(value) !== JSON.stringify(base.images ?? []);
+        const baseImages = getProductMedia(base)
+          .filter((item) => item.type === 'image')
+          .map((item) => item.url);
+        return JSON.stringify(value) !== JSON.stringify(baseImages);
+      }
+      if (key === 'image') {
+        const baseCover =
+          getProductMedia(base).find((item) => item.type === 'image')?.url ?? base.image ?? '';
+        return value !== baseCover;
       }
       const baseValue = base[key as keyof Product];
       return value !== baseValue;
@@ -265,11 +389,9 @@ function cleanOverrideForStorage(base: Product, next: ProductOverride): ProductO
 
 export async function setProductsHidden(ids: string[], hidden: boolean): Promise<number> {
   const uniqueIds = [...new Set(ids)];
-  const overrides = await readProductOverrides();
   const customProducts = await readCustomProducts();
   let updated = 0;
   let customChanged = false;
-  let overridesChanged = false;
 
   for (const id of uniqueIds) {
     if (isCustomProductId(id)) {
@@ -284,35 +406,37 @@ export async function setProductsHidden(ids: string[], hidden: boolean): Promise
       }
       customChanged = true;
       updated += 1;
-      continue;
     }
-
-    const base = baseProducts.find((product) => product.id === id);
-    if (!base) continue;
-
-    const merged = mergeProduct(base, overrides[id]);
-    if (isProductHidden(merged) === hidden) continue;
-
-    const next: ProductOverride = { ...(overrides[id] ?? {}) };
-    if (hidden) next.hidden = true;
-    else delete next.hidden;
-
-    const cleaned = cleanOverrideForStorage(base, next);
-    if (Object.keys(cleaned).length === 0) {
-      delete overrides[id];
-    } else {
-      overrides[id] = cleaned;
-    }
-    overridesChanged = true;
-    updated += 1;
   }
 
   if (customChanged) {
     const { writeCustomProducts } = await import('@/lib/customProducts');
     await writeCustomProducts(customProducts);
   }
-  if (overridesChanged) {
-    await writeProductOverrides(overrides);
+
+  const catalogIds = uniqueIds.filter((id) => !isCustomProductId(id));
+  if (catalogIds.length > 0) {
+    await mutateProductOverrides((overrides) => {
+      for (const id of catalogIds) {
+        const base = baseProducts.find((product) => product.id === id);
+        if (!base) continue;
+
+        const merged = mergeProduct(base, overrides[id]);
+        if (isProductHidden(merged) === hidden) continue;
+
+        const next = repairProductOverride(base, { ...(overrides[id] ?? {}) });
+        if (hidden) next.hidden = true;
+        else delete next.hidden;
+
+        const cleaned = cleanOverrideForStorage(base, next);
+        if (Object.keys(cleaned).length === 0) {
+          delete overrides[id];
+        } else {
+          overrides[id] = cleaned;
+        }
+        updated += 1;
+      }
+    });
   }
 
   return updated;
@@ -351,8 +475,12 @@ export async function getAdminProducts(): Promise<
   const overrides = await readProductOverrides();
   const baseAdmin = baseProducts.map((base) => {
     const merged = mergeProduct(base, overrides[base.id]);
+    const syncedMedia = syncProductMediaFields(getProductMedia(merged));
     return {
       ...merged,
+      media: syncedMedia.media,
+      image: syncedMedia.image || merged.image,
+      images: syncedMedia.images ?? merged.images,
       hidden: isProductHidden(merged),
       hasOverride: !!overrides[base.id],
       basePrice: base.price,

@@ -23,6 +23,7 @@ import {
   getSubsectionLabel,
   getSubsectionsForProductCategory,
   mergeShopNavigation,
+  normalizeProductCategorySlug,
   productCategoryToAdminTab,
   productMatchesAdminCategoryTab,
   type AdminProductCategoryTabId,
@@ -215,7 +216,10 @@ export default function ProductsTab() {
   const filteredProducts = useMemo(() => {
     const q = search.toLowerCase().trim();
     return products
-      .filter((product) => productMatchesAdminCategoryTab(product, categoryTab))
+      .filter((product) => {
+        const draft = buildProductDraft(product, edits);
+        return productMatchesAdminCategoryTab({ category: draft.category }, categoryTab);
+      })
       .filter((product) => {
         if (categoryTab !== 'merch' || merchTypeFilter === 'all') return true;
         const draft = buildProductDraft(product, edits);
@@ -471,19 +475,20 @@ export default function ProductsTab() {
 
   const handleCategoryChange = async (product: AdminProduct, category: string) => {
     const draft = getDraft(product);
-    if (category === draft.category) return;
+    const normalizedCategory = normalizeProductCategorySlug(category);
+    if (!normalizedCategory || normalizedCategory === draft.category) return;
 
-    const isMerch = category === 'merch';
+    const isMerch = normalizedCategory === 'merch';
     const saved = await scheduleProductPersist(
       product.id,
       {
-        category,
+        category: normalizedCategory,
         subcategory: '',
         merchSubcategory: isMerch ? product.merchSubcategory ?? '' : '',
       },
       {
         optimisticEdits: {
-          category,
+          category: normalizedCategory,
           subcategory: '',
           merchSubcategory: isMerch ? product.merchSubcategory ?? '' : '',
         },
@@ -492,12 +497,14 @@ export default function ProductsTab() {
     );
 
     if (saved) {
-      const tabForCategory = productCategoryToAdminTab(category);
+      const tabForCategory = productCategoryToAdminTab(normalizedCategory);
       if (categoryTab !== 'all' && categoryTab !== tabForCategory) {
         setCategoryTab(tabForCategory);
       }
       setSelectedId(product.id);
-      setMessage(`Moved ${product.name} to ${getProductCategoryLabel(siteContent.shopNavigation, category)}`);
+      setMessage(
+        `Moved ${product.name} to ${getProductCategoryLabel(siteContent.shopNavigation, normalizedCategory)}`
+      );
     } else {
       clearDraftFields(product.id, ['category', 'subcategory', 'merchSubcategory']);
     }
@@ -727,21 +734,17 @@ export default function ProductsTab() {
     setTogglingVisibilityId(product.id);
     setMessage('');
     try {
-      const res = await adminFetch('/api/admin/products', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: product.id, hidden: nextHidden }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMessage(nextHidden ? `Hidden ${product.name}` : `Unhidden ${product.name}`);
-        if (data.product) {
-          mergeProductIntoList(data.product);
-        } else {
-          mergeProductIntoList({ ...product, hidden: nextHidden });
+      const saved = await scheduleProductPersist(
+        product.id,
+        { hidden: nextHidden },
+        {
+          optimisticEdits: { hidden: nextHidden },
         }
+      );
+      if (saved) {
+        setMessage(nextHidden ? `Hidden ${product.name}` : `Unhidden ${product.name}`);
       } else {
-        setMessage(data.error || 'Failed to update visibility');
+        setMessage('Failed to update visibility');
       }
     } catch {
       setMessage('Failed to update visibility');
