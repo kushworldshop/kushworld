@@ -506,6 +506,7 @@ export default function ProductsTab() {
             (data.updated ?? targets.length) === 1 ? '' : 's'
           }`
         );
+        clearChecked();
         await loadProducts();
       } else {
         setMessage(data.error || `Failed to ${action} products`);
@@ -861,13 +862,15 @@ export default function ProductsTab() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedProduct, edits, dirtyIds.length]);
 
+  const selectionIndeterminate = checkedIds.length > 0 && !allFilteredChecked;
+
   return (
-    <div className="mb-10">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div className="mb-10 flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Products</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Pick a product · edit in tabs · press Ctrl+S to save
+          <h2 className="text-2xl font-bold">Products</h2>
+          <p className="text-sm text-zinc-500 mt-1">
+            Select products to hide or unhide in bulk · Ctrl+S saves edits
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -885,54 +888,92 @@ export default function ProductsTab() {
             disabled={loading || bulkVisibility !== null || bulkGrokProgress !== null}
             className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            {loading ? '...' : 'Refresh'}
+            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
           <button
             type="button"
             onClick={() => setShowBulkActions((open) => !open)}
             className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-medium"
           >
-            {showBulkActions ? 'Less' : 'Bulk actions'}
+            {showBulkActions ? 'Hide tools' : 'More tools'}
           </button>
         </div>
       </div>
 
       {message && (
-        <p className="text-sm text-[#00ff9d] mb-3 px-1">{message}</p>
+        <div className="rounded-xl border border-[#00ff9d]/30 bg-[#00ff9d]/10 px-4 py-2.5 text-sm text-[#00ff9d]">
+          {message}
+        </div>
       )}
 
-      {showBulkActions && (
-        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-xl border border-zinc-800 bg-zinc-950/80">
-          {usingSelection && (
-            <span className="text-xs text-zinc-400 mr-1">
-              {checkedIds.length} selected
-              <button
-                type="button"
-                onClick={clearChecked}
-                className="ml-2 text-zinc-500 hover:text-white underline"
-              >
-                Clear
-              </button>
+      <div className="rounded-2xl border border-zinc-700 bg-zinc-900 p-3 sm:p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={allFilteredChecked && filteredProducts.length > 0}
+              ref={(element) => {
+                if (element) element.indeterminate = selectionIndeterminate;
+              }}
+              onChange={toggleCheckAllFiltered}
+              disabled={loading || filteredProducts.length === 0}
+              className="w-4 h-4 accent-[#00ff9d] cursor-pointer disabled:opacity-40"
+            />
+            <span className="text-sm font-medium">
+              {allFilteredChecked && filteredProducts.length > 0
+                ? `All ${filteredProducts.length} selected`
+                : checkedIds.length > 0
+                  ? `${checkedIds.length} selected`
+                  : 'Select products'}
             </span>
+          </label>
+
+          {checkedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={clearChecked}
+              className="text-xs text-zinc-400 hover:text-white underline"
+            >
+              Clear selection
+            </button>
           )}
-          <button
-            onClick={() => setBulkVisibilityForFiltered(true)}
-            disabled={loading || bulkVisibility !== null || bulkDeleting || hideableBulkCount === 0}
-            className="bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
-          >
-            {bulkVisibility === 'hide'
-              ? 'Hiding...'
-              : `${usingSelection ? 'Hide selected' : 'Hide all'} (${hideableBulkCount})`}
-          </button>
-          <button
-            onClick={() => setBulkVisibilityForFiltered(false)}
-            disabled={loading || bulkVisibility !== null || bulkDeleting || unhideableBulkCount === 0}
-            className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
-          >
-            {bulkVisibility === 'unhide'
-              ? 'Unhiding...'
-              : `${usingSelection ? 'Unhide selected' : 'Unhide all'} (${unhideableBulkCount})`}
-          </button>
+
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <button
+              onClick={() => setBulkVisibilityForFiltered(true)}
+              disabled={loading || bulkVisibility !== null || bulkDeleting || hideableBulkCount === 0}
+              className="bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 border border-amber-500/30 px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-40"
+            >
+              {bulkVisibility === 'hide'
+                ? 'Hiding...'
+                : usingSelection
+                  ? `Hide selected (${hideableBulkCount})`
+                  : `Hide all visible (${hideableBulkCount})`}
+            </button>
+            <button
+              onClick={() => setBulkVisibilityForFiltered(false)}
+              disabled={loading || bulkVisibility !== null || bulkDeleting || unhideableBulkCount === 0}
+              className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 py-2 rounded-lg text-xs font-medium disabled:opacity-40"
+            >
+              {bulkVisibility === 'unhide'
+                ? 'Unhiding...'
+                : usingSelection
+                  ? `Unhide selected (${unhideableBulkCount})`
+                  : `Unhide all hidden (${unhideableBulkCount})`}
+            </button>
+          </div>
+        </div>
+
+        <p className="text-[11px] text-zinc-500 mt-2">
+          {usingSelection
+            ? 'Actions apply to checked products only.'
+            : 'No checkboxes selected — hide/unhide applies to the current filtered list.'}
+        </p>
+      </div>
+
+      {showBulkActions && (
+        <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border border-zinc-800 bg-zinc-950/80">
+          <span className="text-xs text-zinc-500 mr-1">Advanced</span>
           <button
             onClick={deleteSelectedProducts}
             disabled={
@@ -1060,19 +1101,19 @@ export default function ProductsTab() {
         )}
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(260px,300px)_1fr] gap-4 h-[calc(100vh-11rem)] min-h-[520px]">
-        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3 flex flex-col min-h-0">
-          <div className="flex gap-2 mb-2">
+      <div className="grid lg:grid-cols-[minmax(280px,340px)_1fr] gap-4 min-h-[520px] lg:h-[min(760px,calc(100dvh-20rem))]">
+        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-3 flex flex-col min-h-0 lg:max-h-full">
+          <div className="flex gap-2 mb-3">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+              placeholder="Search name, id, category..."
+              className="flex-1 bg-black border border-zinc-700 rounded-lg px-3 py-2.5 text-sm"
             />
             <select
               value={visibilityFilter}
               onChange={(e) => setVisibilityFilter(e.target.value as 'all' | 'visible' | 'hidden')}
-              className="bg-black border border-zinc-700 rounded-lg px-2 py-2 text-xs max-w-[7rem]"
+              className="bg-black border border-zinc-700 rounded-lg px-2.5 py-2.5 text-xs min-w-[6.5rem]"
               title="Visibility filter"
             >
               <option value="all">All</option>
@@ -1082,42 +1123,31 @@ export default function ProductsTab() {
           </div>
 
           <div className="flex items-center justify-between gap-2 mb-2 px-0.5">
-            <p className="text-[11px] text-zinc-500">
-              {loading ? 'Loading...' : `${filteredProducts.length} products`}
-              {checkedIds.length > 0 && (
-                <span className="text-[#00ff9d] ml-1">· {checkedIds.length} checked</span>
-              )}
+            <p className="text-xs text-zinc-500">
+              {loading ? 'Loading...' : `${filteredProducts.length} in list`}
               {dirtyIds.length > 0 && <span className="text-amber-300 ml-1">· {dirtyIds.length} unsaved</span>}
             </p>
-            {!loading && filteredProducts.length > 0 && (
-              <button
-                type="button"
-                onClick={toggleCheckAllFiltered}
-                className="text-[11px] text-[#00ff9d] hover:underline whitespace-nowrap"
-              >
-                {allFilteredChecked ? 'Uncheck all' : 'Check all'}
-              </button>
-            )}
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-1 pr-0.5">
+          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-[240px]">
             {filteredProducts.map((product) => {
               const draft = getDraft(product);
               const dirty = !!edits[product.id];
               const active = product.id === selectedId;
               const checked = checkedIds.includes(product.id);
+              const thumbUrl = getProductCoverUrl({ image: draft.image, media: draft.media });
 
               return (
                 <div
                   key={product.id}
-                  className={`w-full rounded-xl border px-2 py-2 flex items-center gap-2 transition ${
+                  className={`w-full rounded-xl border px-2.5 py-2 flex items-center gap-2.5 transition ${
                     active
-                      ? 'border-[#00ff9d] bg-[#00ff9d]/10'
+                      ? 'border-[#00ff9d] bg-[#00ff9d]/10 shadow-[0_0_0_1px_rgba(0,255,157,0.15)]'
                       : checked
-                        ? 'border-[#00ff9d]/40 bg-[#00ff9d]/5'
+                        ? 'border-[#00ff9d]/50 bg-[#00ff9d]/5'
                         : product.hidden
-                          ? 'border-zinc-800/80 bg-black/20 opacity-75 hover:border-zinc-600'
-                          : 'border-transparent bg-black/30 hover:border-zinc-700 hover:bg-black/50'
+                          ? 'border-amber-500/20 bg-amber-500/5 hover:border-amber-500/35'
+                          : 'border-zinc-800 bg-black/30 hover:border-zinc-600 hover:bg-black/50'
                   }`}
                 >
                   <input
@@ -1131,17 +1161,23 @@ export default function ProductsTab() {
                   <button
                     type="button"
                     onClick={() => setSelectedId(product.id)}
-                    className="min-w-0 flex-1 flex items-center gap-2.5 text-left"
+                    className="min-w-0 flex-1 flex items-center gap-3 text-left"
                   >
-                    <div className="image-hover-zoom image-hover-zoom-sm w-10 h-10 rounded-lg border border-zinc-700 flex-shrink-0 bg-black">
+                    <div className="image-hover-zoom image-hover-zoom-sm w-11 h-11 rounded-lg border border-zinc-700 flex-shrink-0 bg-black overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={draft.image} alt="" className="w-full h-full object-cover" />
+                      <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-sm truncate">{draft.name}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="font-medium text-sm truncate">{draft.name}</p>
+                        {product.hidden && (
+                          <span className="flex-shrink-0 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                            Hidden
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-zinc-500 truncate">
                         ${draft.price}
-                        {product.hidden && <span className="text-amber-400 ml-1">· Hidden</span>}
                         {product.isCustom && <span className="text-zinc-600 ml-1">· Custom</span>}
                       </p>
                     </div>
@@ -1158,7 +1194,7 @@ export default function ProductsTab() {
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl min-h-0 flex flex-col overflow-hidden">
+        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl min-h-[420px] lg:min-h-0 lg:max-h-full flex flex-col overflow-hidden">
           {!selectedProduct ? (
             <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
               Select a product to edit
@@ -1409,47 +1445,65 @@ function ProductDetailPanel({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex-shrink-0 px-4 py-3 border-b border-zinc-800 flex items-center gap-3 bg-zinc-900/95">
-        <div className="image-hover-zoom image-hover-zoom-sm w-11 h-11 rounded-lg border border-zinc-700 bg-black flex-shrink-0">
-          {draft.media.some((item) => item.url === coverUrl && item.type === 'video') ? (
-            <video src={coverUrl} className="w-full h-full object-cover" muted playsInline preload="metadata" />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverUrl} alt="" className="w-full h-full object-cover" />
-          )}
+      <div className="flex-shrink-0 px-4 py-3 border-b border-zinc-800 bg-zinc-900/95">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="image-hover-zoom image-hover-zoom-sm w-12 h-12 rounded-lg border border-zinc-700 bg-black flex-shrink-0 overflow-hidden">
+            {draft.media.some((item) => item.url === coverUrl && item.type === 'video') ? (
+              <video src={coverUrl} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold text-base truncate">{draft.name}</p>
+              {product.hidden && (
+                <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                  Hidden from shop
+                </span>
+              )}
+              {dirty && (
+                <span className="text-[10px] text-amber-300 font-medium px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                  Unsaved
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-zinc-500 truncate mt-0.5">
+              ${draft.price} · {getProductCategoryLabel(siteContent.shopNavigation, draft.category)}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+            <button
+              type="button"
+              onClick={onDiscard}
+              disabled={!dirty || saving}
+              className="text-xs px-3 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={onToggleVisibility}
+              disabled={togglingVisibility}
+              className={`text-xs px-3 py-2 rounded-lg border disabled:opacity-50 ${
+                product.hidden
+                  ? 'bg-amber-500/10 text-amber-200 border-amber-500/30 hover:bg-amber-500/20'
+                  : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700'
+              }`}
+            >
+              {togglingVisibility ? 'Updating...' : product.hidden ? 'Unhide product' : 'Hide product'}
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              className="text-sm px-4 py-2 rounded-lg bg-[#00ff9d] text-black font-semibold disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save changes'}
+            </button>
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-sm truncate">{draft.name}</p>
-          <p className="text-[11px] text-zinc-500 truncate">
-            ${draft.price} · {getProductCategoryLabel(siteContent.shopNavigation, draft.category)}
-            {product.hidden && <span className="text-amber-400 ml-1">· Hidden</span>}
-          </p>
-        </div>
-        {dirty && <span className="text-[10px] text-amber-300 font-medium">Unsaved</span>}
-        <button
-          type="button"
-          onClick={onDiscard}
-          disabled={!dirty || saving}
-          className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40"
-        >
-          Discard
-        </button>
-        <button
-          type="button"
-          onClick={onToggleVisibility}
-          disabled={togglingVisibility}
-          className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
-        >
-          {togglingVisibility ? '...' : product.hidden ? 'Unhide' : 'Hide'}
-        </button>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={saving}
-          className="text-sm px-4 py-1.5 rounded-lg bg-[#00ff9d] text-black font-semibold disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
       </div>
 
       <div className="flex-shrink-0 px-4 pt-3">
