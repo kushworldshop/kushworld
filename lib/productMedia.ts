@@ -100,3 +100,23 @@ export function removeProductMedia(
 ): ReturnType<typeof syncProductMediaFields> {
   return syncProductMediaFields(getProductMedia(product).filter((item) => item.url !== url));
 }
+
+export function reorderProductMedia(
+  media: ProductMediaItem[],
+  fromIndex: number,
+  toIndex: number
+): ProductMediaItem[] {
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= media.length ||
+    toIndex >= media.length
+  ) {
+    return media;
+  }
+  const next = [...media];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+}

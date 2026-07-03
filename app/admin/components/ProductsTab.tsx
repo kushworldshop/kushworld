@@ -36,6 +36,7 @@ import {
   getProductMedia,
   normalizeProductMedia,
   removeProductMedia,
+  reorderProductMedia,
   setProductCoverMedia,
   syncProductMediaFields,
   type ProductMediaItem,
@@ -1294,6 +1295,8 @@ function ProductDetailPanel({
   const [creatingSubsection, setCreatingSubsection] = useState(false);
   const [newSubsectionName, setNewSubsectionName] = useState('');
   const [showNewSubsection, setShowNewSubsection] = useState(false);
+  const [draggingMediaIndex, setDraggingMediaIndex] = useState<number | null>(null);
+  const [dragOverMediaIndex, setDragOverMediaIndex] = useState<number | null>(null);
   const margin = getProductMargin(draft.price, draft.cost > 0 ? draft.cost : undefined);
   const selectedTone = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === descriptionTone);
   const coverUrl = getProductCoverUrl({ image: draft.image, media: draft.media });
@@ -1302,7 +1305,15 @@ function ProductDetailPanel({
     setEditorTab('basics');
     setShowNewSubsection(false);
     setNewSubsectionName('');
+    setDraggingMediaIndex(null);
+    setDragOverMediaIndex(null);
   }, [product.id]);
+
+  const handleMediaReorder = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    const reordered = reorderProductMedia(draft.media, fromIndex, toIndex);
+    onMediaChange(syncProductMediaFields(reordered).media);
+  };
 
   const generateDescription = async () => {
     if (!grokEnabled) {
@@ -1521,18 +1532,60 @@ function ProductDetailPanel({
         {editorTab === 'media' && (
           <div className="max-w-2xl">
             <p className="text-[11px] text-zinc-500 mb-3">
-              First image = shop thumbnail. Gallery changes save immediately.
+              Drag photos to reorder. First image = shop thumbnail. Gallery changes save immediately.
             </p>
             {draft.media.length > 0 && (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
                 {draft.media.map((item, index) => {
                   const isCover = item.url === coverUrl;
+                  const isDragging = draggingMediaIndex === index;
+                  const isDragOver = dragOverMediaIndex === index && draggingMediaIndex !== index;
+                  const mediaLocked = saving || uploadingImage;
                   return (
                     <div
                       key={item.url}
-                      className={`rounded-lg overflow-hidden border ${isCover ? 'border-[#00ff9d]' : 'border-zinc-700'}`}
+                      draggable={!mediaLocked && draft.media.length > 1}
+                      onDragStart={(event) => {
+                        if (mediaLocked || draft.media.length <= 1) return;
+                        setDraggingMediaIndex(index);
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', String(index));
+                      }}
+                      onDragOver={(event) => {
+                        if (draggingMediaIndex === null || mediaLocked) return;
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = 'move';
+                        setDragOverMediaIndex(index);
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const fromIndex =
+                          draggingMediaIndex ?? Number(event.dataTransfer.getData('text/plain'));
+                        handleMediaReorder(fromIndex, index);
+                        setDraggingMediaIndex(null);
+                        setDragOverMediaIndex(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggingMediaIndex(null);
+                        setDragOverMediaIndex(null);
+                      }}
+                      className={`rounded-lg overflow-hidden border transition-all ${
+                        isCover ? 'border-[#00ff9d]' : 'border-zinc-700'
+                      } ${isDragging ? 'opacity-40 scale-95' : ''} ${
+                        isDragOver ? 'ring-2 ring-[#00ff9d] ring-offset-2 ring-offset-zinc-950' : ''
+                      } ${!mediaLocked && draft.media.length > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     >
-                      <div className="image-hover-zoom relative aspect-square bg-black">
+                      {!mediaLocked && draft.media.length > 1 && (
+                        <div
+                          className="flex items-center justify-center gap-0.5 py-1 bg-zinc-900 border-b border-zinc-800 text-zinc-500"
+                          aria-hidden="true"
+                        >
+                          <span className="w-1 h-1 rounded-full bg-current" />
+                          <span className="w-1 h-1 rounded-full bg-current" />
+                          <span className="w-1 h-1 rounded-full bg-current" />
+                        </div>
+                      )}
+                      <div className="image-hover-zoom relative aspect-square bg-black pointer-events-none">
                         <ProductMediaPreview
                           item={item}
                           alt={`${draft.name} ${index + 1}`}
@@ -1545,7 +1598,8 @@ function ProductDetailPanel({
                         {!isCover && (
                           <button
                             type="button"
-                            disabled={saving || uploadingImage}
+                            draggable={false}
+                            disabled={mediaLocked}
                             onClick={() =>
                               onMediaChange(
                                 setProductCoverMedia({ image: draft.image, media: draft.media }, item.url).media
@@ -1558,7 +1612,8 @@ function ProductDetailPanel({
                         )}
                         <button
                           type="button"
-                          disabled={saving || uploadingImage}
+                          draggable={false}
+                          disabled={mediaLocked}
                           onClick={() =>
                             onMediaChange(removeProductMedia({ image: draft.image, media: draft.media }, item.url).media)
                           }
