@@ -36,9 +36,39 @@ export interface Product {
   hidden?: boolean;
 }
 
+function slugifyProductName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function slugFromImagePath(image: string): string {
+  const trimmed = image.trim();
+  if (!trimmed) return '';
+  const withoutExt = trimmed.replace(/\.[^.]+$/, '');
+  if (withoutExt.startsWith('/products/')) {
+    const relative = withoutExt.slice('/products/'.length);
+    if (relative && !relative.includes('/')) return relative;
+  }
+  return '';
+}
+
+/** Stable slug for a catalog (non-custom) product — never changes when cover image is re-uploaded. */
+export function getCatalogProductSlug(product: Pick<Product, 'id' | 'name' | 'image' | 'slug'>): string {
+  if (product.slug) return product.slug;
+  const fromImage = slugFromImagePath(product.image);
+  if (fromImage) return fromImage;
+  return slugifyProductName(product.name);
+}
+
 export function getProductSlug(product: Product): string {
   if (product.slug) return product.slug;
-  return product.image.replace(/^\/products\//, '').replace(/\.[^.]+$/, '');
+  const base = products.find((item) => item.id === product.id);
+  if (base) return getCatalogProductSlug(base);
+  const fromImage = slugFromImagePath(product.image);
+  if (fromImage) return fromImage;
+  return slugifyProductName(product.name);
 }
 
 export function getProductBySlug(slug: string): Product | undefined {
