@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type DragEvent,
@@ -323,8 +324,26 @@ export default function ProductsTab() {
 
   const getDraft = (product: AdminProduct) => buildProductDraft(product, edits);
 
+  type PersistAccumulator = {
+    patch: Record<string, unknown>;
+    clearFields: Array<keyof AdminProduct | 'trackInventory'>;
+  };
+
+  const persistAccumulatorRef = useRef<Record<string, PersistAccumulator>>({});
+  const persistDrainingRef = useRef<Record<string, boolean>>({});
+
   const mergeProductIntoList = (updated: AdminProduct) => {
     setProducts((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+  };
+
+  const applyOptimisticEdits = (id: string, optimistic: Partial<AdminProduct>) => {
+    setEdits((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        ...optimistic,
+      },
+    }));
   };
 
   const clearMediaEdits = (id: string) => {
@@ -363,57 +382,113 @@ export default function ProductsTab() {
     });
   };
 
-  const persistProductPatch = async (
-    product: AdminProduct,
-    patch: Record<string, unknown>,
-    fieldsToClear: Array<keyof AdminProduct | 'trackInventory'> = []
-  ): Promise<boolean> => {
-    setSavingId(product.id);
-    setMessage('');
-    try {
-      const res = await adminFetch('/api/admin/products', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: product.id, ...patch }),
-      });
-      const data = await res.json();
-      if (data.success && data.product) {
-        mergeProductIntoList(data.product);
-        if (fieldsToClear.length > 0) {
-          clearDraftFields(product.id, fieldsToClear);
-        }
-        return true;
-      }
-      setMessage(data.error || 'Failed to update product');
-      return false;
-    } catch {
-      setMessage('Failed to update product');
-      return false;
-    } finally {
-      setSavingId(null);
-    }
+  const hasPendingPersist = (productId: string) => {
+    const accumulated = persistAccumulatorRef.current[productId];
+    return !!accumulated && Object.keys(accumulated.patch).length > 0;
   };
 
-  const handleCategoryChange = async (product: AdminProduct, category: string) => {
-    const isMerch = category === 'merch';
-    setEdits((prev) => ({
-      ...prev,
-      [product.id]: {
-        ...prev[product.id],
-        category,
-        subcategory: '',
-        merchSubcategory: isMerch ? prev[product.id]?.merchSubcategory ?? product.merchSubcategory ?? '' : '',
-      },
-    }));
+  const drainProductPersist = async (productId: string): Promise<boolean> => {
+    if (persistDrainingRef.current[productId]) {
+      await new Promise<void>((resolve) => {
+        const waitForDrain = () => {
+          if (!persistDrainingRef.current[productId]) {
+            resolve();
+            return;
+          }
+          window.setTimeout(waitForDrain, 40);
+        };
+        waitForDrain();
+      });
+      if (hasPendingPersist(productId)) {
+        return drainProductPersist(productId);
+      }
+      return true;
+    }
 
-    const saved = await persistProductPatch(
-      product,
+    persistDrainingRef.current[productId] = true;
+    setSavingId(productId);
+    let lastSuccess = true;
+
+    try {
+      while (hasPendingPersist(productId)) {
+        const accumulated = persistAccumulatorRef.current[productId];
+        if (!accumulated || Object.keys(accumulated.patch).length === 0) break;
+
+        persistAccumulatorRef.current[productId] = { patch: {}, clearFields: [] };
+        const { patch, clearFields } = accumulated;
+
+        try {
+          const res = await adminFetch('/api/admin/products', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: productId, ...patch }),
+          });
+          const data = await res.json();
+          if (data.success && data.product) {
+            mergeProductIntoList(data.product);
+            if (clearFields.length > 0) {
+              clearDraftFields(productId, clearFields);
+            }
+          } else {
+            setMessage(data.error || 'Failed to update product');
+            lastSuccess = false;
+          }
+        } catch {
+          setMessage('Failed to update product');
+          lastSuccess = false;
+        }
+      }
+    } finally {
+      persistDrainingRef.current[productId] = false;
+      setSavingId((current) => (current === productId ? null : current));
+    }
+
+    return lastSuccess;
+  };
+
+  const scheduleProductPersist = (
+    productId: string,
+    patch: Record<string, unknown>,
+    options?: {
+      optimisticEdits?: Partial<AdminProduct>;
+      clearFields?: Array<keyof AdminProduct | 'trackInventory'>;
+    }
+  ) => {
+    if (options?.optimisticEdits) {
+      applyOptimisticEdits(productId, options.optimisticEdits);
+    }
+
+    const current = persistAccumulatorRef.current[productId] ?? { patch: {}, clearFields: [] };
+    persistAccumulatorRef.current[productId] = {
+      patch: { ...current.patch, ...patch },
+      clearFields: [...new Set([...current.clearFields, ...(options?.clearFields ?? [])])],
+    };
+
+    return drainProductPersist(productId);
+  };
+
+  const flushProductPersist = (productId: string) => drainProductPersist(productId);
+
+  const handleCategoryChange = async (product: AdminProduct, category: string) => {
+    const draft = getDraft(product);
+    if (category === draft.category) return;
+
+    const isMerch = category === 'merch';
+    const saved = await scheduleProductPersist(
+      product.id,
       {
         category,
         subcategory: '',
         merchSubcategory: isMerch ? product.merchSubcategory ?? '' : '',
       },
-      ['category', 'subcategory', 'merchSubcategory']
+      {
+        optimisticEdits: {
+          category,
+          subcategory: '',
+          merchSubcategory: isMerch ? product.merchSubcategory ?? '' : '',
+        },
+        clearFields: ['category', 'subcategory', 'merchSubcategory'],
+      }
     );
 
     if (saved) {
@@ -423,51 +498,28 @@ export default function ProductsTab() {
       }
       setSelectedId(product.id);
       setMessage(`Moved ${product.name} to ${getProductCategoryLabel(siteContent.shopNavigation, category)}`);
+    } else {
+      clearDraftFields(product.id, ['category', 'subcategory', 'merchSubcategory']);
     }
   };
 
-  const persistProductMedia = async (product: AdminProduct, media: ProductMediaItem[]) => {
+  const handleMediaChange = (product: AdminProduct, media: ProductMediaItem[]) => {
     const synced = syncProductMediaFields(media);
-    setSavingId(product.id);
-    setMessage('');
-    try {
-      const res = await adminFetch('/api/admin/products', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: product.id,
-          image: synced.image,
-          images: synced.images ?? [],
-          media: synced.media,
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.product) {
-        mergeProductIntoList(data.product);
-        clearMediaEdits(product.id);
-        return true;
-      }
-      setMessage(data.error || 'Failed to update gallery');
-      return false;
-    } catch {
-      setMessage('Failed to update gallery');
-      return false;
-    } finally {
-      setSavingId(null);
-    }
-  };
-
-  const handleMediaChange = async (product: AdminProduct, media: ProductMediaItem[]) => {
-    const synced = syncProductMediaFields(media);
-    setEdits((prev) => ({
-      ...prev,
-      [product.id]: {
-        ...prev[product.id],
-        media: synced.media,
+    void scheduleProductPersist(
+      product.id,
+      {
         image: synced.image,
+        images: synced.images ?? [],
+        media: synced.media,
       },
-    }));
-    await persistProductMedia(product, synced.media);
+      {
+        optimisticEdits: {
+          media: synced.media,
+          image: synced.image,
+        },
+        clearFields: ['media', 'image', 'images'],
+      }
+    );
   };
 
   const updateDraft = (
@@ -497,6 +549,7 @@ export default function ProductsTab() {
   };
 
   const saveProduct = async (product: AdminProduct) => {
+    await flushProductPersist(product.id);
     const draft = getDraft(product);
     setSavingId(product.id);
     setMessage('');
@@ -510,7 +563,11 @@ export default function ProductsTab() {
       if (data.success) {
         setMessage(`Saved ${draft.name}`);
         clearEdits(product.id);
-        await loadProducts();
+        if (data.product) {
+          mergeProductIntoList(data.product);
+        } else {
+          await loadProducts();
+        }
         setSelectedId(product.id);
         const tabForCategory = productCategoryToAdminTab(draft.category);
         if (categoryTab !== 'all' && categoryTab !== tabForCategory) {
@@ -678,7 +735,11 @@ export default function ProductsTab() {
       const data = await res.json();
       if (data.success) {
         setMessage(nextHidden ? `Hidden ${product.name}` : `Unhidden ${product.name}`);
-        await loadProducts();
+        if (data.product) {
+          mergeProductIntoList(data.product);
+        } else {
+          mergeProductIntoList({ ...product, hidden: nextHidden });
+        }
       } else {
         setMessage(data.error || 'Failed to update visibility');
       }
@@ -867,7 +928,14 @@ export default function ProductsTab() {
       }
     }
 
-    clearMediaEdits(product.id);
+    const synced = syncProductMediaFields(workingMedia);
+    applyOptimisticEdits(product.id, {
+      media: synced.media,
+      image: synced.image,
+    });
+    if (!hasPendingPersist(product.id)) {
+      clearMediaEdits(product.id);
+    }
 
     if (failed === 0) {
       setMessage(`Added ${uploaded} file${uploaded === 1 ? '' : 's'} to ${product.name}`);
