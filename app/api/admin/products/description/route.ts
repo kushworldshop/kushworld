@@ -36,6 +36,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid product data' }, { status: 400 });
     }
 
+    const media = Array.isArray(body.media)
+      ? body.media.filter((value: unknown): value is { type: 'image' | 'video'; url: string } => {
+          if (!value || typeof value !== 'object') return false;
+          const item = value as { type?: unknown; url?: unknown };
+          return (
+            (item.type === 'image' || item.type === 'video') && typeof item.url === 'string'
+          );
+        })
+      : undefined;
+
     const result = await generateProductDescriptionWithGrok({
       productId,
       name,
@@ -44,6 +54,7 @@ export async function POST(request: NextRequest) {
       merchSubcategory: typeof body.merchSubcategory === 'string' ? body.merchSubcategory : undefined,
       price,
       image: typeof body.image === 'string' ? body.image : undefined,
+      media,
       existingDescription: typeof body.existingDescription === 'string' ? body.existingDescription : undefined,
       tone: body.tone,
     });
@@ -52,7 +63,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, description: result.description });
+    return NextResponse.json({
+      success: true,
+      description: result.description,
+      suggestedName: result.suggestedName,
+      suggestedOptionGroups: result.suggestedOptionGroups,
+      insights: result.insights,
+    });
   } catch (error) {
     console.error('Grok product description error:', error);
     return NextResponse.json({ success: false, error: 'Failed to generate description' }, { status: 500 });

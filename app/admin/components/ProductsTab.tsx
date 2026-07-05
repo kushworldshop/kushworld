@@ -574,6 +574,16 @@ export default function ProductsTab() {
     });
   };
 
+  const applyDraftPatch = (id: string, patch: ProductEditPatch) => {
+    setEdits((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        ...patch,
+      },
+    }));
+  };
+
   const clearEdits = (id: string) => {
     setEdits((prev) => {
       const next = { ...prev };
@@ -784,7 +794,16 @@ export default function ProductsTab() {
     product: AdminProduct,
     draft: ProductDraft,
     tone: ProductDescriptionTone
-  ): Promise<{ success: true; description: string } | { success: false; error: string }> => {
+  ): Promise<
+    | {
+        success: true;
+        description: string;
+        suggestedName?: string;
+        suggestedOptionGroups?: ProductOptionGroup[];
+        insights?: string;
+      }
+    | { success: false; error: string }
+  > => {
     const res = await adminFetch('/api/admin/products/description', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -796,6 +815,7 @@ export default function ProductsTab() {
         merchSubcategory: draft.merchSubcategory,
         price: draft.price,
         image: draft.image || getProductCoverUrl({ image: draft.image, media: draft.media }),
+        media: draft.media,
         existingDescription: draft.description,
         tone,
       }),
@@ -804,7 +824,13 @@ export default function ProductsTab() {
     if (!data.success) {
       return { success: false, error: data.error || 'Failed to generate description' };
     }
-    return { success: true, description: data.description };
+    return {
+      success: true,
+      description: data.description,
+      suggestedName: data.suggestedName,
+      suggestedOptionGroups: data.suggestedOptionGroups,
+      insights: data.insights,
+    };
   };
 
   const grokAllFilteredDescriptions = async () => {
@@ -825,7 +851,7 @@ export default function ProductsTab() {
         ? `\n\n${flowerCount} flower product${flowerCount === 1 ? '' : 's'} will include strain research from photos + public databases.`
         : '';
     const confirmed = window.confirm(
-      `Write SEO descriptions for ${targets.length} product${targets.length === 1 ? '' : 's'} (${bulkVisibilityLabel}) using ${toneLabel} tone?${strainNote}\n\nDescriptions load as drafts — review and use Save all when ready.`
+      `Analyze photos and write listings for ${targets.length} product${targets.length === 1 ? '' : 's'} (${bulkVisibilityLabel}) using ${toneLabel} tone?${strainNote}\n\nGrok will read uploaded photos and may draft names, flavors/variants, and descriptions as unsaved edits — review and Save all when ready.`
     );
     if (!confirmed) return;
 
@@ -849,7 +875,14 @@ export default function ProductsTab() {
       try {
         const result = await requestGrokDescription(product, draft, descriptionTone);
         if (result.success) {
-          updateDraft(product.id, 'description', result.description);
+          const patch: ProductEditPatch = { description: result.description };
+          if (result.suggestedName && result.suggestedName.trim() !== draft.name.trim()) {
+            patch.name = result.suggestedName.trim();
+          }
+          if (result.suggestedOptionGroups?.length) {
+            patch.optionGroups = result.suggestedOptionGroups;
+          }
+          applyDraftPatch(product.id, patch);
           succeeded += 1;
         } else {
           failed += 1;
@@ -1422,6 +1455,7 @@ export default function ProductsTab() {
               uploadingImage={uploadingImageId === selectedProduct.id}
               siteContent={siteContent}
               onDraftChange={(field, value) => updateDraft(selectedProduct.id, field, value)}
+              onDraftPatch={(patch) => applyDraftPatch(selectedProduct.id, patch)}
               onCategoryChange={(category) => void handleCategoryChange(selectedProduct, category)}
               onSave={() => saveProduct(selectedProduct)}
               onDiscard={() => clearEdits(selectedProduct.id)}
@@ -1498,6 +1532,7 @@ function ProductDetailPanel({
   uploadingImage,
   siteContent,
   onDraftChange,
+  onDraftPatch,
   onCategoryChange,
   onSave,
   onDiscard,
@@ -1529,11 +1564,21 @@ function ProductDetailPanel({
     product: AdminProduct,
     draft: ProductDraft,
     tone: ProductDescriptionTone
-  ) => Promise<{ success: true; description: string } | { success: false; error: string }>;
+  ) => Promise<
+    | {
+        success: true;
+        description: string;
+        suggestedName?: string;
+        suggestedOptionGroups?: ProductOptionGroup[];
+        insights?: string;
+      }
+    | { success: false; error: string }
+  >;
   onDraftChange: (
     field: keyof AdminProduct | 'trackInventory' | 'useCustomTierPricing',
     value: string | number | boolean | ProductOptionGroup[] | TierPrice[]
   ) => void;
+  onDraftPatch: (patch: ProductEditPatch) => void;
   onCategoryChange: (category: string) => void;
   onSave: () => void;
   onDiscard: () => void;
@@ -1582,8 +1627,22 @@ function ProductDetailPanel({
         onDescriptionMessage(result.error);
         return;
       }
-      onDraftChange('description', result.description);
-      onDescriptionMessage('Description ready — click Save.');
+      const patch: ProductEditPatch = { description: result.description };
+      if (result.suggestedName && result.suggestedName.trim() !== draft.name.trim()) {
+        patch.name = result.suggestedName.trim();
+      }
+      if (result.suggestedOptionGroups?.length) {
+        patch.optionGroups = result.suggestedOptionGroups;
+      }
+      onDraftPatch(patch);
+      const applied: string[] = ['description'];
+      if (patch.name) applied.push('name');
+      if (patch.optionGroups?.length) {
+        applied.push(`${patch.optionGroups.reduce((sum, g) => sum + g.values.length, 0)} variant/flavor options`);
+      }
+      onDescriptionMessage(
+        `${result.insights ? `${result.insights}. ` : ''}Applied ${applied.join(', ')} — review in Basics / Stock & more, then Save.`
+      );
       setEditorTab('description');
     } catch {
       onDescriptionMessage('Failed to reach Grok. Try again.');
@@ -1959,16 +2018,16 @@ function ProductDetailPanel({
                   className="bg-[#00ff9d]/15 text-[#00ff9d] border border-[#00ff9d]/40 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
                 >
                   {generatingDescription
-                    ? 'Researching strain...'
-                    : draft.category === 'flower'
-                      ? '✦ Grok write (strain + SEO)'
-                      : '✦ Grok write'}
+                    ? 'Analyzing photos...'
+                    : '✦ Grok analyze photos & write'}
                 </button>
               </div>
             )}
-            {grokEnabled && draft.category === 'flower' && (
+            {grokEnabled && (
               <p className="text-xs text-zinc-500">
-                Flower products: Grok analyzes your photos and cross-references public strain data for lineage, aroma, and visual details.
+                Grok reads all uploaded product photos (packaging, flavor charts, strain menus), cross-references
+                strain data for flower, and can auto-fill the product name, variant/flavor options, and SEO
+                description. Upload photos in the Photos tab first for best results.
               </p>
             )}
             {descriptionMessage && <p className="text-xs text-[#00ff9d]">{descriptionMessage}</p>}

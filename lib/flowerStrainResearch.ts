@@ -1,5 +1,4 @@
-import fs from 'fs/promises';
-import path from 'path';
+import { loadProductImageBytes } from '@/lib/productImageIO';
 import { isXaiConfigured, xaiChatCompletion, xaiVisionJson } from '@/lib/xai';
 
 export interface FlowerStrainImageAnalysis {
@@ -65,25 +64,6 @@ export function parseFlowerStrainFromProductName(productName: string): {
   };
 }
 
-async function readLocalProductImage(
-  imagePath: string
-): Promise<{ buffer: Buffer; mimeType: string } | null> {
-  if (!imagePath.startsWith('/')) return null;
-
-  const ext = path.extname(imagePath).toLowerCase();
-  const mimeType =
-    ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : null;
-  if (!mimeType) return null;
-
-  const filePath = path.join(process.cwd(), 'public', imagePath.replace(/^\//, ''));
-  try {
-    const buffer = await fs.readFile(filePath);
-    return { buffer, mimeType };
-  } catch {
-    return null;
-  }
-}
-
 function parseJsonFromReply<T>(reply: string | null): T | null {
   if (!reply) return null;
   try {
@@ -102,7 +82,7 @@ function parseJsonFromReply<T>(reply: string | null): T | null {
 export async function analyzeFlowerProductImage(
   imagePath: string
 ): Promise<FlowerStrainImageAnalysis | null> {
-  const file = await readLocalProductImage(imagePath);
+  const file = await loadProductImageBytes(imagePath);
   if (!file || !isXaiConfigured()) return null;
 
   return xaiVisionJson<FlowerStrainImageAnalysis>({
@@ -118,6 +98,8 @@ Return JSON only:
 Describe only what is visible. No potency or THC claims.`,
     imageBase64: file.buffer.toString('base64'),
     mimeType: file.mimeType,
+    detail: 'high',
+    max_tokens: 400,
   });
 }
 
@@ -232,12 +214,14 @@ export function formatFlowerStrainContextForPrompt(ctx: FlowerStrainContext): st
 
 export async function buildFlowerStrainContext(input: {
   productName: string;
+  imageUrls?: string[];
   imageUrl?: string;
 }): Promise<FlowerStrainContext> {
   const { strainName, variantHints } = parseFlowerStrainFromProductName(input.productName);
 
-  const imageAnalysis = input.imageUrl
-    ? (await analyzeFlowerProductImage(input.imageUrl)) ?? undefined
+  const primaryImage = input.imageUrls?.find(Boolean) ?? input.imageUrl;
+  const imageAnalysis = primaryImage
+    ? (await analyzeFlowerProductImage(primaryImage)) ?? undefined
     : undefined;
 
   const researchedProfile =

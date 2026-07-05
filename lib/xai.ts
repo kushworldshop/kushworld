@@ -69,37 +69,8 @@ export function xaiVisionMimeType(mimeType: string): 'image/jpeg' | 'image/png' 
   return null;
 }
 
-export async function xaiVisionJson<T>(options: {
-  prompt: string;
-  imageBase64: string;
-  mimeType: string;
-  model?: string;
-}): Promise<T | null> {
-  const visionMime = xaiVisionMimeType(options.mimeType);
-  if (!visionMime) return null;
-
-  const content = await xaiChatCompletion({
-    model: options.model ?? getXaiVisionModel(),
-    max_tokens: 200,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: options.prompt },
-          {
-            type: 'image_url',
-            image_url: {
-              url: `data:${visionMime};base64,${options.imageBase64}`,
-              detail: 'low',
-            },
-          },
-        ],
-      },
-    ],
-  });
-
+function parseVisionJsonReply<T>(content: string | null): T | null {
   if (!content) return null;
-
   try {
     return JSON.parse(content) as T;
   } catch {
@@ -111,4 +82,74 @@ export async function xaiVisionJson<T>(options: {
       return null;
     }
   }
+}
+
+export async function xaiVisionJson<T>(options: {
+  prompt: string;
+  imageBase64: string;
+  mimeType: string;
+  model?: string;
+  max_tokens?: number;
+  detail?: 'low' | 'high';
+}): Promise<T | null> {
+  const visionMime = xaiVisionMimeType(options.mimeType);
+  if (!visionMime) return null;
+
+  const content = await xaiChatCompletion({
+    model: options.model ?? getXaiVisionModel(),
+    max_tokens: options.max_tokens ?? 200,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: options.prompt },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:${visionMime};base64,${options.imageBase64}`,
+              detail: options.detail ?? 'low',
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  return parseVisionJsonReply<T>(content);
+}
+
+export async function xaiVisionJsonMulti<T>(options: {
+  prompt: string;
+  images: Array<{ base64: string; mimeType: string }>;
+  model?: string;
+  max_tokens?: number;
+  detail?: 'low' | 'high';
+}): Promise<T | null> {
+  const parts: Array<Record<string, unknown>> = [{ type: 'text', text: options.prompt }];
+
+  for (const [index, image] of options.images.entries()) {
+    const visionMime = xaiVisionMimeType(image.mimeType);
+    if (!visionMime) continue;
+    parts.push({
+      type: 'text',
+      text: `Image ${index + 1} of ${options.images.length}:`,
+    });
+    parts.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:${visionMime};base64,${image.base64}`,
+        detail: options.detail ?? 'high',
+      },
+    });
+  }
+
+  if (parts.length <= 1) return null;
+
+  const content = await xaiChatCompletion({
+    model: options.model ?? getXaiVisionModel(),
+    max_tokens: options.max_tokens ?? 2000,
+    messages: [{ role: 'user', content: parts }],
+  });
+
+  return parseVisionJsonReply<T>(content);
 }
