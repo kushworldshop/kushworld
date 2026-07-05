@@ -5,7 +5,7 @@ import sys
 path = sys.argv[1] if len(sys.argv) > 1 else 'data/site-content.json'
 instruction = (
     'After you place your order, you will receive a confirmation code. '
-    'A Kush World admin will reach out with payment instructions.'
+    'A Kush World admin will reach out by email and/or phone with payment instructions.'
 )
 keys = ['paymentZelle', 'paymentPaypal', 'paymentChime', 'paymentVenmo', 'paymentCashapp']
 

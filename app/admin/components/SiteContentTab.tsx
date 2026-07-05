@@ -85,7 +85,7 @@ function PaymentMethodEditor({
               value={config.instructions || ''}
               onChange={(v) => patchFeatures({ [featureKey]: { instructions: v } })}
               multiline
-              hint="Shown before checkout — payment account details are not displayed; admin reaches out after order."
+              hint="Shown before checkout — payment account details are not displayed; admin reaches out by email and/or phone after order."
             />
           )}
           {showPayTo && (
@@ -469,7 +469,7 @@ export default function SiteContentTab({
           <>
             <p className="text-sm text-zinc-400">
               Turn payment methods on or off and edit checkout copy. Manual methods show a confirmation code after
-              order — admins reach out with payment details (no pay-to shown at checkout).
+              order — admins reach out by email and/or phone with payment details (no pay-to shown at checkout).
             </p>
 
             <PaymentMethodEditor

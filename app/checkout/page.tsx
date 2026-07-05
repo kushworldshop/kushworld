@@ -57,11 +57,13 @@ function ManualPaymentPanel({ config }: { config: CheckoutPaymentConfig }) {
         <p className="whitespace-pre-line">{config.instructions}</p>
       ) : (
         <p>
-          After you place your order, you will receive a confirmation code. A Kush World admin will reach out with
-          payment instructions and to confirm your payment.
+          After you place your order, you will receive a confirmation code. A Kush World admin will reach out by email
+          and/or phone with payment instructions and to confirm your payment.
         </p>
       )}
-      <p className="text-zinc-500">Payment account details are not shown at checkout — an admin will contact you directly.</p>
+      <p className="text-zinc-500">
+        Payment account details are not shown at checkout — an admin will contact you by email and/or phone.
+      </p>
     </div>
   );
 }
@@ -69,12 +71,16 @@ function ManualPaymentPanel({ config }: { config: CheckoutPaymentConfig }) {
 function ManualPaymentConfirmation({
   orderId,
   email,
+  phone,
   methodLabel,
 }: {
   orderId: string;
   email: string;
+  phone?: string;
   methodLabel: string;
 }) {
+  const contactParts = [email?.trim(), phone?.trim()].filter(Boolean);
+
   return (
     <div className="bg-black border border-[#00ff9d]/30 rounded-2xl p-6 mb-6 text-left">
       <p className="text-[#00ff9d] text-xs uppercase tracking-widest mb-2">Confirmation code</p>
@@ -83,9 +89,14 @@ function ManualPaymentConfirmation({
         Thank you for choosing {methodLabel}. Save this confirmation code — you may be asked for it when we contact you.
       </p>
       <p className="text-sm text-zinc-300 mt-3 leading-relaxed">
-        A Kush World admin will reach out to <span className="text-white">{email}</span> with payment instructions and to
-        confirm your payment before your order is processed.
+        A Kush World admin will reach out by email and/or phone with payment instructions and to confirm your payment
+        before your order is processed.
       </p>
+      {contactParts.length > 0 && (
+        <p className="text-sm text-zinc-500 mt-2">
+          We may contact you at: <span className="text-white">{contactParts.join(' · ')}</span>
+        </p>
+      )}
     </div>
   );
 }
@@ -884,6 +895,7 @@ export default function Checkout() {
             <ManualPaymentConfirmation
               orderId={orderId}
               email={customerInfo.email}
+              phone={customerInfo.phone}
               methodLabel={getPaymentMethodLabel(paymentMethod)}
             />
           )}
@@ -933,6 +945,7 @@ export default function Checkout() {
               <ManualPaymentConfirmation
                 orderId={orderId}
                 email={customerInfo.email}
+                phone={customerInfo.phone}
                 methodLabel={getPaymentMethodLabel(paymentMethod)}
               />
             </>

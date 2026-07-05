@@ -171,31 +171,31 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
     enabled: true,
     label: 'Zelle',
     instructions:
-      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out with payment instructions.',
+      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out by email and/or phone with payment instructions.',
   },
   paymentPaypal: {
     enabled: true,
     label: 'PayPal',
     instructions:
-      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out with payment instructions.',
+      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out by email and/or phone with payment instructions.',
   },
   paymentChime: {
     enabled: true,
     label: 'Chime',
     instructions:
-      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out with payment instructions.',
+      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out by email and/or phone with payment instructions.',
   },
   paymentVenmo: {
     enabled: true,
     label: 'Venmo',
     instructions:
-      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out with payment instructions.',
+      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out by email and/or phone with payment instructions.',
   },
   paymentCashapp: {
     enabled: true,
     label: 'Cash App',
     instructions:
-      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out with payment instructions.',
+      'After you place your order, you will receive a confirmation code. A Kush World admin will reach out by email and/or phone with payment instructions.',
   },
   auctions: { enabled: false },
   raffles: { enabled: false },
