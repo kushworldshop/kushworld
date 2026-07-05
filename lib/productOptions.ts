@@ -2,7 +2,10 @@ import type { Product } from '@/lib/products';
 
 export interface ProductOptionValue {
   label: string;
+  /** Added to the product base price when this option is selected */
   priceAdjustment?: number;
+  /** Replaces the base price when this option is selected (e.g. single jar vs full box) */
+  optionPrice?: number;
   /** Internal SKU for fulfillment — shown in admin orders */
   sku?: string;
   /** Optional swatch/variant image URL */
@@ -41,6 +44,10 @@ export function clampProductOptionGroups(groups: ProductOptionGroup[]): ProductO
           priceAdjustment:
             value.priceAdjustment !== undefined && !Number.isNaN(Number(value.priceAdjustment))
               ? Number(value.priceAdjustment)
+              : undefined,
+          optionPrice:
+            value.optionPrice !== undefined && !Number.isNaN(Number(value.optionPrice))
+              ? Number(value.optionPrice)
               : undefined,
           sku: value.sku?.trim() || undefined,
           image: value.image?.trim() || undefined,
@@ -106,7 +113,8 @@ export function getSelectedOptionsPriceAdjustment(
 ): number {
   return Object.entries(selected).reduce((sum, [groupName, valueLabel]) => {
     const value = getOptionValue(product, groupName, valueLabel);
-    return sum + (value?.priceAdjustment ?? 0);
+    if (!value || value.optionPrice !== undefined) return sum;
+    return sum + (value.priceAdjustment ?? 0);
   }, 0);
 }
 
@@ -116,8 +124,43 @@ export function getSelectedOptionsUnitPrice(
   quantity = 1,
   tierPrice?: (basePrice: number, qty: number) => number
 ): number {
-  const baseWithOptions = product.price + getSelectedOptionsPriceAdjustment(product, selected);
-  return tierPrice ? tierPrice(baseWithOptions, quantity) : baseWithOptions;
+  let absoluteBase: number | null = null;
+
+  for (const [groupName, valueLabel] of Object.entries(selected)) {
+    const value = getOptionValue(product, groupName, valueLabel);
+    if (value?.optionPrice !== undefined) {
+      absoluteBase = value.optionPrice;
+      break;
+    }
+  }
+
+  const adjustment = getSelectedOptionsPriceAdjustment(product, selected);
+  const unitBase = absoluteBase !== null ? absoluteBase + adjustment : product.price + adjustment;
+  return tierPrice ? tierPrice(unitBase, quantity) : unitBase;
+}
+
+export function getProductPriceCandidates(product: Product): number[] {
+  const groups = getProductOptionGroups(product);
+  if (groups.length === 0) return [product.price];
+
+  const candidates = new Set<number>([product.price]);
+  const nonAbsoluteMinAdj = groups.reduce((sum, group) => {
+    if (group.values.some((value) => value.optionPrice !== undefined)) return sum;
+    const adjustments = group.values.map((value) => value.priceAdjustment ?? 0);
+    return sum + Math.min(...adjustments, 0);
+  }, 0);
+
+  for (const group of groups) {
+    for (const value of group.values) {
+      if (value.optionPrice !== undefined) {
+        candidates.add(value.optionPrice + nonAbsoluteMinAdj);
+      } else {
+        candidates.add(product.price + (value.priceAdjustment ?? 0));
+      }
+    }
+  }
+
+  return [...candidates];
 }
 
 function getGroupAdjustmentBounds(group: ProductOptionGroup): { min: number; max: number } {
@@ -141,11 +184,11 @@ export function getMaximumOptionPriceAdjustment(product: Product): number {
 }
 
 export function getMinimumUnitPrice(product: Product): number {
-  return product.price + getMinimumOptionPriceAdjustment(product);
+  return Math.min(...getProductPriceCandidates(product));
 }
 
 export function getMaximumUnitPrice(product: Product): number {
-  return product.price + getMaximumOptionPriceAdjustment(product);
+  return Math.max(...getProductPriceCandidates(product));
 }
 
 export function areAllOptionsSelected(
@@ -204,6 +247,14 @@ export function describeAdminShopPrice(product: Product): string {
 
   if (adjustment === 0 && min === max) {
     return `$${product.price.toFixed(2)}`;
+  }
+
+  const hasAbsoluteOptions = getProductOptionGroups(product).some((group) =>
+    group.values.some((value) => value.optionPrice !== undefined)
+  );
+
+  if (hasAbsoluteOptions) {
+    return `From $${min.toFixed(2)} – $${max.toFixed(2)} (base/full box $${product.price.toFixed(2)})`;
   }
 
   if (min === max) {
@@ -270,6 +321,15 @@ export function parseOptionValueLine(line: string): ProductOptionValue | null {
 
   const { body, sku } = splitSkuFromLine(trimmed);
 
+  const absolutePriced = body.match(/^(.+?)\s*\(=\$?(\d+(?:\.\d+)?)\)\s*$/);
+  if (absolutePriced) {
+    return {
+      label: absolutePriced[1].trim(),
+      optionPrice: Number(absolutePriced[2]),
+      sku,
+    };
+  }
+
   const priced = body.match(/^(.+?)\s*\(\+\$?(\d+(?:\.\d+)?)\)\s*$/);
   if (priced) {
     return {
@@ -291,9 +351,21 @@ export function parseOptionValueLine(line: string): ProductOptionValue | null {
   return { label: body, sku };
 }
 
+export function formatOptionValuePriceSuffix(value: ProductOptionValue): string {
+  if (value.optionPrice !== undefined) {
+    return ` — $${value.optionPrice.toFixed(2)}`;
+  }
+  if (value.priceAdjustment) {
+    return ` (+$${value.priceAdjustment})`;
+  }
+  return '';
+}
+
 export function serializeOptionValue(value: ProductOptionValue): string {
   let line = value.label;
-  if (value.priceAdjustment && value.priceAdjustment !== 0) {
+  if (value.optionPrice !== undefined) {
+    line += ` (=$${value.optionPrice})`;
+  } else if (value.priceAdjustment && value.priceAdjustment !== 0) {
     line += ` (+$${value.priceAdjustment})`;
   }
   if (value.sku) {

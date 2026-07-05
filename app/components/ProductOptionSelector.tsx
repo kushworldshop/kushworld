@@ -2,6 +2,7 @@
 
 import type { Product } from '@/lib/products';
 import {
+  formatOptionValuePriceSuffix,
   getOptionValue,
   getProductOptionGroups,
   PRODUCT_OPTION_DROPDOWN_THRESHOLD,
@@ -58,7 +59,7 @@ export default function ProductOptionSelector({
                 {group.values.map((value) => (
                   <option key={`${group.name}-${value.label}`} value={value.label}>
                     {value.label}
-                    {value.priceAdjustment ? ` (+$${value.priceAdjustment})` : ''}
+                    {formatOptionValuePriceSuffix(value)}
                   </option>
                 ))}
               </select>
@@ -87,7 +88,7 @@ export default function ProductOptionSelector({
                       )}
                       <span>
                         {value.label}
-                        {value.priceAdjustment ? ` (+$${value.priceAdjustment})` : ''}
+                        {formatOptionValuePriceSuffix(value)}
                       </span>
                     </button>
                   );

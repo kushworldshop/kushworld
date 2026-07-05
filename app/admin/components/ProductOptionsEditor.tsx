@@ -24,7 +24,7 @@ function emptyGroup(name = ''): ProductOptionGroup {
 }
 
 function emptyValue(): ProductOptionValue {
-  return { label: '', priceAdjustment: undefined };
+  return { label: '', priceAdjustment: undefined, optionPrice: undefined };
 }
 
 function normalizeGroups(groups: ProductOptionGroup[]): ProductOptionGroup[] {
@@ -58,10 +58,18 @@ export default function ProductOptionsEditor({
         .map((item) => ({
           label: item.label,
           priceAdjustment:
-            item.priceAdjustment !== undefined &&
-            item.priceAdjustment !== null &&
-            !Number.isNaN(Number(item.priceAdjustment))
-              ? Number(item.priceAdjustment)
+            item.optionPrice !== undefined && item.optionPrice !== null
+              ? undefined
+              : item.priceAdjustment !== undefined &&
+                  item.priceAdjustment !== null &&
+                  !Number.isNaN(Number(item.priceAdjustment))
+                ? Number(item.priceAdjustment)
+                : undefined,
+          optionPrice:
+            item.optionPrice !== undefined &&
+            item.optionPrice !== null &&
+            !Number.isNaN(Number(item.optionPrice))
+              ? Number(item.optionPrice)
               : undefined,
           sku: item.sku,
           image: item.image,
@@ -158,7 +166,7 @@ export default function ProductOptionsEditor({
           <p className="text-xs text-zinc-500 max-w-xl">
             {isDeviceProduct
               ? `Add up to ${MAX_PRODUCT_OPTION_VALUES_PER_GROUP} choices per group for device models, colors, or kits. Customers pick one before adding to cart.`
-              : `Add option groups like Size, Strain, or Flavor — up to ${MAX_PRODUCT_OPTION_VALUES_PER_GROUP} choices each.`}
+              : `Add option groups like Size, Strain, or Flavor — up to ${MAX_PRODUCT_OPTION_VALUES_PER_GROUP} choices each. Use =$ for a fixed sell price (e.g. single jar $99.99) or +$ to add on top of base.`}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -322,16 +330,34 @@ export default function ProductOptionsEditor({
                       }
                       className="flex-1 min-w-[180px] bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm"
                     />
-                    <label className="flex items-center gap-2 text-xs text-zinc-500">
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-500" title="Add to base price">
                       +$
                       <AdminNumberInput
                         optional
-                        value={option.priceAdjustment}
+                        value={option.optionPrice !== undefined ? undefined : option.priceAdjustment}
                         onChange={(priceAdjustment) =>
-                          updateValue(groupIndex, valueIndex, { priceAdjustment })
+                          updateValue(groupIndex, valueIndex, {
+                            priceAdjustment,
+                            optionPrice: undefined,
+                          })
                         }
                         placeholder="0"
-                        className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-2 text-sm"
+                        className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-2 text-sm"
+                      />
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-zinc-500" title="Sell at this exact price instead of base">
+                      =$
+                      <AdminNumberInput
+                        optional
+                        value={option.optionPrice}
+                        onChange={(optionPrice) =>
+                          updateValue(groupIndex, valueIndex, {
+                            optionPrice,
+                            priceAdjustment: undefined,
+                          })
+                        }
+                        placeholder="—"
+                        className="w-16 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-2 text-sm"
                       />
                     </label>
                     <button
