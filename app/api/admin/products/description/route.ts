@@ -5,6 +5,8 @@ import { generateProductDescriptionWithGrok } from '@/lib/grokProductDescription
 import { getSiteContent } from '@/lib/siteContent';
 import { isXaiConfigured } from '@/lib/xai';
 
+export const maxDuration = 120;
+
 export async function POST(request: NextRequest) {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });

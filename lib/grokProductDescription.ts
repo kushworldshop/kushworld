@@ -90,7 +90,7 @@ function buildProductDescriptionPrompt(
   const hasRoster = options?.hasStrainLineageRoster ?? false;
 
   const strainRules = isFlower
-    ? `- Use strain research, photo analysis, and brand cross-reference when provided — do not invent genetics beyond that data.`
+    ? `- Use deep flower strain research (web, X, news, strain databases), photo analysis, and packaging OCR when provided — do not invent genetics beyond that data.`
     : hasRoster
       ? `- Review ALL provided data: product name, brand, kit contents, photo flavors, and strain lineage roster.
 - Use only flavors/strains from the final merged list; include parent crosses in the closing roster when lineage is provided.`
@@ -178,12 +178,16 @@ export async function generateProductDescriptionWithGrok(
     }
   }
 
+  let flowerResearchSources = 0;
+
   if (isFlowerProductCategory(input.category)) {
     const strainContext = await buildFlowerStrainContext({
       productName: suggestedName ?? input.name,
       imageUrls,
+      photoStrainNames: imageAnalysis?.flavorOrVariantLabels,
     });
     promptSections.push(formatFlowerStrainContextForPrompt(strainContext));
+    flowerResearchSources = strainContext.researchedProfile?.citations?.length ?? 0;
   }
 
   const rosterStrainNames = imageAnalysis?.flavorOrVariantLabels ?? [];
@@ -211,7 +215,7 @@ ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imag
       {
         role: 'system',
         content:
-          'You are an expert e-commerce copywriter for regulated hemp retail. You write SEO-friendly, compliant descriptions using full product photo analysis, authentic brand release cross-reference, and strain research. Use official brand flavor names and kit contents when provided.',
+          'You are an expert e-commerce copywriter for regulated hemp retail. You write SEO-friendly, compliant descriptions using full product photo analysis, authentic brand release cross-reference, and deep flower strain research (web, X, news, databases). Use official brand flavor names and kit contents when provided.',
       },
       { role: 'user', content: userPrompt },
     ],
@@ -243,6 +247,13 @@ ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imag
   }
   if (hasStrainLineageRoster) {
     insightParts.push('strain crosses added to closing list');
+  }
+  if (isFlowerProductCategory(input.category)) {
+    if (flowerResearchSources > 0) {
+      insightParts.push(`flower strain deep-researched (${flowerResearchSources} web/X sources)`);
+    } else {
+      insightParts.push('flower strain researched (web/X search + databases)');
+    }
   }
   const insights = insightParts.join(' · ');
 

@@ -12,6 +12,92 @@ export function getXaiChatModel(): string {
   return process.env.XAI_CHAT_MODEL?.trim() || 'grok-4.20-0309-non-reasoning';
 }
 
+/** Model for agentic web/X search (Responses API with built-in tools). */
+export function getXaiResearchModel(): string {
+  return process.env.XAI_RESEARCH_MODEL?.trim() || 'grok-4.3';
+}
+
+type XaiResponseOutputItem = {
+  type?: string;
+  role?: string;
+  content?: Array<{ type?: string; text?: string }>;
+};
+
+function extractResponsesOutputText(data: { output?: XaiResponseOutputItem[] }): string {
+  const parts: string[] = [];
+  for (const item of data.output ?? []) {
+    if (item.type !== 'message') continue;
+    for (const block of item.content ?? []) {
+      if (block.type === 'output_text' && block.text?.trim()) {
+        parts.push(block.text.trim());
+      }
+    }
+  }
+  return parts.join('\n').trim();
+}
+
+/** Agentic completion with xAI built-in tools (web_search, x_search, etc.). */
+export async function xaiResponsesWithTools(options: {
+  input: string;
+  systemPrompt?: string;
+  tools?: Array<Record<string, unknown>>;
+  model?: string;
+  max_output_tokens?: number;
+  timeoutMs?: number;
+}): Promise<{ text: string; citations: string[] } | null> {
+  const apiKey = process.env.XAI_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const inputMessages: Array<{ role: string; content: string }> = [];
+  if (options.systemPrompt?.trim()) {
+    inputMessages.push({ role: 'system', content: options.systemPrompt.trim() });
+  }
+  inputMessages.push({ role: 'user', content: options.input });
+
+  const tools = options.tools ?? [{ type: 'web_search' }, { type: 'x_search' }];
+  const timeoutMs = options.timeoutMs ?? 120_000;
+
+  try {
+    const res = await fetch(`${XAI_BASE_URL}/responses`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: options.model ?? getXaiResearchModel(),
+        input: inputMessages,
+        tools,
+        include: ['no_inline_citations'],
+        max_output_tokens: options.max_output_tokens ?? 2200,
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error('xAI responses error:', errBody);
+      return null;
+    }
+
+    const data = (await res.json()) as {
+      output?: XaiResponseOutputItem[];
+      citations?: string[];
+    };
+
+    const text = extractResponsesOutputText(data);
+    if (!text) return null;
+
+    return {
+      text,
+      citations: Array.isArray(data.citations) ? data.citations.filter(Boolean) : [],
+    };
+  } catch (error) {
+    console.error('xAI responses request failed:', error);
+    return null;
+  }
+}
+
 type XaiMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string | Array<Record<string, unknown>>;
