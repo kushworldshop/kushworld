@@ -31,7 +31,7 @@ export function getSubscriptionProcessorConfig(): SubscriptionProcessorConfig {
     return {
       processor: 'none',
       configured: false,
-      message: 'Subscription billing is not connected yet. Payment processor setup is pending.',
+      message: 'Coming Soon',
     };
   }
 

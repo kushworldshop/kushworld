@@ -215,25 +215,39 @@ export default function SubscriptionPanel({ user }: { user: PublicUserProfile })
           ) : null}
 
           {!billingReady ? (
-            <div className="bg-amber-400/10 border border-amber-400/30 rounded-2xl px-5 py-4 text-sm text-amber-100 mb-4">
-              {config.billing?.message || 'Billing is being set up. Check back soon.'}
+            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-5 mb-4 text-center">
+              <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.25em] mb-2">
+                Coming Soon
+              </p>
+              <p className="text-sm text-zinc-400">
+                Kush Club is launching soon. You&apos;re signed in — we&apos;ll notify you when memberships open.
+              </p>
             </div>
           ) : null}
 
           <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={handleSubscribe}
-              disabled={actionLoading || !billingReady}
-              className="px-6 py-3 rounded-2xl bg-[#00ff9d] text-black font-bold disabled:opacity-50"
-            >
-              {actionLoading ? 'Starting...' : 'Subscribe monthly'}
-            </button>
+            {billingReady ? (
+              <button
+                type="button"
+                onClick={handleSubscribe}
+                disabled={actionLoading}
+                className="px-6 py-3 rounded-2xl bg-[#00ff9d] text-black font-bold disabled:opacity-50"
+              >
+                {actionLoading ? 'Starting...' : 'Subscribe monthly'}
+              </button>
+            ) : (
+              <Link
+                href="/subscribe"
+                className="px-6 py-3 rounded-2xl bg-[#00ff9d] text-black font-bold"
+              >
+                View Kush Club
+              </Link>
+            )}
             <Link
               href="/subscribe"
               className="px-6 py-3 rounded-2xl border border-zinc-700 hover:border-zinc-500 text-sm"
             >
-              View plan details
+              Plan details
             </Link>
           </div>
         </div>

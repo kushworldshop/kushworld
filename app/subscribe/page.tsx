@@ -80,16 +80,23 @@ export default function SubscribePage() {
           </ul>
 
           {!config.billing?.ready && (
-            <div className="bg-amber-400/10 border border-amber-400/30 rounded-2xl px-5 py-4 text-sm text-amber-100 mb-6">
-              {config.billing?.message}
+            <div className="bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-5 mb-6 text-center">
+              <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.25em] mb-2">
+                Coming Soon
+              </p>
+              <p className="text-sm text-zinc-400">
+                Kush Club is launching soon. Sign in now and we&apos;ll notify you when memberships open.
+              </p>
             </div>
           )}
 
           <Link
-            href="/account"
-            className="inline-flex px-8 py-4 rounded-2xl bg-[#00ff9d] text-black font-bold"
+            href="/account?redirect=%2Fsubscribe"
+            className="inline-flex px-8 py-4 rounded-2xl bg-[#00ff9d] text-black font-bold hover:bg-[#00ff9d]/90 transition"
           >
-            {config.billing?.ready ? 'Sign in to subscribe' : 'Sign in — launching soon'}
+            {config.billing?.ready
+              ? 'Sign in to subscribe'
+              : 'Sign in and get notified upon launch'}
           </Link>
         </div>
 
