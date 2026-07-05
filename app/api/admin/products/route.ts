@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
+import { isCustomProductId } from '@/lib/customProducts';
 import {
   createProduct,
   deleteProducts,
   getAdminProducts,
+  readProductOverrides,
   setProductsHidden,
   toAdminProductRecord,
   updateProduct,
 } from '@/lib/productCatalog';
+import { products as baseProducts } from '@/lib/products';
 import { clampProductOptionGroups } from '@/lib/productOptions';
 import { revalidateProductCatalog } from '@/lib/productRevalidation';
 
@@ -211,7 +214,16 @@ export async function PATCH(request: NextRequest) {
 
     await revalidateProductCatalog(id);
 
-    return NextResponse.json({ success: true, product });
+    const base = baseProducts.find((item) => item.id === id);
+    const overrides = base ? await readProductOverrides() : {};
+    return NextResponse.json({
+      success: true,
+      product: toAdminProductRecord(product, {
+        isCustom: isCustomProductId(id),
+        base: base ?? product,
+        hasOverride: base ? !!overrides[id] : false,
+      }),
+    });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to update product' }, { status: 500 });
   }

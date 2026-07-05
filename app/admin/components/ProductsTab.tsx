@@ -364,7 +364,18 @@ export default function ProductsTab() {
   const persistDrainingRef = useRef<Record<string, boolean>>({});
 
   const mergeProductIntoList = (updated: AdminProduct) => {
-    setProducts((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+    setProducts((prev) =>
+      prev.map((item) =>
+        item.id === updated.id
+          ? {
+              ...item,
+              ...updated,
+              // API omits `hidden` when visible; spread alone would keep stale `hidden: true`.
+              hidden: updated.hidden === true,
+            }
+          : item
+      )
+    );
   };
 
   const applyOptimisticEdits = (id: string, optimistic: Partial<AdminProduct>) => {
@@ -770,6 +781,9 @@ export default function ProductsTab() {
     const nextHidden = !product.hidden;
     setTogglingVisibilityId(product.id);
     setMessage('');
+    setProducts((prev) =>
+      prev.map((item) => (item.id === product.id ? { ...item, hidden: nextHidden } : item))
+    );
     try {
       const saved = await scheduleProductPersist(
         product.id,
@@ -781,9 +795,15 @@ export default function ProductsTab() {
       if (saved) {
         setMessage(nextHidden ? `Hidden ${product.name}` : `Unhidden ${product.name}`);
       } else {
+        setProducts((prev) =>
+          prev.map((item) => (item.id === product.id ? { ...item, hidden: product.hidden } : item))
+        );
         setMessage('Failed to update visibility');
       }
     } catch {
+      setProducts((prev) =>
+        prev.map((item) => (item.id === product.id ? { ...item, hidden: product.hidden } : item))
+      );
       setMessage('Failed to update visibility');
     } finally {
       setTogglingVisibilityId(null);
