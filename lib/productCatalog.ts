@@ -43,6 +43,13 @@ export type ProductOverride = Partial<
     | 'featured'
     | 'bestSeller'
     | 'isNew'
+    | 'thcaPercent'
+    | 'strainType'
+    | 'tier'
+    | 'effect'
+    | 'effects'
+    | 'limitedEdition'
+    | 'isDrop'
   >
 >;
 

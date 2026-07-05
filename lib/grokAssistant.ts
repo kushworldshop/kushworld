@@ -1,10 +1,10 @@
-import { getProductBySlug } from '@/lib/productCatalog';
+import { filterVisibleProducts, getProductBySlug, getProducts } from '@/lib/productCatalog';
 import { getProductDescription, type Product } from '@/lib/products';
 import { getSiteContent } from '@/lib/siteContent';
 import type { SiteContent } from '@/lib/siteContentTypes';
 import { isXaiConfigured, xaiChatCompletion } from '@/lib/xai';
 
-export type GrokChatMode = 'support' | 'product' | 'admin' | 'content';
+export type GrokChatMode = 'support' | 'product' | 'admin' | 'content' | 'shop';
 
 export type GrokChatMessage = {
   role: 'user' | 'assistant';
@@ -85,6 +85,35 @@ For member summaries: bullet key facts only.
 For content drafts: match Kush World brand voice — lab-tested, discreet shipping, 21+, community-focused.`;
 }
 
+export async function buildShopSystemPrompt(content: SiteContent): Promise<string> {
+  const products = filterVisibleProducts(await getProducts()).filter((p) => p.category !== 'merch');
+  const catalog = products
+    .slice(0, 40)
+    .map((p) => {
+      const meta = [
+        p.thcaPercent ? `${p.thcaPercent}% THCa` : '',
+        p.strainType ?? '',
+        p.tier ?? '',
+        ...(p.effects ?? (p.effect ? [p.effect] : [])),
+      ]
+        .filter(Boolean)
+        .join(', ');
+      return `- ${p.name} (${p.category}) $${p.price}${meta ? ` — ${meta}` : ''}`;
+    })
+    .join('\n');
+
+  return `${BASE_RULES}
+
+You are on the shop page helping customers pick hemp products by vibe, effect, strain type, or budget.
+
+Recommend 1–3 products from THIS catalog only. Include product names and why they fit. Link format: /products/[slug] when you know the slug.
+
+If nothing fits, suggest browsing /shop/flower or contacting support at ${content.contact.email}.
+
+Live catalog:
+${catalog || '(no products loaded)'}`;
+}
+
 export function buildContentSystemPrompt(contentType: string, existingText: string): string {
   return `${BASE_RULES}
 
@@ -145,6 +174,11 @@ export async function runGrokChat(options: {
         options.contentType || 'general',
         options.existingText || ''
       );
+      break;
+    }
+    case 'shop': {
+      const content = await getSiteContent();
+      systemPrompt = await buildShopSystemPrompt(content);
       break;
     }
     default:

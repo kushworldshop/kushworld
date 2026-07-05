@@ -34,6 +34,13 @@ export interface Product {
   isNew?: boolean;
   studioUrl?: string;
   hidden?: boolean;
+  thcaPercent?: number;
+  strainType?: string;
+  tier?: string;
+  effect?: string;
+  effects?: string[];
+  limitedEdition?: number;
+  isDrop?: boolean;
 }
 
 function slugifyProductName(name: string): string {

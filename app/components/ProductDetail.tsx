@@ -34,6 +34,7 @@ import { useSiteContent } from '@/lib/useSiteContent';
 import { getShopCategoryLabel, getShopPathForProduct } from '@/lib/shopNavigation';
 import { getProductMedia, type ProductMediaItem } from '@/lib/productMedia';
 import ProductMediaPreview from '@/app/components/ProductMediaPreview';
+import ProductMetaBadges from './ProductMetaBadges';
 
 export default function ProductDetail({ product }: { product: Product }) {
   const { isMerchOnly, ready } = useAgeAccess();
@@ -198,6 +199,11 @@ export default function ProductDetail({ product }: { product: Product }) {
               <p className="text-sm uppercase tracking-widest text-[#00ff9d] mb-2">{product.category}</p>
             )}
             <h1 className="text-3xl md:text-5xl font-bold mb-4">{product.name}</h1>
+            {!isMerch && (
+              <div className="mb-4">
+                <ProductMetaBadges product={product} size="md" />
+              </div>
+            )}
             {features.starRatings.enabled && (
               <div className="mb-4">
                 <ProductRatingBadge productId={product.id} size="md" />

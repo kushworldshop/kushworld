@@ -11,11 +11,17 @@ interface ReviewStats {
   average: number;
 }
 
-export default function ReviewsSection() {
+interface ReviewsSectionProps {
+  initialReviews?: ReviewCardData[];
+  initialStats?: ReviewStats;
+}
+
+export default function ReviewsSection({ initialReviews, initialStats }: ReviewsSectionProps) {
   const { content } = useSiteContent();
-  const [reviews, setReviews] = useState<ReviewCardData[]>([]);
-  const [stats, setStats] = useState<ReviewStats>({ count: 0, average: 0 });
-  const [loading, setLoading] = useState(true);
+  const hasInitial = initialReviews !== undefined;
+  const [reviews, setReviews] = useState<ReviewCardData[]>(initialReviews ?? []);
+  const [stats, setStats] = useState<ReviewStats>(initialStats ?? { count: 0, average: 0 });
+  const [loading, setLoading] = useState(!hasInitial);
   const [loadError, setLoadError] = useState('');
 
   const loadReviews = async () => {
@@ -35,8 +41,10 @@ export default function ReviewsSection() {
   };
 
   useEffect(() => {
-    loadReviews();
-  }, []);
+    if (!hasInitial) {
+      loadReviews();
+    }
+  }, [hasInitial]);
 
   return (
     <section id="reviews" className="py-24 bg-black border-t border-zinc-900">
@@ -49,14 +57,14 @@ export default function ReviewsSection() {
             <h2 className="text-4xl md:text-5xl font-bold mb-4">{content.reviewsSection.title}</h2>
             {loading ? (
               <p className="text-zinc-400 text-sm">Loading reviews…</p>
-            ) : stats.count > 0 && (
+            ) : stats.count > 0 ? (
               <div className="flex items-center gap-3">
                 <StarDisplay rating={stats.average} />
                 <p className="text-zinc-400">
                   {stats.average.toFixed(1)} average from {stats.count} review{stats.count !== 1 ? 's' : ''}
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
@@ -82,7 +90,12 @@ export default function ReviewsSection() {
             <p className="text-zinc-400 text-sm">Loading reviews…</p>
           </div>
         ) : loadError ? (
-          <p className="text-center text-red-400 text-sm py-8">{loadError} <button onClick={loadReviews} className="underline text-[#00ff9d]">Retry</button></p>
+          <p className="text-center text-red-400 text-sm py-8">
+            {loadError}{' '}
+            <button onClick={loadReviews} className="underline text-[#00ff9d]">
+              Retry
+            </button>
+          </p>
         ) : reviews.length > 0 ? (
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {reviews.map((review) => (

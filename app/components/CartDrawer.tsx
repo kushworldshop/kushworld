@@ -4,6 +4,7 @@ import { useCartStore } from '@/lib/cartStore';
 import { formatCartItemOptions } from '@/lib/productOptions';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useRef } from 'react';
+import FreeShippingProgress from './FreeShippingProgress';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -148,6 +149,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         {/* Footer - Sticky on mobile */}
         {items.length > 0 && (
           <div className="absolute bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 p-6">
+            <FreeShippingProgress className="mb-4" />
             <div className="flex justify-between items-baseline mb-6">
               <span className="text-lg">Subtotal</span>
               <span className="text-3xl font-bold text-[#00ff9d]">

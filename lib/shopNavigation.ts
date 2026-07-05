@@ -67,7 +67,7 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       description: 'Premium hemp moonrocks — flower coated in concentrate and kief. Lab-tested with COAs. 21+ only.',
       productCategories: ['moonrocks'],
       subsections: [],
-      enabled: true,
+      enabled: false,
     },
     {
       id: 'edibles',
@@ -75,7 +75,7 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       description: 'Lab-tested hemp edibles. Verified potency and discreet shipping. 21+ only.',
       productCategories: ['edibles'],
       subsections: [],
-      enabled: true,
+      enabled: false,
     },
     {
       id: 'pre-rolls',
@@ -83,7 +83,7 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       description: 'Premium hemp pre-rolls with COAs available. 21+ only.',
       productCategories: ['pre-rolls'],
       subsections: [],
-      enabled: true,
+      enabled: false,
     },
     {
       id: 'accessories',
@@ -91,7 +91,7 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       description: 'Smoking and hemp accessories from Kush World. 21+ only.',
       productCategories: ['accessories'],
       subsections: [],
-      enabled: true,
+      enabled: false,
     },
     {
       id: 'mushrooms',
@@ -174,6 +174,33 @@ export function mergeShopNavigation(partial?: Partial<ShopNavigation>): ShopNavi
 
 export function getEnabledShopCategories(nav: ShopNavigation): ShopCategory[] {
   return nav.categories.filter((category) => category.enabled);
+}
+
+export function getShopCategoriesWithProducts(
+  nav: ShopNavigation,
+  products: Product[]
+): ShopCategory[] {
+  const visible = products.filter((product) => !product.hidden);
+  return getEnabledShopCategories(nav).filter((category) =>
+    visible.some((product) => productMatchesShopCategory(product, category))
+  );
+}
+
+export function getSubsectionsWithProducts(
+  nav: ShopNavigation,
+  categoryId: string,
+  products: Product[]
+): ShopSubsection[] {
+  const category = getShopCategoryById(nav, categoryId);
+  if (!category) return [];
+
+  const visible = products.filter(
+    (product) => !product.hidden && productMatchesShopCategory(product, category)
+  );
+
+  return category.subsections.filter((subsection) =>
+    visible.some((product) => product.subcategory === subsection.id)
+  );
 }
 
 export function getShopCategoryById(nav: ShopNavigation, id: string): ShopCategory | undefined {

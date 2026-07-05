@@ -5,20 +5,24 @@ import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import LoyaltySection from './components/LoyaltySection';
 import ReviewsSection from './components/ReviewsSection';
+import MerchSection from './components/MerchSection';
+import DropHeroSection from './components/DropHeroSection';
 
 import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
-// MobileBottomNav, OfflineIndicator, InstallPrompt commented out - app features not ready for public, kept in files for future launch
-// import MobileBottomNav from './components/MobileBottomNav';
-// import InstallPrompt from './components/InstallPrompt';
-// import OfflineIndicator from './components/OfflineIndicator';
 import ProductCollectionSection from './components/ProductCollectionSection';
 import HowItWorksSection from './components/HowItWorksSection';
 import CommunitySection from './components/CommunitySection';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
+import type { ReviewCardData } from './components/ReviewCard';
 
-export default function HomeClient() {
+interface HomeClientProps {
+  initialReviews?: ReviewCardData[];
+  initialReviewStats?: { count: number; average: number };
+}
+
+export default function HomeClient({ initialReviews, initialReviewStats }: HomeClientProps) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { isMerchOnly } = useAgeAccess();
   const { content } = useSiteContent();
@@ -31,6 +35,8 @@ export default function HomeClient() {
       <main>
         <Hero merchOnly={isMerchOnly} />
 
+        {!isMerchOnly && features.dropHero?.enabled && <DropHeroSection />}
+
         {features.bestSellers.enabled && (
           <ProductCollectionSection
             type="best-sellers"
@@ -41,11 +47,35 @@ export default function HomeClient() {
           />
         )}
 
+        {features.merchSection.enabled && <MerchSection />}
+
+        {features.newArrivals.enabled && (
+          <ProductCollectionSection
+            type="new-arrivals"
+            title={features.newArrivals.title}
+            subtitle={features.newArrivals.subtitle}
+            ctaHref="/shop"
+            ctaLabel="Shop New Arrivals"
+          />
+        )}
+
+        {features.onSale.enabled && (
+          <ProductCollectionSection
+            type="on-sale"
+            title={features.onSale.title}
+            subtitle={features.onSale.subtitle}
+            ctaHref="/shop"
+            ctaLabel="Shop Deals"
+          />
+        )}
+
         {features.howItWorks.enabled && (
           <HowItWorksSection title={features.howItWorks.title} steps={features.howItWorks.steps} />
         )}
 
-        {features.reviewsSection.enabled && <ReviewsSection />}
+        {features.reviewsSection.enabled && (
+          <ReviewsSection initialReviews={initialReviews} initialStats={initialReviewStats} />
+        )}
 
         {features.communityBlock.enabled && (
           <CommunitySection
@@ -60,7 +90,6 @@ export default function HomeClient() {
       <Footer />
 
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-      {/* App features (MobileBottomNav, OfflineIndicator, InstallPrompt) commented out - not ready for public display/use, files kept for future app launch */}
     </>
   );
 }

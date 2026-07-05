@@ -7,14 +7,17 @@ import { getProductDescription, type Product } from '@/lib/products';
 import { useSiteContent } from '@/lib/useSiteContent';
 import {
   filterProductsByShopCategory,
-  getEnabledShopCategories,
+  getShopCategoriesWithProducts,
   getShopCategoryById,
   getShopPageHeading,
   getShopPageSubheading,
+  getSubsectionsWithProducts,
   isMerchShopCategory,
   MERCH_SHOP_ID,
   normalizeShopCategoryId,
 } from '@/lib/shopNavigation';
+import { SHOP_VIBES, productMatchesVibe } from '@/lib/productVibes';
+import GrokVibePicker from './GrokVibePicker';
 
 const BUDGET_FILTER_MAX = 2000;
 
@@ -34,7 +37,6 @@ export default function ShopSection({
 }) {
   const { content } = useSiteContent();
   const nav = content.shopNavigation;
-  const shopCategories = getEnabledShopCategories(nav);
 
   const searchParams = useSearchParams();
   const categoryParam = normalizeShopCategoryId(
@@ -56,6 +58,12 @@ export default function ShopSection({
   const [maxPrice, setMaxPrice] = useState(BUDGET_FILTER_MAX);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [activeVibe, setActiveVibe] = useState<string | null>(null);
+
+  const shopCategories = useMemo(
+    () => getShopCategoriesWithProducts(nav, products),
+    [nav, products]
+  );
 
   useEffect(() => {
     fetch('/api/products')
@@ -93,7 +101,10 @@ export default function ShopSection({
   }, [activeFilter]);
 
   const activeCategory = getShopCategoryById(nav, activeFilter);
-  const subsections = activeCategory?.subsections ?? [];
+  const subsections = useMemo(
+    () => getSubsectionsWithProducts(nav, activeFilter, products),
+    [nav, activeFilter, products]
+  );
 
   const categoryProducts = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -114,8 +125,12 @@ export default function ShopSection({
       result = result.filter((product) => product.category !== 'merch');
     }
 
+    if (activeVibe) {
+      result = result.filter((product) => productMatchesVibe(product, activeVibe));
+    }
+
     return result;
-  }, [activeFilter, activeSubsection, searchQuery, merchOnly, products, nav]);
+  }, [activeFilter, activeSubsection, activeVibe, searchQuery, merchOnly, products, nav]);
 
   const priceBounds = useMemo(() => {
     if (!categoryProducts.length) return { min: 0, max: 0 };
@@ -167,6 +182,38 @@ export default function ShopSection({
             {getShopPageSubheading(nav, activeFilter, merchOnly)}
           </p>
         </div>
+
+        {!merchOnly && !isMerchShopCategory(activeFilter) && (
+          <GrokVibePicker />
+        )}
+
+        {!merchOnly && !isMerchShopCategory(activeFilter) && (
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            <button
+              onClick={() => setActiveVibe(null)}
+              className={`px-4 py-2 rounded-full text-sm transition ${
+                activeVibe === null
+                  ? 'bg-[#00ff9d] text-black'
+                  : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+              }`}
+            >
+              All Vibes
+            </button>
+            {SHOP_VIBES.map((vibe) => (
+              <button
+                key={vibe.id}
+                onClick={() => setActiveVibe(vibe.id)}
+                className={`px-4 py-2 rounded-full text-sm transition ${
+                  activeVibe === vibe.id
+                    ? 'bg-[#00ff9d] text-black'
+                    : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+                }`}
+              >
+                {vibe.emoji} {vibe.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {showCategoryFilters && (
           <div className="flex flex-wrap justify-center gap-3 mb-6">

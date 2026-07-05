@@ -5,7 +5,7 @@ import { isFeatureEnabled } from '@/lib/featureTypes';
 import { isXaiConfigured } from '@/lib/xai';
 import { runGrokChat, type GrokChatMessage, type GrokChatMode } from '@/lib/grokAssistant';
 
-const VALID_MODES: GrokChatMode[] = ['support', 'product', 'admin', 'content'];
+const VALID_MODES: GrokChatMode[] = ['support', 'product', 'admin', 'content', 'shop'];
 
 export async function POST(request: NextRequest) {
   if (!isXaiConfigured()) {

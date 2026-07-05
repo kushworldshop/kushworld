@@ -1,8 +1,19 @@
+import {
+  DEFAULT_SHIPPING_THRESHOLDS,
+  getFreeShippingThreshold,
+  qualifiesForFreeShipping,
+  type ShippingCartItem,
+  type ShippingThresholds,
+} from '@/lib/shipping';
+
 export const MIN_ORDER_AMOUNT = 25;
 export const FIRST_ORDER_DISCOUNT = 20;
 export const FIRST_ORDER_CODE = 'FIRST20';
-export const FREE_SHIPPING_THRESHOLD = 200;
-export const FLAT_SHIPPING_RATE = 10;
+export const HEMP_FREE_SHIPPING_THRESHOLD = DEFAULT_SHIPPING_THRESHOLDS.hemp;
+export const MERCH_FREE_SHIPPING_THRESHOLD = DEFAULT_SHIPPING_THRESHOLDS.merch;
+/** @deprecated Use getFreeShippingThreshold(items) — kept for legacy imports */
+export const FREE_SHIPPING_THRESHOLD = HEMP_FREE_SHIPPING_THRESHOLD;
+export const FLAT_SHIPPING_RATE = 9.99;
 
 export const RESTRICTED_STATES = ['ID', 'KS', 'NE', 'SD', 'WY'];
 
@@ -34,7 +45,7 @@ export interface CheckoutTotals {
 }
 
 const SHIPPING_RATES: Record<ShippingMethod, number> = {
-  usps_ground: 10,
+  usps_ground: FLAT_SHIPPING_RATE,
   usps_priority: 25,
 };
 
@@ -66,8 +77,12 @@ export function normalizeShippingMethod(method?: string): ShippingMethod {
   return 'usps_ground';
 }
 
-export function getShippingOptions(subtotal: number): ShippingOption[] {
-  const free = subtotal >= FREE_SHIPPING_THRESHOLD;
+export function getShippingOptions(
+  subtotal: number,
+  items: ShippingCartItem[] = [],
+  thresholds: ShippingThresholds = DEFAULT_SHIPPING_THRESHOLDS
+): ShippingOption[] {
+  const free = qualifiesForFreeShipping(subtotal, items, thresholds);
   return SHIPPING_OPTIONS.map((option) => ({
     ...option,
     rate: free ? 0 : SHIPPING_RATES[option.id as ShippingMethod],
@@ -84,20 +99,27 @@ export function getShippingCarrier(method: ShippingCarrier): 'usps' | 'fedex' | 
   return SHIPPING_OPTIONS.find((option) => option.id === normalized)?.carrier ?? 'usps';
 }
 
-export function calculateShipping(subtotal: number, method: ShippingCarrier = 'usps_ground'): number {
+export function calculateShipping(
+  subtotal: number,
+  method: ShippingCarrier = 'usps_ground',
+  items: ShippingCartItem[] = [],
+  thresholds: ShippingThresholds = DEFAULT_SHIPPING_THRESHOLDS
+): number {
   if (subtotal <= 0) return 0;
   const normalized = normalizeShippingMethod(method);
-  const option = getShippingOptions(subtotal).find((item) => item.id === normalized);
+  const option = getShippingOptions(subtotal, items, thresholds).find((item) => item.id === normalized);
   return option?.rate ?? 0;
 }
 
 export function calculateTotals(
   subtotal: number,
   discount = 0,
-  method: ShippingCarrier = 'usps_ground'
+  method: ShippingCarrier = 'usps_ground',
+  items: ShippingCartItem[] = [],
+  thresholds: ShippingThresholds = DEFAULT_SHIPPING_THRESHOLDS
 ): CheckoutTotals {
   const normalized = normalizeShippingMethod(method);
-  const shipping = calculateShipping(subtotal, normalized);
+  const shipping = calculateShipping(subtotal, normalized, items, thresholds);
   const total = Math.max(0, subtotal - discount + shipping);
 
   return {
@@ -110,6 +132,8 @@ export function calculateTotals(
     shippingLabel: getShippingLabel(normalized),
   };
 }
+
+export { getFreeShippingThreshold, qualifiesForFreeShipping, type ShippingCartItem, type ShippingThresholds };
 
 export function getTierPrice(
   basePrice: number,

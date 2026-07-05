@@ -4,7 +4,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import { useCartStore } from '@/lib/cartStore';
-import { calculateTotals, FREE_SHIPPING_THRESHOLD, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import { calculateTotals, getFreeShippingThreshold, MIN_ORDER_AMOUNT } from '@/lib/checkout';
+import FreeShippingProgress from '@/app/components/FreeShippingProgress';
+import { useSiteContent } from '@/lib/useSiteContent';
 import { isFirstOrderBonusLineItem } from '@/lib/firstOrderBonus';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { formatCartItemOptions } from '@/lib/productOptions';
@@ -13,10 +15,16 @@ import { useAgeAccess } from '@/lib/useAgeAccess';
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal } = useCartStore();
   const { isMerchOnly } = useAgeAccess();
+  const { content } = useSiteContent();
+  const thresholds = {
+    hemp: content.shipping.freeShippingThresholdHemp,
+    merch: content.shipping.freeShippingThresholdMerch,
+  };
   const hasRestrictedItems = orderRequiresIdVerification(items);
   const checkoutBlocked = isMerchOnly && hasRestrictedItems;
   const sub = subtotal();
-  const totals = calculateTotals(sub);
+  const totals = calculateTotals(sub, 0, 'usps_ground', items, thresholds);
+  const freeShipThreshold = getFreeShippingThreshold(items, thresholds);
 
   return (
     <SiteLayout>
@@ -83,13 +91,14 @@ export default function CartPage() {
             </div>
 
             <div className="bg-zinc-900 rounded-2xl p-6 border border-zinc-700 space-y-3">
+              <FreeShippingProgress className="mb-2" />
               <div className="flex justify-between"><span>Subtotal</span><span>${totals.subtotal.toFixed(2)}</span></div>
               <div className="flex justify-between"><span>Shipping</span><span>{totals.freeShipping ? 'FREE' : `$${totals.shipping.toFixed(2)}`}</span></div>
               <div className="flex justify-between font-bold text-lg border-t border-zinc-700 pt-3">
                 <span>Total</span><span className="text-[#00ff9d]">${totals.total.toFixed(2)}</span>
               </div>
-              {sub < FREE_SHIPPING_THRESHOLD && (
-                <p className="text-xs text-zinc-500">Add ${(FREE_SHIPPING_THRESHOLD - sub).toFixed(2)} more for free shipping!</p>
+              {sub < freeShipThreshold && (
+                <p className="text-xs text-zinc-500">Add ${(freeShipThreshold - sub).toFixed(2)} more for free shipping!</p>
               )}
               {sub < MIN_ORDER_AMOUNT && (
                 <p className="text-xs text-red-400">Minimum order is ${MIN_ORDER_AMOUNT}</p>

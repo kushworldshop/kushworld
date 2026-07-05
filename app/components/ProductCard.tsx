@@ -23,6 +23,7 @@ import ProductRatingBadge from './ProductRatingBadge';
 import { useSiteContent } from '@/lib/useSiteContent';
 import { isOnSale } from '@/lib/productCollections';
 import { getProductCoverUrl, isVideoMediaUrl } from '@/lib/productMedia';
+import ProductMetaBadges from './ProductMetaBadges';
 
 export default function ProductCard({ product }: { product: Product }) {
   const { content } = useSiteContent();
@@ -157,6 +158,11 @@ export default function ProductCard({ product }: { product: Product }) {
         <Link href={`/products/${getProductSlug(product)}`}>
           <h3 className="font-semibold text-xl line-clamp-2 mb-2 hover:text-[#00ff9d] transition">{product.name}</h3>
         </Link>
+        {!isMerch && (
+          <div className="mb-2">
+            <ProductMetaBadges product={product} />
+          </div>
+        )}
         {features.starRatings.enabled && (
           <div className="mb-2">
             <ProductRatingBadge productId={product.id} />

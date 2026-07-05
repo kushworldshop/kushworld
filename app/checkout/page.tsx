@@ -18,7 +18,7 @@ import {
   getShippingOptions,
   MIN_ORDER_AMOUNT,
   RESTRICTED_STATES,
-  FREE_SHIPPING_THRESHOLD,
+  getFreeShippingThreshold,
   SHIPPING_DIMENSION_NOTE,
   FEDEX_ALTERNATIVE_NOTE,
   type ShippingMethod,
@@ -28,6 +28,7 @@ import { isFirstOrderBonusLineItem } from '@/lib/firstOrderBonus';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
+import FreeShippingProgress from '@/app/components/FreeShippingProgress';
 import {
   MIN_REDEMPTION_POINTS,
   calculateMaxRedeemablePoints,
@@ -349,6 +350,11 @@ export default function Checkout() {
   };
 
   const sub = subtotal();
+  const shippingThresholds = {
+    hemp: content.shipping.freeShippingThresholdHemp,
+    merch: content.shipping.freeShippingThresholdMerch,
+  };
+  const freeShipThreshold = getFreeShippingThreshold(items, shippingThresholds);
   const promoDiscount = appliedPromo?.discount ?? 0;
   const usingLoyaltyPromo = appliedPromo?.source === 'loyalty';
   const selectedSpinPrize =
@@ -364,16 +370,16 @@ export default function Checkout() {
   const loyaltyDiscount = useLoyalty ? pointsToDollarDiscount(loyaltyPointsToUse) : 0;
   const discount = Math.min(sub, promoDiscount + loyaltyDiscount + spinDiscount);
   const isFirstOrder = getFirstOrderStatus(customerInfo.email);
-  const staticShippingOptions = getShippingOptions(sub);
+  const staticShippingOptions = getShippingOptions(sub, items, shippingThresholds);
   const shippingOptions = liveShippingOptions?.length ? liveShippingOptions : staticShippingOptions;
   const selectedShipping = shippingOptions.find((option) => option.id === shippingMethod) ?? shippingOptions[0];
 
-  const baseTotals = calculateTotals(sub, discount, shippingMethod as ShippingMethod);
+  const baseTotals = calculateTotals(sub, discount, shippingMethod as ShippingMethod, items, shippingThresholds);
   const shipping = spinPreview.freeShipping
     ? 0
     : selectedShipping?.source === 'btcpostage'
       ? selectedShipping.rate
-      : calculateShipping(sub, shippingMethod as ShippingMethod);
+      : calculateShipping(sub, shippingMethod as ShippingMethod, items, shippingThresholds);
   const total = Math.max(0, sub - discount + shipping);
   const totals = {
     ...baseTotals,
@@ -431,7 +437,7 @@ export default function Checkout() {
           return;
         }
 
-        const freeShipping = sub >= FREE_SHIPPING_THRESHOLD;
+        const freeShipping = sub >= freeShipThreshold;
         const mapped: ShippingOption[] = data.rates.map((rate: {
           service: string;
           serviceDisplay: string;
@@ -1081,8 +1087,9 @@ export default function Checkout() {
                 <span>{totals.freeShipping ? 'FREE' : `$${totals.shipping.toFixed(2)}`}</span>
               </div>
               <div className="flex justify-between font-bold text-xl pt-2"><span>Total</span><span className="text-[#00ff9d]">${totals.total.toFixed(2)}</span></div>
-              {sub < FREE_SHIPPING_THRESHOLD && (
-                <p className="text-xs text-zinc-500">Free shipping at ${FREE_SHIPPING_THRESHOLD}+</p>
+              <FreeShippingProgress className="pt-2" />
+              {sub < freeShipThreshold && (
+                <p className="text-xs text-zinc-500">Free shipping at ${freeShipThreshold}+</p>
               )}
             </div>
           </div>

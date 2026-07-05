@@ -6,6 +6,7 @@ import {
   organizationJsonLd,
   websiteJsonLd,
 } from '@/lib/seo';
+import { getFeaturedAndRecent, getReviewStats } from '@/lib/reviews';
 
 export const metadata = {
   ...buildPageMetadata({
@@ -27,6 +28,24 @@ export const metadata = {
 };
 
 export default async function Home() {
+  const allReviews = await getFeaturedAndRecent(50);
+  const featuredReviews = allReviews.filter((r) => r.featured || r.source === 'x').slice(0, 3);
+  const stats = getReviewStats(allReviews);
+
+  const initialReviews = featuredReviews.map((review) => ({
+    id: review.id,
+    productId: review.productId,
+    author: review.author,
+    rating: review.rating,
+    comment: review.comment,
+    source: review.source,
+    xHandle: review.xHandle,
+    xUrl: review.xUrl,
+    productName: null as string | null,
+    productSlug: null as string | null,
+    createdAt: review.createdAt,
+  }));
+
   return (
     <>
       <JsonLd
@@ -36,7 +55,10 @@ export default async function Home() {
           onlineStoreJsonLd(),
         ]}
       />
-      <HomeClient />
+      <HomeClient
+        initialReviews={initialReviews}
+        initialReviewStats={{ count: stats.count, average: stats.average }}
+      />
     </>
   );
 }

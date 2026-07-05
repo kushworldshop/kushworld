@@ -242,7 +242,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     merchOnlyLabel: 'No — shop merch only',
   },
   shipping: {
-    freeShippingThresholdHemp: 200,
+    freeShippingThresholdHemp: 150,
     freeShippingThresholdMerch: 100,
   },
   policies: {

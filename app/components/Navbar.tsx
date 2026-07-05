@@ -7,7 +7,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
-import { getEnabledShopCategories, MERCH_SHOP_ID } from '@/lib/shopNavigation';
+import { getShopCategoriesWithProducts, MERCH_SHOP_ID } from '@/lib/shopNavigation';
+import type { Product } from '@/lib/products';
 import BrandLogoLink from '@/app/components/BrandLogoLink';
 
 export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
@@ -22,7 +23,17 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
   const router = useRouter();
   const { isMerchOnly } = useAgeAccess();
   const { content } = useSiteContent();
-  const shopCategories = getEnabledShopCategories(content.shopNavigation);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+  const shopCategories = getShopCategoriesWithProducts(content.shopNavigation, catalogProducts);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.products) setCatalogProducts(data.products);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/users/me')
@@ -125,12 +136,35 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               {content.features.faqSection.enabled && (
                 <Link href="/faq" className="hover:text-[#00ff9d] transition">FAQ</Link>
               )}
+              {content.features.subscriptions?.enabled && (
+                <Link href="/subscribe" className="hover:text-[#00ff9d] transition">Kush Club</Link>
+              )}
+              <a
+                href={content.social.whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[#00ff9d] transition"
+                aria-label="WhatsApp"
+              >
+                <i className="fa-brands fa-whatsapp" />
+              </a>
             </div>
 
             <div className="flex items-center gap-4">
               <Link href="/account" aria-label="My account" className="hover:text-[#00ff9d] transition text-lg p-2 -m-2 md:p-1 md:-m-1 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl active:bg-zinc-900">
                 <i className="fa-solid fa-user" />
               </Link>
+
+              {content.features.spinWheel.enabled && (
+                <Link
+                  href="/account"
+                  className="hidden md:flex items-center gap-2 text-xs bg-zinc-900 px-3 py-1.5 rounded-xl hover:border-[#00ff9d]/40 border border-transparent transition"
+                  title="Rewards & spin wheel"
+                >
+                  <i className="fa-solid fa-gift text-[#00ff9d]" />
+                  <span>Rewards</span>
+                </Link>
+              )}
 
               {isLoggedIn && content.features.loyaltyProgram.enabled && (
                 <div className="hidden md:flex items-center gap-2 text-xs bg-zinc-900 px-3 py-1.5 rounded-xl">
@@ -188,7 +222,13 @@ export default function Navbar({ onCartClick }: { onCartClick: () => void }) {
               {content.features.faqSection.enabled && (
                 <Link href="/faq" onClick={closeMobileMenu} className="block hover:text-[#00ff9d]">FAQ</Link>
               )}
-              <Link href="/account" onClick={closeMobileMenu} className="block hover:text-[#00ff9d] font-medium pt-2 border-t border-zinc-800 mt-2">My Account</Link>
+              {content.features.subscriptions?.enabled && (
+                <Link href="/subscribe" onClick={closeMobileMenu} className="block hover:text-[#00ff9d]">Kush Club</Link>
+              )}
+              <a href={content.social.whatsappUrl} target="_blank" rel="noopener noreferrer" onClick={closeMobileMenu} className="block hover:text-[#00ff9d]">
+                WhatsApp Support
+              </a>
+              <Link href="/account" onClick={closeMobileMenu} className="block hover:text-[#00ff9d] font-medium pt-2 border-t border-zinc-800 mt-2">My Account & Rewards</Link>
             </div>
           )}
         </div>

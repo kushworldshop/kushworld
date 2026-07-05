@@ -49,6 +49,12 @@ export interface SiteFeatures {
     body: string;
   };
   merchSection: FeatureToggle;
+  dropHero: FeatureToggle & {
+    productSlug: string;
+    eyebrow: string;
+    headline: string;
+    discordEarlyAccess: boolean;
+  };
   reviewsSection: FeatureToggle;
   loyaltySection: FeatureToggle;
   faqSection: FeatureToggle;
@@ -131,7 +137,14 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
     title: 'Join the Kush World Community',
     body: 'Get restock alerts, deals, and drops on X, Discord, and social.',
   },
-  merchSection: { enabled: false },
+  merchSection: { enabled: true },
+  dropHero: {
+    enabled: true,
+    productSlug: 'bl3-junkie',
+    eyebrow: 'New Drop',
+    headline: 'JUST DROPPED',
+    discordEarlyAccess: true,
+  },
   reviewsSection: { enabled: true },
   loyaltySection: { enabled: true },
   faqSection: { enabled: true },
@@ -201,7 +214,7 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
   raffles: { enabled: false },
   mysteryBoxes: { enabled: false },
   subscriptions: {
-    enabled: false,
+    enabled: true,
     label: 'Kush Club Monthly',
     tagline: 'Curated monthly drops, member pricing, and loyalty perks.',
     monthlyPrice: 49.99,
