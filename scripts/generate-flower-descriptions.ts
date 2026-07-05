@@ -6,6 +6,7 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
+import { flowerMetadataToProductFields } from '../lib/flowerStrainResearch';
 import { generateProductDescriptionWithGrok } from '../lib/grokProductDescription';
 import { DEFAULT_PRODUCT_DESCRIPTION_TONE } from '../lib/grokProductDescriptionTones';
 import type { Product } from '../lib/products';
@@ -76,8 +77,13 @@ async function main() {
     }
 
     product.description = result.description;
+    if (result.suggestedFlowerMetadata) {
+      Object.assign(product, flowerMetadataToProductFields(result.suggestedFlowerMetadata));
+    }
     updated += 1;
-    console.log(`  ok ${product.name} (${result.description.length} chars)`);
+    console.log(
+      `  ok ${product.name} (${result.description.length} chars, badges: ${result.suggestedFlowerMetadata?.strainType ?? '-'} / ${result.suggestedFlowerMetadata?.tier ?? '-'})`
+    );
   }
 
   if (updated > 0) {

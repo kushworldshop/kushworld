@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { isFeatureEnabled } from '@/lib/featureTypes';
+import { isCustomProductId } from '@/lib/customProducts';
+import {
+  flowerMetadataToProductFields,
+  isFlowerProductCategory,
+} from '@/lib/flowerStrainResearch';
 import { generateProductDescriptionWithGrok } from '@/lib/grokProductDescription';
+import {
+  readProductOverrides,
+  toAdminProductRecord,
+  updateProduct,
+} from '@/lib/productCatalog';
+import { products as baseProducts } from '@/lib/products';
 import { getSiteContent } from '@/lib/siteContent';
 import { isXaiConfigured } from '@/lib/xai';
 
@@ -65,6 +76,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
 
+    let savedProduct:
+      | ReturnType<typeof toAdminProductRecord>
+      | undefined;
+
+    if (isFlowerProductCategory(category) && result.suggestedFlowerMetadata) {
+      const meta = flowerMetadataToProductFields(result.suggestedFlowerMetadata);
+      const product = await updateProduct(productId, {
+        description: result.description,
+        strainType: meta.strainType,
+        tier: meta.tier,
+        effects: meta.effects,
+        subcategory: meta.subcategory,
+        ...(result.suggestedName?.trim() ? { name: result.suggestedName.trim() } : {}),
+        ...(result.suggestedOptionGroups?.length
+          ? { optionGroups: result.suggestedOptionGroups }
+          : {}),
+      });
+
+      if (product) {
+        const base = baseProducts.find((item) => item.id === productId);
+        const overrides = base ? await readProductOverrides() : {};
+        savedProduct = toAdminProductRecord(product, {
+          isCustom: isCustomProductId(productId),
+          base: base ?? product,
+          hasOverride: base ? !!overrides[productId] : false,
+        });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       description: result.description,
@@ -72,6 +112,8 @@ export async function POST(request: NextRequest) {
       suggestedOptionGroups: result.suggestedOptionGroups,
       suggestedFlowerMetadata: result.suggestedFlowerMetadata,
       insights: result.insights,
+      product: savedProduct,
+      autoSaved: Boolean(savedProduct),
     });
   } catch (error) {
     console.error('Grok product description error:', error);

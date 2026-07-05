@@ -1,9 +1,10 @@
 import {
   buildFlowerStrainContext,
-  deriveFlowerProductMetadata,
+  finalizeFlowerProductMetadata,
   formatFlowerStrainContextForPrompt,
   isFlowerProductCategory,
   type FlowerProductMetadata,
+  type FlowerStrainContext,
 } from '@/lib/flowerStrainResearch';
 import {
   analyzeProductCatalogImages,
@@ -182,25 +183,17 @@ export async function generateProductDescriptionWithGrok(
   }
 
   let flowerResearchSources = 0;
+  let flowerStrainContext: FlowerStrainContext | undefined;
   let suggestedFlowerMetadata: FlowerProductMetadata | undefined;
 
   if (isFlowerProductCategory(input.category)) {
-    const strainContext = await buildFlowerStrainContext({
+    flowerStrainContext = await buildFlowerStrainContext({
       productName: suggestedName ?? input.name,
       imageUrls,
       photoStrainNames: imageAnalysis?.flavorOrVariantLabels,
     });
-    promptSections.push(formatFlowerStrainContextForPrompt(strainContext));
-    flowerResearchSources = strainContext.researchedProfile?.citations?.length ?? 0;
-    suggestedFlowerMetadata = deriveFlowerProductMetadata(strainContext);
-    if (
-      !suggestedFlowerMetadata.strainType &&
-      !suggestedFlowerMetadata.tier &&
-      !suggestedFlowerMetadata.effects?.length &&
-      !suggestedFlowerMetadata.subcategory
-    ) {
-      suggestedFlowerMetadata = undefined;
-    }
+    promptSections.push(formatFlowerStrainContextForPrompt(flowerStrainContext));
+    flowerResearchSources = flowerStrainContext.researchedProfile?.citations?.length ?? 0;
   }
 
   const rosterStrainNames = imageAnalysis?.flavorOrVariantLabels ?? [];
@@ -248,6 +241,13 @@ ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imag
     return { error: 'Generated description was too short. Try again.' };
   }
 
+  if (isFlowerProductCategory(input.category) && flowerStrainContext) {
+    suggestedFlowerMetadata = finalizeFlowerProductMetadata(flowerStrainContext, {
+      description,
+      subcategory: input.subcategory,
+    });
+  }
+
   const insightParts: string[] = [];
   if (imageAnalysis) {
     insightParts.push(summarizeProductImageAnalysis(imageAnalysis));
@@ -267,15 +267,13 @@ ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imag
     } else {
       insightParts.push('flower strain researched (web/X search + databases)');
     }
-    if (suggestedFlowerMetadata?.strainType || suggestedFlowerMetadata?.tier) {
+    if (suggestedFlowerMetadata) {
       const badgeParts = [
         suggestedFlowerMetadata.strainType,
         suggestedFlowerMetadata.tier,
-        suggestedFlowerMetadata.effects?.length
-          ? `${suggestedFlowerMetadata.effects.length} effect tag(s)`
-          : undefined,
+        suggestedFlowerMetadata.effects?.join(' + '),
       ].filter(Boolean);
-      insightParts.push(`shop badges: ${badgeParts.join(', ')}`);
+      insightParts.push(`shop badges saved: ${badgeParts.join(', ')}`);
     }
   }
   const insights = insightParts.join(' · ');

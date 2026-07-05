@@ -380,16 +380,20 @@ export function normalizeStrainTypeLabel(strainType: string): string | undefined
   return strainType.trim();
 }
 
-export function inferFlowerEffects(profile?: FlowerStrainResearchedProfile): string[] {
-  const haystack = [
-    ...(profile?.aromaFlavorNotes ?? []),
-    profile?.strainType ?? '',
-    profile?.notes ?? '',
-    profile?.socialBuzz ?? '',
-    profile?.lineage ?? '',
-  ]
-    .join(' ')
-    .toLowerCase();
+export function inferStrainTypeFromText(text: string): string | undefined {
+  const lower = text.toLowerCase();
+  if (/indica-leaning|indica leaning/.test(lower)) return 'Indica';
+  if (/sativa-leaning|sativa leaning/.test(lower)) return 'Sativa';
+  if (/\bhybrid\b/.test(lower)) return 'Hybrid';
+  if (/\bindica\b/.test(lower) && /\bsativa\b/.test(lower)) return 'Hybrid';
+  if (/\bindica\b/.test(lower)) return 'Indica';
+  if (/\bsativa\b/.test(lower)) return 'Sativa';
+  return undefined;
+}
+
+export function inferFlowerEffectsFromText(...textParts: Array<string | undefined>): string[] {
+  const haystack = textParts.filter(Boolean).join(' ').toLowerCase();
+  if (!haystack.trim()) return [];
 
   const scores = new Map<string, number>();
   for (const [vibeId, keywords] of Object.entries(EFFECT_INFERENCE_KEYWORDS)) {
@@ -403,32 +407,132 @@ export function inferFlowerEffects(profile?: FlowerStrainResearchedProfile): str
     .map(([vibeId]) => vibeId);
 }
 
-export function deriveFlowerProductMetadata(ctx: FlowerStrainContext): FlowerProductMetadata {
-  const meta: FlowerProductMetadata = {};
+export function inferFlowerEffects(profile?: FlowerStrainResearchedProfile): string[] {
+  return inferFlowerEffectsFromText(
+    ...(profile?.aromaFlavorNotes ?? []),
+    profile?.strainType,
+    profile?.notes,
+    profile?.socialBuzz,
+    profile?.lineage
+  );
+}
+
+function inferFlowerTier(input: {
+  productName: string;
+  variantHints: string[];
+  subcategory?: string;
+  description?: string;
+}): string | undefined {
+  const nameUpper = input.productName.toUpperCase();
+  const hintsUpper = input.variantHints.map((hint) => hint.toUpperCase());
+  const descLower = (input.description ?? '').toLowerCase();
+  const subLower = (input.subcategory ?? '').toLowerCase();
+
+  if (
+    hintsUpper.some((hint) => hint.includes('SMALL')) ||
+    nameUpper.includes('SMALL') ||
+    /\bsmalls\b/.test(descLower)
+  ) {
+    return 'Smalls';
+  }
+  if (hintsUpper.some((hint) => hint.includes('EXOTIC')) || nameUpper.includes('EXOTIC')) {
+    return 'Exotic';
+  }
+  if (
+    hintsUpper.some((hint) => hint.includes('INDOOR')) ||
+    nameUpper.includes('INDOOR') ||
+    subLower === 'indoor' ||
+    /\bindoor\b/.test(descLower)
+  ) {
+    return 'Exotic';
+  }
+  return 'Exotic';
+}
+
+function inferFlowerSubcategory(input: {
+  productName: string;
+  variantHints: string[];
+  subcategory?: string;
+  description?: string;
+}): string | undefined {
+  const nameUpper = input.productName.toUpperCase();
+  const hintsUpper = input.variantHints.map((hint) => hint.toUpperCase());
+  const descLower = (input.description ?? '').toLowerCase();
+  if (input.subcategory?.trim()) return input.subcategory.trim();
+  if (
+    hintsUpper.some((hint) => hint.includes('INDOOR')) ||
+    nameUpper.includes('INDOOR') ||
+    /\bindoor\b/.test(descLower)
+  ) {
+    return 'indoor';
+  }
+  return undefined;
+}
+
+export function deriveFlowerProductMetadata(
+  ctx: FlowerStrainContext,
+  options?: { description?: string; subcategory?: string }
+): FlowerProductMetadata {
+  const description = options?.description?.trim() ?? '';
   const profile = ctx.researchedProfile;
-  const nameUpper = ctx.productName.toUpperCase();
-  const hintsUpper = ctx.variantHints.map((hint) => hint.toUpperCase());
+  const meta: FlowerProductMetadata = {};
 
-  if (profile?.strainType) {
-    meta.strainType = normalizeStrainTypeLabel(profile.strainType);
-  }
+  meta.strainType =
+    (profile?.strainType ? normalizeStrainTypeLabel(profile.strainType) : undefined) ??
+    inferStrainTypeFromText(
+      [ctx.productName, description, profile?.notes, profile?.socialBuzz].filter(Boolean).join(' ')
+    );
 
-  if (hintsUpper.some((hint) => hint.includes('SMALL')) || nameUpper.includes('SMALL')) {
-    meta.tier = 'Smalls';
-  } else if (hintsUpper.some((hint) => hint.includes('EXOTIC')) || nameUpper.includes('EXOTIC')) {
-    meta.tier = 'Exotic';
-  } else if (hintsUpper.some((hint) => hint.includes('INDOOR')) || nameUpper.includes('INDOOR')) {
-    meta.tier = 'Exotic';
-  }
+  meta.tier = inferFlowerTier({
+    productName: ctx.productName,
+    variantHints: ctx.variantHints,
+    subcategory: options?.subcategory,
+    description,
+  });
 
-  if (hintsUpper.some((hint) => hint.includes('INDOOR')) || nameUpper.includes('INDOOR')) {
-    meta.subcategory = 'indoor';
-  }
+  meta.subcategory = inferFlowerSubcategory({
+    productName: ctx.productName,
+    variantHints: ctx.variantHints,
+    subcategory: options?.subcategory,
+    description,
+  });
 
-  const effects = inferFlowerEffects(profile);
+  const effects = inferFlowerEffectsFromText(
+    ...(profile?.aromaFlavorNotes ?? []),
+    profile?.strainType,
+    profile?.notes,
+    profile?.socialBuzz,
+    profile?.lineage,
+    description
+  );
   if (effects.length > 0) meta.effects = effects;
 
   return meta;
+}
+
+/** Always returns shop badge metadata for flower — used after every Grok description run. */
+export function finalizeFlowerProductMetadata(
+  ctx: FlowerStrainContext,
+  options?: { description?: string; subcategory?: string }
+): FlowerProductMetadata {
+  const meta = deriveFlowerProductMetadata(ctx, options);
+
+  if (!meta.strainType) meta.strainType = 'Hybrid';
+  if (!meta.tier) meta.tier = 'Exotic';
+  if (!meta.effects?.length) meta.effects = ['euphoric'];
+
+  return meta;
+}
+
+export function flowerMetadataToProductFields(
+  metadata: FlowerProductMetadata
+): Pick<FlowerProductMetadata, 'strainType' | 'tier' | 'effects' | 'subcategory'> {
+  return {
+    strainType: metadata.strainType,
+    tier: metadata.tier,
+    effects: metadata.effects,
+    subcategory: metadata.subcategory,
+  };
 }
 
 export async function buildFlowerStrainContext(input: {

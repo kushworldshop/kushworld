@@ -847,6 +847,8 @@ export default function ProductsTab() {
         suggestedOptionGroups?: ProductOptionGroup[];
         suggestedFlowerMetadata?: FlowerProductMetadata;
         insights?: string;
+        product?: AdminProduct;
+        autoSaved?: boolean;
       }
     | { success: false; error: string }
   > => {
@@ -877,6 +879,8 @@ export default function ProductsTab() {
       suggestedOptionGroups: data.suggestedOptionGroups,
       suggestedFlowerMetadata: data.suggestedFlowerMetadata,
       insights: data.insights,
+      product: data.product,
+      autoSaved: data.autoSaved,
     };
   };
 
@@ -931,6 +935,9 @@ export default function ProductsTab() {
           }
           applyFlowerMetadataToPatch(patch, result.suggestedFlowerMetadata);
           applyDraftPatch(product.id, patch);
+          if (result.autoSaved && result.product) {
+            mergeProductIntoList(result.product);
+          }
           succeeded += 1;
         } else {
           failed += 1;
@@ -1518,6 +1525,7 @@ export default function ProductsTab() {
               descriptionMessage={descriptionMessage}
               onDescriptionMessage={setDescriptionMessage}
               onRequestGrokDescription={requestGrokDescription}
+              onProductSaved={mergeProductIntoList}
             />
           )}
         </div>
@@ -1595,6 +1603,7 @@ function ProductDetailPanel({
   descriptionMessage,
   onDescriptionMessage,
   onRequestGrokDescription,
+  onProductSaved,
 }: {
   product: AdminProduct;
   draft: ProductDraft;
@@ -1620,6 +1629,8 @@ function ProductDetailPanel({
         suggestedOptionGroups?: ProductOptionGroup[];
         suggestedFlowerMetadata?: FlowerProductMetadata;
         insights?: string;
+        product?: AdminProduct;
+        autoSaved?: boolean;
       }
     | { success: false; error: string }
   >;
@@ -1636,6 +1647,7 @@ function ProductDetailPanel({
   onMediaChange: (media: ProductMediaItem[]) => void;
   onCreateSubsection: (label: string) => Promise<string | null>;
   onUploadOptionImage: (file: File) => Promise<string | null>;
+  onProductSaved: (product: AdminProduct) => void;
 }) {
   const [editorTab, setEditorTab] = useState<EditorTab>('basics');
   const [generatingDescription, setGeneratingDescription] = useState(false);
@@ -1685,6 +1697,9 @@ function ProductDetailPanel({
       }
       applyFlowerMetadataToPatch(patch, result.suggestedFlowerMetadata);
       onDraftPatch(patch);
+      if (result.autoSaved && result.product) {
+        onProductSaved(result.product);
+      }
       const applied: string[] = ['description'];
       if (patch.name) applied.push('name');
       if (patch.optionGroups?.length) {
@@ -1693,8 +1708,11 @@ function ProductDetailPanel({
       if (patch.strainType || patch.tier || patch.effects?.length) {
         applied.push('shop badges (strain/tier/effects)');
       }
+      const saveNote = result.autoSaved
+        ? 'Description and shop badges auto-saved to the live product.'
+        : 'Review in Basics / Stock & more, then Save.';
       onDescriptionMessage(
-        `${result.insights ? `${result.insights}. ` : ''}Applied ${applied.join(', ')} — review in Basics / Stock & more, then Save.`
+        `${result.insights ? `${result.insights}. ` : ''}Applied ${applied.join(', ')}. ${saveNote}`
       );
       setEditorTab('description');
     } catch {
