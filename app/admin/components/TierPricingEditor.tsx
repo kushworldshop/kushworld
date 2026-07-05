@@ -10,16 +10,20 @@ import type { TierPrice } from '@/lib/products';
 
 interface TierPricingEditorProps {
   sellPrice: number;
+  showOnShop: boolean;
   useCustom: boolean;
   tiers: TierPrice[];
+  onShowOnShopChange: (showOnShop: boolean) => void;
   onUseCustomChange: (useCustom: boolean) => void;
   onTiersChange: (tiers: TierPrice[]) => void;
 }
 
 export default function TierPricingEditor({
   sellPrice,
+  showOnShop,
   useCustom,
   tiers,
+  onShowOnShopChange,
   onUseCustomChange,
   onTiersChange,
 }: TierPricingEditorProps) {
@@ -52,7 +56,11 @@ export default function TierPricingEditor({
   };
 
   return (
-    <div className="sm:col-span-2 rounded-xl border border-zinc-800 bg-zinc-950 p-4 space-y-3">
+    <div
+      className={`sm:col-span-2 rounded-xl border p-4 space-y-3 transition ${
+        showOnShop ? 'border-zinc-800 bg-zinc-950' : 'border-zinc-800/80 bg-zinc-950/60'
+      }`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-white">Bulk pricing</p>
@@ -60,23 +68,42 @@ export default function TierPricingEditor({
             Shown on the product page when quantity tiers apply. {describeAutoTierPricingRules()}
           </p>
         </div>
-        <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer shrink-0">
-          <input
-            type="checkbox"
-            checked={useCustom}
-            onChange={(e) => handleCustomToggle(e.target.checked)}
-            className="w-4 h-4 accent-[#00ff9d]"
-          />
-          Custom tiers
-        </label>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <label className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showOnShop}
+              onChange={(e) => onShowOnShopChange(e.target.checked)}
+              className="w-4 h-4 accent-[#00ff9d]"
+            />
+            Show on shop
+          </label>
+          <label
+            className={`flex items-center gap-2 text-xs cursor-pointer ${
+              showOnShop ? 'text-zinc-300' : 'text-zinc-600'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={useCustom}
+              disabled={!showOnShop}
+              onChange={(e) => handleCustomToggle(e.target.checked)}
+              className="w-4 h-4 accent-[#00ff9d] disabled:opacity-40"
+            />
+            Custom tiers
+          </label>
+        </div>
       </div>
 
-      <p className="text-[11px] text-[#00ff9d]/90">
-        Shop shows: {formatTierPricingSummary(displayTiers)}
-        {!useCustom && displayTiers.length > 0 ? ' (automatic)' : ''}
+      <p className={`text-[11px] ${showOnShop ? 'text-[#00ff9d]/90' : 'text-zinc-500'}`}>
+        {showOnShop
+          ? `Shop shows: ${formatTierPricingSummary(displayTiers)}${
+              !useCustom && displayTiers.length > 0 ? ' (automatic)' : ''
+            }`
+          : 'Bulk section hidden on product page. Tier settings are saved if you turn it back on.'}
       </p>
 
-      {displayTiers.length === 0 ? (
+      {!showOnShop ? null : displayTiers.length === 0 ? (
         <p className="text-xs text-zinc-500">
           No bulk tiers at this sell price. Raise sell price to $50+ or enable custom tiers.
         </p>

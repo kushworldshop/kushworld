@@ -53,6 +53,7 @@ export type ProductOverride = Partial<
     | 'limitedEdition'
     | 'isDrop'
     | 'tierPricing'
+    | 'hideBulkPricing'
   >
 >;
 
@@ -433,6 +434,10 @@ function applyProductOverrideUpdates(
     if (cleanedTiers.length > 0) next.tierPricing = cleanedTiers;
     else delete next.tierPricing;
   }
+  if (updates.hideBulkPricing !== undefined) {
+    if (updates.hideBulkPricing) next.hideBulkPricing = true;
+    else delete next.hideBulkPricing;
+  }
 
   return repairProductOverride(base, next);
 }
@@ -469,6 +474,7 @@ function cleanOverrideForStorage(base: Product, next: ProductOverride): ProductO
     Object.entries(next).filter(([key, value]) => {
       if (value === undefined || value === '') return false;
       if (key === 'hidden') return value === true;
+      if (key === 'hideBulkPricing') return value === true;
       if (key === 'featured' || key === 'bestSeller' || key === 'isNew') return value === true;
       if (key === 'compareAtPrice') return typeof value === 'number' && value > 0;
       if (key === 'cost') return typeof value === 'number' && value > 0;

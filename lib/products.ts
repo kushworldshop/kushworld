@@ -27,6 +27,8 @@ export interface Product {
   description?: string;
   coaPdf?: string;
   tierPricing?: TierPrice[];
+  /** When true, bulk pricing block is hidden and quantity tiers are not applied at checkout */
+  hideBulkPricing?: boolean;
   compareAtPrice?: number;
   merchSubcategory?: string;
   subcategory?: string;
@@ -125,6 +127,7 @@ export function getProductDescription(product: Product): string {
 }
 
 export function getTierPricing(product: Product): TierPrice[] {
+  if (product.hideBulkPricing) return [];
   return getEffectiveTierPricing(product);
 }
 

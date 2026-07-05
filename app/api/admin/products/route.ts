@@ -155,6 +155,7 @@ export async function PATCH(request: NextRequest) {
       isNew,
       tierPricing,
       clearTierPricing,
+      hideBulkPricing,
     } = body;
 
     if (Array.isArray(ids) && typeof hidden === 'boolean') {
@@ -201,6 +202,7 @@ export async function PATCH(request: NextRequest) {
       isNew: typeof isNew === 'boolean' ? isNew : undefined,
       tierPricing: Array.isArray(tierPricing) ? tierPricing : undefined,
       clearTierPricing: clearTierPricing === true,
+      hideBulkPricing: typeof hideBulkPricing === 'boolean' ? hideBulkPricing : undefined,
     });
 
     if (!product) {

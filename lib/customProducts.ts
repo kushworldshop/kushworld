@@ -91,6 +91,7 @@ export type CustomProductUpdate = Partial<
     | 'bestSeller'
     | 'isNew'
     | 'tierPricing'
+    | 'hideBulkPricing'
   >
 > & { clearInventory?: boolean; clearTierPricing?: boolean };
 
@@ -175,6 +176,10 @@ export async function updateCustomProduct(
     const cleanedTiers = sanitizeTierPricing(updates.tierPricing);
     if (cleanedTiers.length > 0) next.tierPricing = cleanedTiers;
     else delete next.tierPricing;
+  }
+  if (updates.hideBulkPricing !== undefined) {
+    if (updates.hideBulkPricing) next.hideBulkPricing = true;
+    else delete next.hideBulkPricing;
   }
 
   products[index] = next;

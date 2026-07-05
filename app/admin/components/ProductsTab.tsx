@@ -81,6 +81,7 @@ interface AdminProduct {
   images?: string[];
   media?: ProductMediaItem[];
   tierPricing?: TierPrice[];
+  hideBulkPricing?: boolean;
 }
 
 type ProductEditPatch = Partial<AdminProduct> & {
@@ -124,6 +125,7 @@ function buildProductDraft(product: AdminProduct, edits: Record<string, ProductE
       patch?.tierPricing ??
       product.tierPricing ??
       getDefaultTierPricing(price),
+    hideBulkPricing: patch?.hideBulkPricing ?? product.hideBulkPricing ?? false,
   };
 }
 
@@ -151,6 +153,7 @@ function buildProductSavePayload(productId: string, draft: ProductDraft) {
     isNew: draft.isNew,
     tierPricing: draft.useCustomTierPricing ? sanitizeTierPricing(draft.tierPricing) : undefined,
     clearTierPricing: !draft.useCustomTierPricing,
+    hideBulkPricing: draft.hideBulkPricing,
   };
 }
 
@@ -1793,8 +1796,10 @@ function ProductDetailPanel({
             {draft.category !== 'merch' && (
               <TierPricingEditor
                 sellPrice={draft.price}
+                showOnShop={!draft.hideBulkPricing}
                 useCustom={draft.useCustomTierPricing}
                 tiers={draft.tierPricing}
+                onShowOnShopChange={(showOnShop) => onDraftChange('hideBulkPricing', !showOnShop)}
                 onUseCustomChange={(useCustom) => onDraftChange('useCustomTierPricing', useCustom)}
                 onTiersChange={(tiers) => onDraftChange('tierPricing', tiers)}
               />

@@ -1,5 +1,5 @@
 import { filterVisibleProducts, getProductBySlug, getProducts } from '@/lib/productCatalog';
-import { getProductDescription, type Product } from '@/lib/products';
+import { getProductDescription, getTierPricing, type Product } from '@/lib/products';
 import { getSiteContent } from '@/lib/siteContent';
 import type { SiteContent } from '@/lib/siteContentTypes';
 import { isXaiConfigured, xaiChatCompletion } from '@/lib/xai';
@@ -47,8 +47,9 @@ ${content.policies.returns.body.slice(0, 800)}`;
 export function buildProductSystemPrompt(product: Product, content: SiteContent): string {
   const description = getProductDescription(product);
   const coa = product.coaPdf ? `COA available: ${product.coaPdf}` : 'No COA on file for this product.';
-  const tiers = product.tierPricing?.length
-    ? `Volume pricing: ${product.tierPricing.map((t) => `${t.minQty}+ @ $${t.price}`).join(', ')}`
+  const tierList = getTierPricing(product);
+  const tiers = tierList.length
+    ? `Volume pricing: ${tierList.map((t) => `${t.minQty}+ @ $${t.price}`).join(', ')}`
     : '';
 
   return `${BASE_RULES}
