@@ -201,7 +201,7 @@ function resolveOptionLayout(
   const normalized = category.toLowerCase();
   if (!hasFlavors) return 'none';
   if (
-    normalized === 'concentrates' &&
+    (normalized === 'concentrates' || normalized === 'snowcaps') &&
     /box|passport|jar|1oz/i.test(packagingSummary)
   ) {
     return 'size_and_flavor';

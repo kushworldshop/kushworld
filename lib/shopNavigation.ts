@@ -70,6 +70,14 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       enabled: true,
     },
     {
+      id: 'snowcaps',
+      label: 'Snowcaps',
+      description: 'Premium hemp snowcaps — flower dusted with concentrate and kief. Lab-tested with COAs. 21+ only.',
+      productCategories: ['snowcaps'],
+      subsections: [],
+      enabled: true,
+    },
+    {
       id: 'edibles',
       label: 'Edibles',
       description: 'Lab-tested hemp edibles. Verified potency and discreet shipping. 21+ only.',
@@ -120,6 +128,7 @@ const PRODUCT_CATEGORY_ALIASES: Record<string, string> = {
   accessory: 'accessories',
   concentrate: 'concentrates',
   moonrock: 'moonrocks',
+  snowcap: 'snowcaps',
 };
 
 export function normalizeShopCategoryId(id: string): string {
@@ -331,6 +340,7 @@ export const ADMIN_PRODUCT_CATEGORY_TABS = [
   { id: 'concentrates', label: 'Concentrates' },
   { id: 'flower', label: 'Flower' },
   { id: 'moonrocks', label: 'Moonrocks' },
+  { id: 'snowcaps', label: 'Snowcaps' },
   { id: 'edibles', label: 'Edibles' },
   { id: 'pre-rolls', label: 'Pre Rolls' },
   { id: 'accessories', label: 'Accessories' },

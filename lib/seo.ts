@@ -78,6 +78,12 @@ export const CATEGORY_SEO: Record<
       'Premium hemp moonrocks coated in concentrate and kief. Third-party lab COAs. Discreet nationwide shipping. 21+ only.',
     keywords: ['hemp moonrocks', 'moon rocks', 'lab tested moonrocks', 'hemp moonrock COA'],
   },
+  snowcaps: {
+    title: 'Hemp Snowcaps — Lab-Tested | Kush World',
+    description:
+      'Premium hemp snowcaps dusted with concentrate and kief. Third-party lab COAs. Discreet nationwide shipping. 21+ only.',
+    keywords: ['hemp snowcaps', 'snow caps', 'lab tested snowcaps', 'hemp snowcap COA'],
+  },
   mushrooms: {
     title: 'Premium Mushroom Products — Lab Verified | Kush World',
     description:
@@ -323,6 +329,7 @@ export const PUBLIC_PAGES: {
   { path: '/shop/concentrates', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/flower', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/moonrocks', priority: 0.85, changeFrequency: 'weekly' },
+  { path: '/shop/snowcaps', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/edibles', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/pre-rolls', priority: 0.85, changeFrequency: 'weekly' },
   { path: '/shop/accessories', priority: 0.85, changeFrequency: 'weekly' },

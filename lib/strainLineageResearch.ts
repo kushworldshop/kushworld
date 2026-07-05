@@ -159,5 +159,5 @@ Return JSON array:
 
 export function categoriesWithStrainRoster(category?: string): boolean {
   const normalized = category?.toLowerCase().trim() ?? '';
-  return ['concentrates', 'moonrocks', 'flower', 'pre-rolls', 'edibles'].includes(normalized);
+  return ['concentrates', 'moonrocks', 'snowcaps', 'flower', 'pre-rolls', 'edibles'].includes(normalized);
 }

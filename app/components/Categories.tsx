@@ -6,6 +6,7 @@ const allCategories = [
   { label: 'Concentrates', icon: 'fa-fire', id: 'concentrates' },
   { label: 'Flower', icon: 'fa-leaf', id: 'flower' },
   { label: 'Moonrocks', icon: 'fa-meteor', id: 'moonrocks' },
+  { label: 'Snowcaps', icon: 'fa-snowflake', id: 'snowcaps' },
   { label: 'Mushrooms', icon: 'fa-seedling', id: 'mushrooms' },
 ];
 

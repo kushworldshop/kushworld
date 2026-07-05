@@ -18,7 +18,8 @@ function parsePrice(raw) {
 function categorize(name) {
   const lower = name.toLowerCase();
   if (lower.includes('mushroom')) return 'mushrooms';
-  if (lower.includes('crumble') || lower.includes('sugar') || lower.includes('badder') || lower.includes('combo') || lower.includes('terpies') || lower.includes('havana') || lower.includes('phaded') || lower.includes('snowcap')) {
+  if (lower.includes('snowcap')) return 'snowcaps';
+  if (lower.includes('crumble') || lower.includes('sugar') || lower.includes('badder') || lower.includes('combo') || lower.includes('terpies') || lower.includes('havana') || lower.includes('phaded')) {
     return 'concentrates';
   }
   if (lower.includes('kaws') || lower.includes('flower')) return 'flower';

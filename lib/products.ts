@@ -117,6 +117,7 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   concentrates: 'High-quality concentrate. Third-party lab tested with COA available. Store in a cool, dry place.',
   flower: 'Premium hemp flower strain. Hand-selected, lab-tested, and shipped discreetly with full COA documentation.',
   moonrocks: 'Premium hemp moonrocks. Flower coated in concentrate and kief. Lab-tested with COA available. 21+ only.',
+  snowcaps: 'Premium hemp snowcaps. Flower dusted with concentrate and kief. Lab-tested with COA available. 21+ only.',
   mushrooms: 'Premium mushroom product. Lab verified. For adults 21+ only.',
   merch: 'Official Kush World Studio apparel and accessories. Unisex fit. Direct-to-garment print quality.',
 };
@@ -269,7 +270,7 @@ const hempProducts: Product[] = [
     "price": 950,
     "image": "/products/kaws-snowcaps.jpg",
     "sizes": [],
-    "category": "concentrates"
+    "category": "snowcaps"
   },
   {
     "id": "17",

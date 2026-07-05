@@ -29,6 +29,7 @@ function defaultPriceForCategory(category: string): number {
   switch (category) {
     case 'flower':
     case 'moonrocks':
+    case 'snowcaps':
       return 700;
     case 'concentrates':
       return 800;
