@@ -203,7 +203,8 @@ export function formatFlowerStrainContextForPrompt(ctx: FlowerStrainContext): st
   lines.push(
     '',
     'FLOWER COPY RULES (when strain research is provided):',
-    '- Weave lineage, aroma/flavor, and visual cues naturally into the description.',
+    '- Weave lineage, aroma/flavor, and visual cues naturally into the description body.',
+    '- When lineage/parents are known, mention the cross (Parent A × Parent B) at least once in the copy.',
     '- Use compliant sensory language only — no medical claims, no guaranteed effects, no potency % unless in product data.',
     '- Mention indoor/smalls tier when variant hints include it.',
     '- Do not contradict the research; if confidence is low/proprietary, lean on photo details and general premium flower language.'

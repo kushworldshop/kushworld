@@ -10,6 +10,11 @@ import {
   summarizeProductImageAnalysis,
   type ProductCatalogImageAnalysis,
 } from '@/lib/productImageAnalysis';
+import {
+  categoriesWithStrainRoster,
+  formatStrainLineageRosterForPrompt,
+  researchMultiStrainLineages,
+} from '@/lib/strainLineageResearch';
 import { getSiteContent } from '@/lib/siteContent';
 import { CATEGORY_SEO } from '@/lib/seo';
 import { getMerchSubcategoryLabel } from '@/lib/merch';
@@ -68,7 +73,8 @@ function collectImageUrls(input: ProductDescriptionInput): string[] {
 
 function buildProductDescriptionPrompt(
   input: ProductDescriptionInput,
-  sections: string[]
+  sections: string[],
+  options?: { hasStrainLineageRoster?: boolean }
 ): string {
   const tone = normalizeProductDescriptionTone(input.tone);
   const content = CATEGORY_SEO[input.category];
@@ -81,13 +87,22 @@ function buildProductDescriptionPrompt(
   const seoKeywords = content?.keywords?.join(', ') ?? 'Kush World, lab tested hemp';
   const wordTarget = tone === 'concise' ? '80–120 words' : '140–220 words';
 
+  const hasRoster = options?.hasStrainLineageRoster ?? false;
+
   const strainRules = isFlower
     ? `- Use strain research, photo analysis, and brand cross-reference when provided — do not invent genetics beyond that data.`
-    : `- Use full photo analysis and brand cross-reference for kit contents, flavors, and naming — only use flavors from the final merged list.`;
+    : hasRoster
+      ? `- Review ALL provided data: product name, brand, kit contents, photo flavors, and strain lineage roster.
+- Use only flavors/strains from the final merged list; include parent crosses in the closing roster when lineage is provided.`
+      : `- Use full photo analysis and brand cross-reference for kit contents, flavors, and naming — only use flavors from the final merged list.`;
+
+  const closingRule = hasRoster
+    ? `- REQUIRED: End with "Available strains:" (or "Available flavors:" for vape kits) and bullet every strain as • Name (Parent × Parent) when crosses are provided in the roster.`
+    : '';
 
   return `You write product descriptions for Kush World (kushworld.shop), a premium hemp and studio merch retailer.
 
-Write ONE product description for the item below.
+Write ONE product description. Review every section of provided research before writing — product name, brand, kit contents, flavors, and strain genetics.
 
 ${getProductDescriptionToneInstructions(tone)}
 
@@ -122,6 +137,7 @@ MERCH CATEGORY:
 OUTPUT RULES:
 - Return ONLY the product description text — no title, no preamble, no "Here's the description".
 - No markdown headings. Plain text or simple bullet lines with "•" only.
+${closingRule}
 ${strainRules}`;
 }
 
@@ -170,7 +186,22 @@ export async function generateProductDescriptionWithGrok(
     promptSections.push(formatFlowerStrainContextForPrompt(strainContext));
   }
 
-  const userPrompt = `${buildProductDescriptionPrompt(input, promptSections)}
+  const rosterStrainNames = imageAnalysis?.flavorOrVariantLabels ?? [];
+  let hasStrainLineageRoster = false;
+
+  if (
+    rosterStrainNames.length >= 2 &&
+    categoriesWithStrainRoster(input.category)
+  ) {
+    const lineageEntries = await researchMultiStrainLineages(rosterStrainNames);
+    const rosterSection = formatStrainLineageRosterForPrompt(lineageEntries);
+    if (rosterSection) {
+      promptSections.push(rosterSection);
+      hasStrainLineageRoster = true;
+    }
+  }
+
+  const userPrompt = `${buildProductDescriptionPrompt(input, promptSections, { hasStrainLineageRoster })}
 
 Use display category label "${categoryLabel}" where it reads naturally in the copy.
 ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imageAnalysis.detectedProductName}" when it fits naturally.` : ''}`;
@@ -200,11 +231,20 @@ ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imag
     return { error: 'Generated description was too short. Try again.' };
   }
 
-  const insights = imageAnalysis
-    ? summarizeProductImageAnalysis(imageAnalysis)
-    : imageUrls.length > 0
-      ? 'Photos uploaded but vision analysis returned no structured data — description written from product fields only.'
-      : 'No product photos uploaded — add images in the Photos tab for flavor/menu analysis.';
+  const insightParts: string[] = [];
+  if (imageAnalysis) {
+    insightParts.push(summarizeProductImageAnalysis(imageAnalysis));
+  } else if (imageUrls.length > 0) {
+    insightParts.push(
+      'Photos uploaded but vision analysis returned no structured data — description written from product fields only.'
+    );
+  } else {
+    insightParts.push('No product photos uploaded — add images in the Photos tab for flavor/menu analysis.');
+  }
+  if (hasStrainLineageRoster) {
+    insightParts.push('strain crosses added to closing list');
+  }
+  const insights = insightParts.join(' · ');
 
   return {
     description,

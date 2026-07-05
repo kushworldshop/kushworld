@@ -2026,9 +2026,9 @@ function ProductDetailPanel({
             {grokEnabled && (
               <p className="text-xs text-zinc-500">
                 Grok runs a full picture analysis on every uploaded photo — especially brand case and flavor
-                chart shots — then cross-references authentic brand releases and official flavor lists. It can
-                auto-fill product name, variant/flavor options, and SEO description. Upload case + menu photos
-                in the Photos tab first for best results.
+                chart shots — then cross-references authentic brand releases and strain genetics. Box products
+                (e.g. WM Caviar) get a closing strain list with parent crosses like Name (Parent A × Parent B).
+                Upload case + menu photos first, then review name, variants, and description before saving.
               </p>
             )}
             {descriptionMessage && <p className="text-xs text-[#00ff9d]">{descriptionMessage}</p>}

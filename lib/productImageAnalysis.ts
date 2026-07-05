@@ -304,7 +304,8 @@ export function formatProductImageAnalysisForPrompt(analysis: ProductCatalogImag
     '',
     'Use the final flavor list and official brand research in the description.',
     'Mention kit contents (e.g. vape + pre-roll) when confirmed by photos or brand data.',
-    'Do not invent flavors beyond the final merged list.'
+    'Do not invent flavors beyond the final merged list.',
+    'When strain lineage roster is provided separately, end the description with strains listed as Name (Parent × Parent).'
   );
 
   return lines.join('\n');
