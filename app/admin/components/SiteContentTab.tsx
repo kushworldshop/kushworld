@@ -39,6 +39,7 @@ function PaymentMethodEditor({
   patchFeatures,
   showSubtitle = false,
   showPayTo = false,
+  showInstructions = false,
   showBitcoinDetails = false,
 }: {
   title: string;
@@ -47,6 +48,7 @@ function PaymentMethodEditor({
   patchFeatures: (patch: FeaturePatch) => void;
   showSubtitle?: boolean;
   showPayTo?: boolean;
+  showInstructions?: boolean;
   showBitcoinDetails?: boolean;
 }) {
   const config = features[featureKey];
@@ -75,6 +77,15 @@ function PaymentMethodEditor({
               label="Button subtitle"
               value={config.subtitle || ''}
               onChange={(v) => patchFeatures({ [featureKey]: { subtitle: v } })}
+            />
+          )}
+          {showInstructions && (
+            <Field
+              label="Checkout instructions"
+              value={config.instructions || ''}
+              onChange={(v) => patchFeatures({ [featureKey]: { instructions: v } })}
+              multiline
+              hint="Shown before checkout — payment account details are not displayed; admin reaches out after order."
             />
           )}
           {showPayTo && (
@@ -457,8 +468,8 @@ export default function SiteContentTab({
         {section === 'payments' && (
           <>
             <p className="text-sm text-zinc-400">
-              Turn payment methods on or off and edit what customers see at checkout — button labels,
-              pay-to info for manual methods, and crypto payment copy.
+              Turn payment methods on or off and edit checkout copy. Manual methods show a confirmation code after
+              order — admins reach out with payment details (no pay-to shown at checkout).
             </p>
 
             <PaymentMethodEditor
@@ -489,35 +500,35 @@ export default function SiteContentTab({
               featureKey="paymentZelle"
               features={features}
               patchFeatures={patchFeatures}
-              showPayTo
+              showInstructions
             />
             <PaymentMethodEditor
               title="PayPal"
               featureKey="paymentPaypal"
               features={features}
               patchFeatures={patchFeatures}
-              showPayTo
+              showInstructions
             />
             <PaymentMethodEditor
               title="Chime"
               featureKey="paymentChime"
               features={features}
               patchFeatures={patchFeatures}
-              showPayTo
+              showInstructions
             />
             <PaymentMethodEditor
               title="Venmo"
               featureKey="paymentVenmo"
               features={features}
               patchFeatures={patchFeatures}
-              showPayTo
+              showInstructions
             />
             <PaymentMethodEditor
               title="Cash App"
               featureKey="paymentCashapp"
               features={features}
               patchFeatures={patchFeatures}
-              showPayTo
+              showInstructions
             />
           </>
         )}

@@ -51,14 +51,40 @@ type PaymentMethod =
 
 function ManualPaymentPanel({ config }: { config: CheckoutPaymentConfig }) {
   return (
-    <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-      {config.payToLabel && <p className="font-semibold mb-2">{config.payToLabel}</p>}
-      {config.payToValue && <p className="text-[#00ff9d]">{config.payToValue}</p>}
-      {config.instructions && (
-        <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{config.instructions}</p>
+    <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30 text-sm text-zinc-400 space-y-3">
+      <p className="font-semibold text-white">Manual payment verification</p>
+      {config.instructions ? (
+        <p className="whitespace-pre-line">{config.instructions}</p>
+      ) : (
+        <p>
+          After you place your order, you will receive a confirmation code. A Kush World admin will reach out with
+          payment instructions and to confirm your payment.
+        </p>
       )}
-      <p className="text-sm text-zinc-500 mt-4">
-        After placing your order, send payment using the info above. Kush World will verify manually before processing.
+      <p className="text-zinc-500">Payment account details are not shown at checkout — an admin will contact you directly.</p>
+    </div>
+  );
+}
+
+function ManualPaymentConfirmation({
+  orderId,
+  email,
+  methodLabel,
+}: {
+  orderId: string;
+  email: string;
+  methodLabel: string;
+}) {
+  return (
+    <div className="bg-black border border-[#00ff9d]/30 rounded-2xl p-6 mb-6 text-left">
+      <p className="text-[#00ff9d] text-xs uppercase tracking-widest mb-2">Confirmation code</p>
+      <p className="font-mono text-2xl sm:text-3xl font-bold text-white mb-4 break-all">{orderId}</p>
+      <p className="text-sm text-zinc-400 leading-relaxed">
+        Thank you for choosing {methodLabel}. Save this confirmation code — you may be asked for it when we contact you.
+      </p>
+      <p className="text-sm text-zinc-300 mt-3 leading-relaxed">
+        A Kush World admin will reach out to <span className="text-white">{email}</span> with payment instructions and to
+        confirm your payment before your order is processed.
       </p>
     </div>
   );
@@ -850,12 +876,17 @@ export default function Checkout() {
         <div className="max-w-lg w-full bg-zinc-900 border border-zinc-700 rounded-3xl p-8">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#00ff9d]/20 text-[#00ff9d] text-2xl mb-4">✓</div>
-            <h1 className="text-3xl font-bold text-[#00ff9d] mb-2">Order Placed!</h1>
-            <p className="text-zinc-400">
-              Order <span className="font-mono text-white">{orderId}</span> received.
-              {paymentComplete && <span className="block mt-2 text-green-400">Payment approved.</span>}
-            </p>
+            <h1 className="text-3xl font-bold text-[#00ff9d] mb-2">Thank You!</h1>
+            <p className="text-zinc-400">Your order has been received.</p>
           </div>
+
+          {isManualPaymentMethod(paymentMethod) && (
+            <ManualPaymentConfirmation
+              orderId={orderId}
+              email={customerInfo.email}
+              methodLabel={getPaymentMethodLabel(paymentMethod)}
+            />
+          )}
 
           <div className="bg-black border border-[#00ff9d]/30 rounded-2xl p-6 mb-6">
             <h2 className="text-xl font-bold mb-2">21+ ID Verification Required</h2>
@@ -889,35 +920,48 @@ export default function Checkout() {
   }
 
   if (orderPlaced) {
+    const manualOrder = isManualPaymentMethod(paymentMethod);
+    const cryptoOrCardPaid = paymentComplete || btcPaymentComplete || xrpPaymentComplete;
+
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
-        <div className="max-w-md text-center">
-          <h1 className="text-4xl font-bold text-[#00ff9d] mb-6">Thank You!</h1>
-          <p className="text-xl mb-4">Order <span className="font-mono text-[#00ff9d]">{orderId}</span> received.</p>
-          {(paymentComplete || btcPaymentComplete || xrpPaymentComplete) && (
-            <p className="text-green-400 mb-4">
-              {paymentMethod === 'btc'
-                ? 'Your Bitcoin payment was received.'
-                : paymentMethod === 'xrp'
-                  ? 'Your XRP payment was received.'
-                  : 'Your card payment was approved.'}
-            </p>
-          )}
-          {isManualPaymentMethod(paymentMethod) && (
-            <p className="text-amber-300 mb-4 text-sm">
-              Send your {getPaymentMethodLabel(paymentMethod)} payment now. We will verify manually before processing.
-            </p>
+        <div className="max-w-md w-full text-center">
+          <h1 className="text-4xl font-bold text-[#00ff9d] mb-4">Thank You!</h1>
+          {manualOrder ? (
+            <>
+              <p className="text-zinc-400 mb-6">Your order has been received.</p>
+              <ManualPaymentConfirmation
+                orderId={orderId}
+                email={customerInfo.email}
+                methodLabel={getPaymentMethodLabel(paymentMethod)}
+              />
+            </>
+          ) : (
+            <>
+              <p className="text-xl mb-4">
+                Order <span className="font-mono text-[#00ff9d]">{orderId}</span> received.
+              </p>
+              {cryptoOrCardPaid && (
+                <p className="text-green-400 mb-4">
+                  {paymentMethod === 'btc'
+                    ? 'Your Bitcoin payment was received.'
+                    : paymentMethod === 'xrp'
+                      ? 'Your XRP payment was received.'
+                      : 'Your card payment was approved.'}
+                </p>
+              )}
+              <p className="mb-8 text-zinc-400">
+                {cryptoOrCardPaid
+                  ? `Confirmation sent to ${customerInfo.email}.`
+                  : `We will contact you at ${customerInfo.email} once payment is verified.`}
+              </p>
+            </>
           )}
           {idUploaded && (
             <p className="text-sm text-zinc-400 mb-4">
               Your ID has been submitted. We will verify and ship your order.
             </p>
           )}
-          <p className="mb-8 text-zinc-400">
-            {paymentComplete || btcPaymentComplete || xrpPaymentComplete
-              ? `Confirmation sent to ${customerInfo.email}.`
-              : `We will contact you at ${customerInfo.email} once payment is verified.`}
-          </p>
 
           {/* Prominent Kush Tracker link (like Domino's pizza tracker) */}
           <div className="mb-6">
@@ -1358,7 +1402,7 @@ export default function Checkout() {
                     ? `PLACE ORDER — PAY $${totals.total.toFixed(2)} IN BTC`
                     : paymentMethod === 'xrp'
                       ? `PLACE ORDER — PAY $${totals.total.toFixed(2)} IN XRP`
-                      : 'PLACE ORDER — MANUAL PAYMENT VERIFICATION'}
+                      : 'PLACE ORDER — GET CONFIRMATION CODE'}
             </button>
           </div>
         </div>
