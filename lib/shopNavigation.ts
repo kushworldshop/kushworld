@@ -67,7 +67,7 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       description: 'Premium hemp moonrocks — flower coated in concentrate and kief. Lab-tested with COAs. 21+ only.',
       productCategories: ['moonrocks'],
       subsections: [],
-      enabled: false,
+      enabled: true,
     },
     {
       id: 'edibles',
@@ -75,7 +75,7 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       description: 'Lab-tested hemp edibles. Verified potency and discreet shipping. 21+ only.',
       productCategories: ['edibles'],
       subsections: [],
-      enabled: false,
+      enabled: true,
     },
     {
       id: 'pre-rolls',
@@ -83,7 +83,7 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       description: 'Premium hemp pre-rolls with COAs available. 21+ only.',
       productCategories: ['pre-rolls'],
       subsections: [],
-      enabled: false,
+      enabled: true,
     },
     {
       id: 'accessories',
@@ -91,7 +91,7 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
       description: 'Smoking and hemp accessories from Kush World. 21+ only.',
       productCategories: ['accessories'],
       subsections: [],
-      enabled: false,
+      enabled: true,
     },
     {
       id: 'mushrooms',
