@@ -50,6 +50,9 @@ import {
 } from '@/lib/productMedia';
 import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 import NewProductPanel from '@/app/admin/components/NewProductPanel';
+import TierPricingEditor from '@/app/admin/components/TierPricingEditor';
+import { getDefaultTierPricing, sanitizeTierPricing } from '@/lib/tierPricing';
+import type { TierPrice } from '@/lib/products';
 
 interface AdminProduct {
   id: string;
@@ -77,23 +80,31 @@ interface AdminProduct {
   isCustom?: boolean;
   images?: string[];
   media?: ProductMediaItem[];
+  tierPricing?: TierPrice[];
 }
+
+type ProductEditPatch = Partial<AdminProduct> & {
+  trackInventory?: boolean;
+  useCustomTierPricing?: boolean;
+};
 
 type ProductDraft = ReturnType<typeof buildProductDraft>;
 
-function buildProductDraft(
-  product: AdminProduct,
-  edits: Record<string, Partial<AdminProduct> & { trackInventory?: boolean }>
-) {
+function buildProductDraft(product: AdminProduct, edits: Record<string, ProductEditPatch>) {
   const patch = edits[product.id];
   const trackInventory =
     patch?.trackInventory !== undefined ? patch.trackInventory : product.inventory !== undefined;
   const media = normalizeProductMedia(patch?.media ?? getProductMedia(product));
   const syncedMedia = syncProductMediaFields(media);
+  const price = patch?.price ?? product.price;
+  const useCustomTierPricing =
+    patch?.useCustomTierPricing !== undefined
+      ? patch.useCustomTierPricing
+      : (product.tierPricing?.length ?? 0) > 0;
 
   return {
     name: patch?.name ?? product.name,
-    price: patch?.price ?? product.price,
+    price,
     cost: patch?.cost ?? product.cost ?? 0,
     trackInventory,
     inventory: patch?.inventory ?? product.inventory ?? 0,
@@ -108,6 +119,11 @@ function buildProductDraft(
     featured: patch?.featured ?? product.featured ?? false,
     bestSeller: patch?.bestSeller ?? product.bestSeller ?? false,
     isNew: patch?.isNew ?? product.isNew ?? false,
+    useCustomTierPricing,
+    tierPricing:
+      patch?.tierPricing ??
+      product.tierPricing ??
+      getDefaultTierPricing(price),
   };
 }
 
@@ -133,12 +149,14 @@ function buildProductSavePayload(productId: string, draft: ProductDraft) {
     featured: draft.featured,
     bestSeller: draft.bestSeller,
     isNew: draft.isNew,
+    tierPricing: draft.useCustomTierPricing ? sanitizeTierPricing(draft.tierPricing) : undefined,
+    clearTierPricing: !draft.useCustomTierPricing,
   };
 }
 
 export default function ProductsTab() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
-  const [edits, setEdits] = useState<Record<string, Partial<AdminProduct> & { trackInventory?: boolean }>>({});
+  const [edits, setEdits] = useState<Record<string, ProductEditPatch>>({});
   const [search, setSearch] = useState('');
   const [categoryTab, setCategoryTab] = useState<AdminProductCategoryTabId>('all');
   const [merchTypeFilter, setMerchTypeFilter] = useState<string>('all');
@@ -537,8 +555,8 @@ export default function ProductsTab() {
 
   const updateDraft = (
     id: string,
-    field: keyof AdminProduct | 'trackInventory',
-    value: string | number | boolean | ProductOptionGroup[] | ProductMediaItem[]
+    field: keyof AdminProduct | 'trackInventory' | 'useCustomTierPricing',
+    value: string | number | boolean | ProductOptionGroup[] | ProductMediaItem[] | TierPrice[]
   ) => {
     setEdits((prev) => {
       const patch = { ...prev[id], [field]: value };
@@ -1510,8 +1528,8 @@ function ProductDetailPanel({
     tone: ProductDescriptionTone
   ) => Promise<{ success: true; description: string } | { success: false; error: string }>;
   onDraftChange: (
-    field: keyof AdminProduct | 'trackInventory',
-    value: string | number | boolean | ProductOptionGroup[]
+    field: keyof AdminProduct | 'trackInventory' | 'useCustomTierPricing',
+    value: string | number | boolean | ProductOptionGroup[] | TierPrice[]
   ) => void;
   onCategoryChange: (category: string) => void;
   onSave: () => void;
@@ -1771,6 +1789,15 @@ function ProductDetailPanel({
               <div className="flex items-center text-xs text-zinc-500 px-1">
                 Margin {formatCurrency(margin.profit)} · {formatPercent(margin.marginPercent)}
               </div>
+            )}
+            {draft.category !== 'merch' && (
+              <TierPricingEditor
+                sellPrice={draft.price}
+                useCustom={draft.useCustomTierPricing}
+                tiers={draft.tierPricing}
+                onUseCustomChange={(useCustom) => onDraftChange('useCustomTierPricing', useCustom)}
+                onTiersChange={(tiers) => onDraftChange('tierPricing', tiers)}
+              />
             )}
             <div>
               <label className={labelClass}>Category</label>

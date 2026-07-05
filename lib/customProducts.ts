@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import type { Product } from '@/lib/products';
 import { getProductSlug } from '@/lib/products';
+import { sanitizeTierPricing } from '@/lib/tierPricing';
 
 const CUSTOM_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'custom-products.json');
 
@@ -89,8 +90,9 @@ export type CustomProductUpdate = Partial<
     | 'featured'
     | 'bestSeller'
     | 'isNew'
+    | 'tierPricing'
   >
-> & { clearInventory?: boolean };
+> & { clearInventory?: boolean; clearTierPricing?: boolean };
 
 export async function updateCustomProduct(
   id: string,
@@ -166,6 +168,13 @@ export async function updateCustomProduct(
   if (updates.isNew !== undefined) {
     if (updates.isNew) next.isNew = true;
     else delete next.isNew;
+  }
+  if (updates.clearTierPricing) {
+    delete next.tierPricing;
+  } else if (updates.tierPricing !== undefined) {
+    const cleanedTiers = sanitizeTierPricing(updates.tierPricing);
+    if (cleanedTiers.length > 0) next.tierPricing = cleanedTiers;
+    else delete next.tierPricing;
   }
 
   products[index] = next;

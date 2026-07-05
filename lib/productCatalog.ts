@@ -7,6 +7,7 @@ import {
   getProductDescription,
 } from '@/lib/products';
 import { clampProductOptionGroups, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
+import { sanitizeTierPricing } from '@/lib/tierPricing';
 import {
   createCustomProduct,
   deleteCustomProducts,
@@ -51,6 +52,7 @@ export type ProductOverride = Partial<
     | 'effects'
     | 'limitedEdition'
     | 'isDrop'
+    | 'tierPricing'
   >
 >;
 
@@ -231,7 +233,7 @@ export async function searchProducts(query: string): Promise<Product[]> {
 
 export async function updateProduct(
   id: string,
-  updates: ProductOverride & { clearInventory?: boolean }
+  updates: ProductOverride & { clearInventory?: boolean; clearTierPricing?: boolean }
 ): Promise<Product | null> {
   if (isCustomProductId(id)) {
     return updateCustomProduct(id, updates as CustomProductUpdate);
@@ -349,7 +351,7 @@ async function mutateProductOverrides(
 function applyProductOverrideUpdates(
   base: Product,
   current: ProductOverride,
-  updates: ProductOverride & { clearInventory?: boolean }
+  updates: ProductOverride & { clearInventory?: boolean; clearTierPricing?: boolean }
 ): ProductOverride {
   const next: ProductOverride = { ...current };
 
@@ -424,13 +426,20 @@ function applyProductOverrideUpdates(
     if (updates.isNew) next.isNew = true;
     else delete next.isNew;
   }
+  if (updates.clearTierPricing) {
+    delete next.tierPricing;
+  } else if (updates.tierPricing !== undefined) {
+    const cleanedTiers = sanitizeTierPricing(updates.tierPricing);
+    if (cleanedTiers.length > 0) next.tierPricing = cleanedTiers;
+    else delete next.tierPricing;
+  }
 
   return repairProductOverride(base, next);
 }
 
 export async function updateProductOverride(
   id: string,
-  updates: ProductOverride & { clearInventory?: boolean }
+  updates: ProductOverride & { clearInventory?: boolean; clearTierPricing?: boolean }
 ): Promise<Product | null> {
   const base = baseProducts.find((product) => product.id === id);
   if (!base) return null;
@@ -470,6 +479,9 @@ function cleanOverrideForStorage(base: Product, next: ProductOverride): ProductO
       }
       if (key === 'optionGroups') {
         return JSON.stringify(value) !== JSON.stringify(getProductOptionGroups(base));
+      }
+      if (key === 'tierPricing') {
+        return Array.isArray(value) && value.length > 0;
       }
       if (key === 'media') {
         return JSON.stringify(value) !== JSON.stringify(getProductMedia(base));

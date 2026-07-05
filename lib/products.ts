@@ -1,9 +1,10 @@
+import { getEffectiveTierPricing } from '@/lib/tierPricing';
+import type { ProductOptionGroup } from '@/lib/productOptions';
+
 export interface TierPrice {
   minQty: number;
   price: number;
 }
-
-import type { ProductOptionGroup } from '@/lib/productOptions';
 import type { ProductMediaItem } from '@/lib/productMedia';
 
 export type { ProductMediaItem } from '@/lib/productMedia';
@@ -124,17 +125,7 @@ export function getProductDescription(product: Product): string {
 }
 
 export function getTierPricing(product: Product): TierPrice[] {
-  if (product.tierPricing?.length) return product.tierPricing;
-  if (product.price >= 500) {
-    return [
-      { minQty: 3, price: Math.round(product.price * 0.95) },
-      { minQty: 5, price: Math.round(product.price * 0.9) },
-    ];
-  }
-  if (product.price >= 50) {
-    return [{ minQty: 5, price: Math.round(product.price * 0.95) }];
-  }
-  return [];
+  return getEffectiveTierPricing(product);
 }
 
 export function searchProducts(query: string): Product[] {

@@ -153,6 +153,8 @@ export async function PATCH(request: NextRequest) {
       featured,
       bestSeller,
       isNew,
+      tierPricing,
+      clearTierPricing,
     } = body;
 
     if (Array.isArray(ids) && typeof hidden === 'boolean') {
@@ -197,6 +199,8 @@ export async function PATCH(request: NextRequest) {
       featured: typeof featured === 'boolean' ? featured : undefined,
       bestSeller: typeof bestSeller === 'boolean' ? bestSeller : undefined,
       isNew: typeof isNew === 'boolean' ? isNew : undefined,
+      tierPricing: Array.isArray(tierPricing) ? tierPricing : undefined,
+      clearTierPricing: clearTierPricing === true,
     });
 
     if (!product) {
