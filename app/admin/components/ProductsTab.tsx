@@ -45,6 +45,7 @@ import {
   type ProductMediaItem,
 } from '@/lib/productMedia';
 import ProductMediaPreview from '@/app/components/ProductMediaPreview';
+import NewProductPanel from '@/app/admin/components/NewProductPanel';
 
 interface AdminProduct {
   id: string;
@@ -168,6 +169,7 @@ export default function ProductsTab() {
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [creatingProduct, setCreatingProduct] = useState(false);
 
   const grokEnabled = siteContent.features.grokAssistant.enabled;
   const selectedProduct = useMemo(
@@ -1026,11 +1028,52 @@ export default function ProductsTab() {
   const selectionIndeterminate = checkedIds.length > 0 && !allFilteredChecked;
   const bulkScopeLabel = usingSelection ? `${checkedIds.length} selected` : `${filteredProducts.length} shown`;
 
+  const openCreateProduct = () => {
+    setCreatingProduct(true);
+    setSelectedId(null);
+    setMessage('');
+  };
+
+  const handleProductCreated = async (productId: string) => {
+    setCreatingProduct(false);
+    setLoading(true);
+    try {
+      const res = await adminFetch('/api/admin/products');
+      if (res.ok) {
+        const data = await res.json();
+        const list: AdminProduct[] = data.products || [];
+        setProducts(list);
+        setSelectedId(productId);
+        const created = list.find((product) => product.id === productId);
+        if (created && categoryTab !== 'all') {
+          setCategoryTab(productCategoryToAdminTab(created.category));
+        }
+        setMessage(`Created ${created?.name || 'product'} — add more details or save changes anytime.`);
+      } else {
+        setMessage('Product created — refresh if it does not appear in the list.');
+        setSelectedId(productId);
+      }
+    } catch {
+      setMessage('Product created — refresh the list if needed.');
+      setSelectedId(productId);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="mb-10 flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-xl font-bold">Products</h2>
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={openCreateProduct}
+            disabled={creatingProduct || loading}
+            className="bg-[#00ff9d] text-black px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+          >
+            + New Product
+          </button>
           {dirtyIds.length > 0 && (
             <button
               onClick={saveAllDirty}
@@ -1326,9 +1369,23 @@ export default function ProductsTab() {
           )}
 
         <div className="bg-zinc-900 border border-zinc-700 rounded-2xl min-h-[420px] lg:min-h-0 lg:flex-1 flex flex-col overflow-hidden">
-          {!selectedProduct ? (
-            <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
-              Select a product to edit
+          {creatingProduct ? (
+            <NewProductPanel
+              siteContent={siteContent}
+              categoryTab={categoryTab}
+              onCancel={() => setCreatingProduct(false)}
+              onCreated={(productId) => void handleProductCreated(productId)}
+            />
+          ) : !selectedProduct ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-zinc-500 text-sm px-6 text-center">
+              <p>Select a product to edit, or create a new one.</p>
+              <button
+                type="button"
+                onClick={openCreateProduct}
+                className="bg-[#00ff9d] text-black px-5 py-2.5 rounded-xl text-sm font-semibold"
+              >
+                + New Product
+              </button>
             </div>
           ) : (
             <ProductDetailPanel

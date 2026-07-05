@@ -8,6 +8,7 @@ import {
 } from '@/lib/products';
 import { clampProductOptionGroups, getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
 import {
+  createCustomProduct,
   deleteCustomProducts,
   isCustomProductId,
   readCustomProducts,
@@ -236,6 +237,102 @@ export async function updateProduct(
     return updateCustomProduct(id, updates as CustomProductUpdate);
   }
   return updateProductOverride(id, updates);
+}
+
+const PLACEHOLDER_PRODUCT_IMAGE = '/logo.png';
+
+export type CreateProductInput = {
+  name: string;
+  price: number;
+  category: string;
+  cost?: number;
+  description?: string;
+  subcategory?: string;
+  merchSubcategory?: string;
+  compareAtPrice?: number;
+  featured?: boolean;
+  bestSeller?: boolean;
+  isNew?: boolean;
+  optionGroups?: ProductOptionGroup[];
+  inventory?: number;
+  hidden?: boolean;
+  thcaPercent?: number;
+  strainType?: string;
+  tier?: string;
+  effects?: string[];
+};
+
+export async function createProduct(input: CreateProductInput): Promise<Product> {
+  const name = input.name.trim();
+  if (!name) {
+    throw new Error('Product name is required');
+  }
+
+  const category = normalizeProductCategorySlug(input.category);
+  if (!category) {
+    throw new Error('Category is required');
+  }
+
+  const price = Math.max(0, Number(input.price));
+  if (!Number.isFinite(price)) {
+    throw new Error('Valid price is required');
+  }
+
+  const syncedMedia = syncProductMediaFields([
+    { type: 'image', url: PLACEHOLDER_PRODUCT_IMAGE },
+  ]);
+
+  return createCustomProduct({
+    name,
+    price,
+    category,
+    image: syncedMedia.image || PLACEHOLDER_PRODUCT_IMAGE,
+    images: syncedMedia.images,
+    media: syncedMedia.media,
+    sizes: [],
+    description: input.description?.trim() || undefined,
+    cost: input.cost !== undefined && input.cost > 0 ? Math.max(0, Number(input.cost)) : undefined,
+    subcategory: input.subcategory?.trim() || undefined,
+    merchSubcategory: input.merchSubcategory?.trim() || undefined,
+    compareAtPrice:
+      input.compareAtPrice !== undefined && input.compareAtPrice > 0
+        ? Math.max(0, Number(input.compareAtPrice))
+        : undefined,
+    featured: input.featured || undefined,
+    bestSeller: input.bestSeller || undefined,
+    isNew: input.isNew ?? true,
+    optionGroups:
+      input.optionGroups && input.optionGroups.length > 0
+        ? sanitizeOptionGroups(input.optionGroups)
+        : undefined,
+    inventory:
+      input.inventory !== undefined ? Math.max(0, Math.floor(Number(input.inventory))) : undefined,
+    hidden: input.hidden || undefined,
+    thcaPercent: input.thcaPercent,
+    strainType: input.strainType?.trim() || undefined,
+    tier: input.tier?.trim() || undefined,
+    effects: input.effects?.filter(Boolean),
+  });
+}
+
+export function toAdminProductRecord(
+  product: Product,
+  options?: { hasOverride?: boolean; base?: Product; isCustom?: boolean }
+) {
+  const base = options?.base ?? product;
+  const syncedMedia = syncProductMediaFields(getProductMedia(product));
+  return {
+    ...product,
+    media: syncedMedia.media,
+    image: syncedMedia.image || product.image,
+    images: syncedMedia.images ?? product.images,
+    hidden: isProductHidden(product),
+    hasOverride: options?.hasOverride ?? false,
+    basePrice: base.price,
+    baseName: base.name,
+    baseImage: base.image,
+    isCustom: options?.isCustom ?? isCustomProductId(product.id),
+  };
 }
 
 async function mutateProductOverrides(

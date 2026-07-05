@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { deleteProducts, getAdminProducts, setProductsHidden, updateProduct } from '@/lib/productCatalog';
+import {
+  createProduct,
+  deleteProducts,
+  getAdminProducts,
+  setProductsHidden,
+  toAdminProductRecord,
+  updateProduct,
+} from '@/lib/productCatalog';
+import { clampProductOptionGroups } from '@/lib/productOptions';
 
 export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {
@@ -12,6 +20,81 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, products });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to load products' }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const {
+      name,
+      price,
+      cost,
+      description,
+      category,
+      subcategory,
+      merchSubcategory,
+      compareAtPrice,
+      featured,
+      bestSeller,
+      isNew,
+      optionGroups,
+      inventory,
+      hidden,
+      thcaPercent,
+      strainType,
+      tier,
+      effects,
+    } = body;
+
+    if (!name || typeof name !== 'string') {
+      return NextResponse.json({ success: false, error: 'Product name is required' }, { status: 400 });
+    }
+
+    if (price === undefined || price === null || Number.isNaN(Number(price))) {
+      return NextResponse.json({ success: false, error: 'Price is required' }, { status: 400 });
+    }
+
+    if (!category || typeof category !== 'string') {
+      return NextResponse.json({ success: false, error: 'Category is required' }, { status: 400 });
+    }
+
+    const product = await createProduct({
+      name,
+      price: Number(price),
+      category,
+      cost: cost !== undefined ? Number(cost) : undefined,
+      description: typeof description === 'string' ? description : undefined,
+      subcategory: typeof subcategory === 'string' ? subcategory : undefined,
+      merchSubcategory: typeof merchSubcategory === 'string' ? merchSubcategory : undefined,
+      compareAtPrice: compareAtPrice !== undefined ? Number(compareAtPrice) : undefined,
+      featured: typeof featured === 'boolean' ? featured : undefined,
+      bestSeller: typeof bestSeller === 'boolean' ? bestSeller : undefined,
+      isNew: typeof isNew === 'boolean' ? isNew : undefined,
+      optionGroups: Array.isArray(optionGroups) ? clampProductOptionGroups(optionGroups) : undefined,
+      inventory: inventory !== undefined ? Number(inventory) : undefined,
+      hidden: typeof hidden === 'boolean' ? hidden : undefined,
+      thcaPercent: thcaPercent !== undefined ? Number(thcaPercent) : undefined,
+      strainType: typeof strainType === 'string' ? strainType : undefined,
+      tier: typeof tier === 'string' ? tier : undefined,
+      effects: Array.isArray(effects)
+        ? effects.filter((value): value is string => typeof value === 'string')
+        : undefined,
+    });
+
+    return NextResponse.json({
+      success: true,
+      product: toAdminProductRecord(product, { isCustom: true }),
+      message: `Created ${product.name}`,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create product';
+    const status = message.includes('already exists') ? 409 : 500;
+    return NextResponse.json({ success: false, error: message }, { status });
   }
 }
 
