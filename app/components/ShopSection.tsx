@@ -19,7 +19,7 @@ import {
 import { SHOP_VIBES, productMatchesVibe } from '@/lib/productVibes';
 import GrokVibePicker from './GrokVibePicker';
 
-const BUDGET_FILTER_MAX = 2000;
+const BUDGET_FILTER_MAX = 10000;
 
 const sortOptions = [
   { id: 'name-asc', label: 'Name A–Z' },
@@ -55,7 +55,7 @@ export default function ShopSection({
   const [activeSubsection, setActiveSubsection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('name-asc');
-  const [maxPrice, setMaxPrice] = useState(BUDGET_FILTER_MAX);
+  const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [activeVibe, setActiveVibe] = useState<string | null>(null);
@@ -140,17 +140,20 @@ export default function ShopSection({
     return { min, max: Math.max(min, max) };
   }, [categoryProducts]);
 
-  const defaultMaxPrice = Math.min(priceBounds.max, BUDGET_FILTER_MAX);
+  const sliderMax = Math.max(BUDGET_FILTER_MAX, priceBounds.max || BUDGET_FILTER_MAX);
+  const effectiveMaxPrice = maxPrice ?? priceBounds.max ?? sliderMax;
 
   useEffect(() => {
-    setMaxPrice(defaultMaxPrice);
-  }, [defaultMaxPrice]);
+    setMaxPrice(priceBounds.max > 0 ? priceBounds.max : sliderMax);
+  }, [activeFilter, activeSubsection, priceBounds.max, sliderMax]);
 
-  const budgetActive = maxPrice < defaultMaxPrice;
+  const budgetActive =
+    priceBounds.max > 0 && effectiveMaxPrice < priceBounds.max;
 
   const filteredProducts = useMemo(() => {
     const result = categoryProducts.filter(
-      (product) => product.price >= priceBounds.min && product.price <= maxPrice
+      (product) =>
+        product.price >= priceBounds.min && product.price <= effectiveMaxPrice
     );
 
     result.sort((a, b) => {
@@ -167,7 +170,7 @@ export default function ShopSection({
     });
 
     return result;
-  }, [categoryProducts, sortBy, maxPrice, priceBounds.min]);
+  }, [categoryProducts, sortBy, effectiveMaxPrice, priceBounds.min]);
 
   const showCategoryFilters = !merchOnly && !isMerchShopCategory(activeFilter);
 
@@ -288,24 +291,24 @@ export default function ShopSection({
               <input
                 type="range"
                 min={priceBounds.min}
-                max={BUDGET_FILTER_MAX}
+                max={sliderMax}
                 step={1}
-                value={maxPrice}
+                value={effectiveMaxPrice}
                 onChange={(e) =>
                   setMaxPrice(
-                    Math.max(priceBounds.min, Math.min(BUDGET_FILTER_MAX, Number(e.target.value)))
+                    Math.max(priceBounds.min, Math.min(sliderMax, Number(e.target.value)))
                   )
                 }
                 className="budget-slider flex-1 min-w-[80px]"
                 aria-label="Maximum budget"
               />
-              <span className="text-xs text-[#00ff9d] tabular-nums w-14 text-right shrink-0">
-                ≤${maxPrice}
+              <span className="text-xs text-[#00ff9d] tabular-nums w-16 text-right shrink-0">
+                ≤${effectiveMaxPrice.toLocaleString()}
               </span>
               {budgetActive && (
                 <button
                   type="button"
-                  onClick={() => setMaxPrice(defaultMaxPrice)}
+                  onClick={() => setMaxPrice(priceBounds.max || sliderMax)}
                   className="text-[10px] text-zinc-500 hover:text-[#00ff9d] shrink-0"
                   aria-label="Reset budget"
                 >
@@ -332,7 +335,7 @@ export default function ShopSection({
         ) : filteredProducts.length === 0 ? (
           <p className="text-center text-zinc-400 py-20">
             {categoryProducts.length > 0 && budgetActive
-              ? `No products up to $${maxPrice} — try raising your budget.`
+              ? `No products up to $${effectiveMaxPrice} — try raising your budget.`
               : 'No products match your filters.'}
           </p>
         ) : (
