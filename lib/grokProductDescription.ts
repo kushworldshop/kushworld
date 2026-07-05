@@ -82,8 +82,8 @@ function buildProductDescriptionPrompt(
   const wordTarget = tone === 'concise' ? '80–120 words' : '140–220 words';
 
   const strainRules = isFlower
-    ? `- Use strain research and photo analysis when provided — do not invent genetics beyond that data.`
-    : `- Use product photo analysis for kit contents, flavors, and naming — do not invent items or flavors not supported by the analysis.`;
+    ? `- Use strain research, photo analysis, and brand cross-reference when provided — do not invent genetics beyond that data.`
+    : `- Use full photo analysis and brand cross-reference for kit contents, flavors, and naming — only use flavors from the final merged list.`;
 
   return `You write product descriptions for Kush World (kushworld.shop), a premium hemp and studio merch retailer.
 
@@ -180,7 +180,7 @@ ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imag
       {
         role: 'system',
         content:
-          'You are an expert e-commerce copywriter for regulated hemp retail. You write SEO-friendly, compliant descriptions using product photo analysis and strain research. Be precise about flavors and kit contents only when supported by provided analysis.',
+          'You are an expert e-commerce copywriter for regulated hemp retail. You write SEO-friendly, compliant descriptions using full product photo analysis, authentic brand release cross-reference, and strain research. Use official brand flavor names and kit contents when provided.',
       },
       { role: 'user', content: userPrompt },
     ],

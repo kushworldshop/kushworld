@@ -1,11 +1,40 @@
+import {
+  formatBrandResearchForPrompt,
+  mergeFlavorLists,
+  researchBrandProductRelease,
+  type BrandReleaseResearch,
+} from '@/lib/brandProductResearch';
 import { clampProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
-import { loadProductImageSet } from '@/lib/productImageIO';
-import { isXaiConfigured, xaiVisionJsonMulti } from '@/lib/xai';
+import { loadProductImageSet, type ProductImageBytes } from '@/lib/productImageIO';
+import { isXaiConfigured, xaiVisionJson, xaiVisionJsonMulti } from '@/lib/xai';
 
 export interface ProductImageNote {
   imageIndex: number;
   imageRole: string;
   details: string;
+  flavorsRead?: string[];
+  textBlocksRead?: string[];
+}
+
+export interface SingleImageAnalysis {
+  imageIndex: number;
+  imageRole:
+    | 'brand_case'
+    | 'flavor_chart'
+    | 'hero_packaging'
+    | 'product_kit'
+    | 'strain_menu'
+    | 'back_label'
+    | 'lifestyle'
+    | 'other';
+  readableText: string[];
+  flavorLabelsRead: string[];
+  brandName?: string;
+  productLine?: string;
+  edition?: string;
+  kitItemsVisible: string[];
+  caseDescription: string;
+  confidence: 'high' | 'medium' | 'low';
 }
 
 export interface ProductCatalogImageAnalysis {
@@ -14,7 +43,12 @@ export interface ProductCatalogImageAnalysis {
   detectedEdition?: string;
   kitContents: string[];
   packagingSummary: string;
+  /** Flavors read directly from photos (OCR) */
+  photoFlavorLabels: string[];
+  /** Final merged list: photo OCR + brand cross-reference */
   flavorOrVariantLabels: string[];
+  flavorMergeNotes?: string;
+  brandResearch?: BrandReleaseResearch;
   optionGroupLayout: 'size_and_flavor' | 'flavor_only' | 'variant_only' | 'model_and_color' | 'none';
   sizeOptions?: string[];
   fullBoxLabel?: string;
@@ -23,60 +57,70 @@ export interface ProductCatalogImageAnalysis {
   colorOptions?: string[];
   visualHighlights: string[];
   perImageNotes: ProductImageNote[];
+  perImageAnalysis: SingleImageAnalysis[];
   confidence: 'high' | 'medium' | 'low';
 }
 
-const CATALOG_VISION_PROMPT = `You are a precise product catalog analyst for Kush World hemp shop admin.
+const OVERVIEW_VISION_PROMPT = `You are a precise product catalog analyst for Kush World hemp shop admin.
 
-You will receive multiple product photos for ONE listing. Study EVERY image carefully:
-- Hero / packaging shots: read exact product name, brand, edition, and what is included in the kit.
-- Flavor menus, strain charts, back-of-box lists: transcribe EVERY flavor/variant label EXACTLY as printed (spelling, caps, punctuation).
-- Concentrate box photos: note if it is a full multi-jar box vs single jars; read all strain names on the chart.
+You will receive multiple product photos for ONE listing. Study EVERY image — especially:
+• BRAND CASE / DISPLAY CASE photos: read ALL flavor names printed on case lid, sides, dividers, and strain slots.
+• FLAVOR CHART / MENU images: transcribe every row/column label exactly.
+• HERO packaging: product name, brand logo, edition name, "includes" callouts.
+• CONCENTRATE BOX: Full box vs single jar, strain chart on insert/lid.
 
 Return JSON only:
 {
-  "detectedProductName": "exact customer-facing product title from packaging",
-  "detectedBrand": "brand line if visible",
-  "detectedEdition": "edition name if visible (e.g. Gamer Edition)",
-  "kitContents": ["list each included item, e.g. disposable vape, pre-roll, charger"],
-  "packagingSummary": "2-3 sentences describing what the product is and what buyer receives",
-  "flavorOrVariantLabels": ["every flavor/strain/variant name read from menus — exact spelling"],
+  "detectedProductName": "exact customer-facing product title",
+  "detectedBrand": "brand on packaging",
+  "detectedEdition": "edition if visible",
+  "kitContents": ["each included item visible or stated on packaging"],
+  "packagingSummary": "2-4 sentences: what it is, brand case type, what buyer receives",
+  "flavorOrVariantLabels": ["every flavor/strain name readable in ANY image — exact spelling"],
   "optionGroupLayout": "size_and_flavor | flavor_only | variant_only | model_and_color | none",
-  "sizeOptions": ["only if box/unit sizes are visible"],
-  "fullBoxLabel": "e.g. Full Box if multi-unit box product",
-  "singleUnitLabel": "e.g. Single 1oz Jar if applicable",
-  "modelOptions": ["device models if applicable"],
-  "colorOptions": ["colors if applicable"],
-  "visualHighlights": ["3-6 merchandising details visible in photos"],
+  "fullBoxLabel": "Full Box if applicable",
+  "singleUnitLabel": "Single 1oz Jar if applicable",
+  "modelOptions": [],
+  "colorOptions": [],
+  "visualHighlights": ["merchandising details"],
   "perImageNotes": [
-    { "imageIndex": 1, "imageRole": "hero|flavor_chart|back_label|lifestyle|other", "details": "what this image shows" }
+    {
+      "imageIndex": 1,
+      "imageRole": "brand_case|flavor_chart|hero_packaging|product_kit|strain_menu|back_label|lifestyle|other",
+      "details": "what this image shows — mention if it is a brand display case with flavor slots",
+      "flavorsRead": ["flavors visible in THIS image only"],
+      "textBlocksRead": ["other readable text on packaging"]
+    }
   ],
   "confidence": "high | medium | low"
 }
 
 Rules:
-- flavorOrVariantLabels: ONLY names you can read in the images. Do not invent or guess missing entries.
-- If a flavor chart has 20 names, return all 20 with exact spelling.
-- Stoner Stix style kits: usually variant_only with gamer-themed flavor names; kit often includes vape + pre-roll.
-- Concentrate passport/box products: size_and_flavor with Full Box + Single 1oz Jar and separate flavor list.
-- Disposable vapes / pre-roll bundles: variant_only or flavor_only.
-- If no flavor menu is visible, return empty flavorOrVariantLabels and optionGroupLayout "none".
-- No THC potency claims. Describe packaging only.`;
+- Brand case photographs often list every flavor on the case top or front panel — read them ALL.
+- Do not skip small text on case dividers or flavor strips.
+- Stoner Stix: Gamer Edition case lists themed flavor names; kit = vape + pre-roll.
+- WHOLEMELTS / Arcadia: passport/box products list strains on chart; use size_and_flavor when box + singles sold.
+- flavorOrVariantLabels = union of all flavors from all images.
+- No THC potency claims.`;
 
-function parseJsonFromReply<T>(reply: string | null): T | null {
-  if (!reply) return null;
-  try {
-    return JSON.parse(reply) as T;
-  } catch {
-    const match = reply.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]) as T;
-    } catch {
-      return null;
-    }
-  }
-}
+const PER_IMAGE_CASE_PROMPT = `Analyze this product photo for Kush World admin catalog. Focus on READING ALL TEXT.
+
+If this is a brand display case, case insert, or flavor menu:
+- Transcribe EVERY flavor/strain/variant name printed on the case (lid, front, sides, slots).
+- Read edition name, brand name, and "includes" items.
+
+Return JSON only:
+{
+  "imageRole": "brand_case|flavor_chart|hero_packaging|product_kit|strain_menu|back_label|lifestyle|other",
+  "readableText": ["all legible text blocks, labels, headers"],
+  "flavorLabelsRead": ["every flavor name — exact spelling from packaging"],
+  "brandName": "if visible",
+  "productLine": "if visible",
+  "edition": "if visible",
+  "kitItemsVisible": ["items shown or listed as included"],
+  "caseDescription": "1-2 sentences describing the case/packaging and where flavors are listed",
+  "confidence": "high | medium | low"
+}`;
 
 function uniqueLabels(labels: string[]): string[] {
   const seen = new Set<string>();
@@ -90,6 +134,80 @@ function uniqueLabels(labels: string[]): string[] {
     result.push(cleaned);
   }
   return result;
+}
+
+async function analyzeSingleProductImage(
+  image: ProductImageBytes,
+  imageIndex: number
+): Promise<SingleImageAnalysis | null> {
+  const parsed = await xaiVisionJson<Omit<SingleImageAnalysis, 'imageIndex'>>({
+    prompt: `${PER_IMAGE_CASE_PROMPT}\n\nThis is image ${imageIndex} of the product gallery.`,
+    imageBase64: image.buffer.toString('base64'),
+    mimeType: image.mimeType,
+    max_tokens: 1200,
+    detail: 'high',
+  });
+
+  if (!parsed) return null;
+
+  return {
+    imageIndex,
+    imageRole: parsed.imageRole ?? 'other',
+    readableText: uniqueLabels(parsed.readableText ?? []),
+    flavorLabelsRead: uniqueLabels(parsed.flavorLabelsRead ?? []),
+    brandName: parsed.brandName?.trim() || undefined,
+    productLine: parsed.productLine?.trim() || undefined,
+    edition: parsed.edition?.trim() || undefined,
+    kitItemsVisible: uniqueLabels(parsed.kitItemsVisible ?? []),
+    caseDescription: parsed.caseDescription?.trim() || '',
+    confidence: parsed.confidence ?? 'medium',
+  };
+}
+
+function collectPhotoFlavors(
+  overviewFlavors: string[],
+  perImageNotes: ProductImageNote[],
+  perImageAnalysis: SingleImageAnalysis[]
+): string[] {
+  const all = [
+    ...overviewFlavors,
+    ...perImageNotes.flatMap((note) => note.flavorsRead ?? []),
+    ...perImageAnalysis.flatMap((item) => item.flavorLabelsRead),
+  ];
+  return uniqueLabels(all);
+}
+
+function mergeKitContents(...sources: string[][]): string[] {
+  return uniqueLabels(sources.flat());
+}
+
+function pickBestProductName(
+  overviewName: string,
+  brandResearch?: BrandReleaseResearch | null
+): string {
+  if (brandResearch?.officialProductName?.trim()) {
+    return brandResearch.officialProductName.trim();
+  }
+  return overviewName.trim();
+}
+
+function resolveOptionLayout(
+  layout: ProductCatalogImageAnalysis['optionGroupLayout'],
+  category: string,
+  hasFlavors: boolean,
+  packagingSummary: string
+): ProductCatalogImageAnalysis['optionGroupLayout'] {
+  if (layout !== 'none') return layout;
+  const normalized = category.toLowerCase();
+  if (!hasFlavors) return 'none';
+  if (
+    normalized === 'concentrates' &&
+    /box|passport|jar|1oz/i.test(packagingSummary)
+  ) {
+    return 'size_and_flavor';
+  }
+  if (normalized === 'vapes' || normalized === 'vaporizers') return 'variant_only';
+  return 'flavor_only';
 }
 
 export function optionGroupsFromImageAnalysis(
@@ -134,7 +252,7 @@ export function optionGroupsFromImageAnalysis(
 
 export function formatProductImageAnalysisForPrompt(analysis: ProductCatalogImageAnalysis): string {
   const lines = [
-    'PRODUCT PHOTO ANALYSIS (from uploaded images — treat as ground truth for naming and options):',
+    'PRODUCT PHOTO ANALYSIS (full picture review — photos + brand cross-reference):',
     `- Detected name: ${analysis.detectedProductName}`,
   ];
 
@@ -142,24 +260,51 @@ export function formatProductImageAnalysisForPrompt(analysis: ProductCatalogImag
   if (analysis.detectedEdition) lines.push(`- Edition: ${analysis.detectedEdition}`);
   if (analysis.kitContents.length) lines.push(`- Kit includes: ${analysis.kitContents.join(', ')}`);
   lines.push(`- Packaging: ${analysis.packagingSummary}`);
-  if (analysis.flavorOrVariantLabels.length) {
-    lines.push(`- Flavors/variants read from photos (${analysis.flavorOrVariantLabels.length}): ${analysis.flavorOrVariantLabels.join(', ')}`);
+
+  if (analysis.photoFlavorLabels.length) {
+    lines.push(
+      `- Flavors from photo OCR (${analysis.photoFlavorLabels.length}): ${analysis.photoFlavorLabels.join(', ')}`
+    );
   }
+  if (analysis.flavorOrVariantLabels.length) {
+    lines.push(
+      `- Final flavor list (${analysis.flavorOrVariantLabels.length}): ${analysis.flavorOrVariantLabels.join(', ')}`
+    );
+  }
+  if (analysis.flavorMergeNotes) lines.push(`- Flavor merge: ${analysis.flavorMergeNotes}`);
+
+  if (analysis.brandResearch) {
+    lines.push('', formatBrandResearchForPrompt(analysis.brandResearch));
+  }
+
+  if (analysis.perImageAnalysis.length) {
+    lines.push('- Per-image deep analysis:');
+    for (const item of analysis.perImageAnalysis) {
+      const flavorPart = item.flavorLabelsRead.length
+        ? ` — flavors: ${item.flavorLabelsRead.join(', ')}`
+        : '';
+      lines.push(
+        `  • Image ${item.imageIndex} [${item.imageRole}]: ${item.caseDescription || 'analyzed'}${flavorPart}`
+      );
+    }
+  } else if (analysis.perImageNotes.length) {
+    lines.push('- Per-image notes:');
+    for (const note of analysis.perImageNotes) {
+      const flavorPart = note.flavorsRead?.length ? ` — flavors: ${note.flavorsRead.join(', ')}` : '';
+      lines.push(`  • Image ${note.imageIndex} (${note.imageRole}): ${note.details}${flavorPart}`);
+    }
+  }
+
   if (analysis.visualHighlights.length) {
     lines.push(`- Visual highlights: ${analysis.visualHighlights.join('; ')}`);
   }
-  if (analysis.perImageNotes.length) {
-    lines.push('- Per-image notes:');
-    for (const note of analysis.perImageNotes) {
-      lines.push(`  • Image ${note.imageIndex} (${note.imageRole}): ${note.details}`);
-    }
-  }
-  lines.push(`- Analysis confidence: ${analysis.confidence}`);
+
+  lines.push(`- Overall confidence: ${analysis.confidence}`);
   lines.push(
     '',
-    'Use detected product name, kit contents, and flavor names in the description.',
-    'Mention everything included in the kit (e.g. vape + pre-roll) when photos show it.',
-    'Do not invent flavors or items not supported by the photo analysis.'
+    'Use the final flavor list and official brand research in the description.',
+    'Mention kit contents (e.g. vape + pre-roll) when confirmed by photos or brand data.',
+    'Do not invent flavors beyond the final merged list.'
   );
 
   return lines.join('\n');
@@ -168,9 +313,20 @@ export function formatProductImageAnalysisForPrompt(analysis: ProductCatalogImag
 export function summarizeProductImageAnalysis(analysis: ProductCatalogImageAnalysis): string {
   const parts: string[] = [];
   if (analysis.detectedProductName) parts.push(`Name: ${analysis.detectedProductName}`);
+  if (analysis.detectedBrand) parts.push(`Brand: ${analysis.detectedBrand}`);
   if (analysis.kitContents.length) parts.push(`Includes: ${analysis.kitContents.join(' + ')}`);
+  if (analysis.photoFlavorLabels.length) {
+    parts.push(`${analysis.photoFlavorLabels.length} flavors from photos`);
+  }
   if (analysis.flavorOrVariantLabels.length) {
-    parts.push(`${analysis.flavorOrVariantLabels.length} flavors/variants from photos`);
+    parts.push(`${analysis.flavorOrVariantLabels.length} total flavors`);
+  }
+  if (analysis.brandResearch) {
+    parts.push(`brand verified (${analysis.brandResearch.confidence})`);
+  }
+  if (analysis.perImageAnalysis.length) {
+    const caseImages = analysis.perImageAnalysis.filter((i) => i.imageRole === 'brand_case').length;
+    if (caseImages > 0) parts.push(`${caseImages} brand case photo(s) analyzed`);
   }
   parts.push(`${analysis.confidence} confidence`);
   return parts.join(' · ');
@@ -183,7 +339,7 @@ export async function analyzeProductCatalogImages(input: {
 }): Promise<ProductCatalogImageAnalysis | null> {
   if (!isXaiConfigured()) return null;
 
-  const images = await loadProductImageSet(input.imageUrls);
+  const images = await loadProductImageSet(input.imageUrls, 8);
   if (images.length === 0) return null;
 
   const contextLine = [
@@ -193,33 +349,128 @@ export async function analyzeProductCatalogImages(input: {
     .filter(Boolean)
     .join(' · ');
 
-  const parsed = await xaiVisionJsonMulti<ProductCatalogImageAnalysis>({
-    prompt: `${CATALOG_VISION_PROMPT}${contextLine ? `\n\n${contextLine}` : ''}`,
+  const overview = await xaiVisionJsonMulti<
+    Omit<
+      ProductCatalogImageAnalysis,
+      'photoFlavorLabels' | 'flavorMergeNotes' | 'brandResearch' | 'perImageAnalysis'
+    > & {
+      flavorOrVariantLabels: string[];
+      perImageNotes: Array<{
+        imageIndex: number;
+        imageRole: string;
+        details: string;
+        flavorsRead?: string[];
+        textBlocksRead?: string[];
+      }>;
+    }
+  >({
+    prompt: `${OVERVIEW_VISION_PROMPT}${contextLine ? `\n\n${contextLine}` : ''}`,
     images: images.map((image) => ({
       base64: image.buffer.toString('base64'),
       mimeType: image.mimeType,
     })),
-    max_tokens: 2500,
+    max_tokens: 3200,
     detail: 'high',
   });
 
-  if (!parsed?.detectedProductName) return null;
+  if (!overview?.detectedProductName) return null;
+
+  const overviewNotes: ProductImageNote[] = (overview.perImageNotes ?? []).map((note) => ({
+    imageIndex: note.imageIndex,
+    imageRole: note.imageRole,
+    details: note.details?.trim() || '',
+    flavorsRead: uniqueLabels(note.flavorsRead ?? []),
+    textBlocksRead: uniqueLabels(note.textBlocksRead ?? []),
+  }));
+
+  // Deep per-image pass — analyze every uploaded photo (brand cases, charts, hero shots)
+  const perImageAnalysis: SingleImageAnalysis[] = [];
+  for (let index = 0; index < images.length; index += 1) {
+    const single = await analyzeSingleProductImage(images[index], index + 1);
+    if (single) perImageAnalysis.push(single);
+  }
+
+  const photoFlavorLabels = collectPhotoFlavors(
+    overview.flavorOrVariantLabels ?? [],
+    overviewNotes,
+    perImageAnalysis
+  );
+
+  const detectedBrand =
+    overview.detectedBrand?.trim() ||
+    perImageAnalysis.find((item) => item.brandName)?.brandName;
+  const detectedEdition =
+    overview.detectedEdition?.trim() ||
+    perImageAnalysis.find((item) => item.edition)?.edition;
+
+  const kitContents = mergeKitContents(
+    overview.kitContents ?? [],
+    perImageAnalysis.flatMap((item) => item.kitItemsVisible)
+  );
+
+  const brandResearch = await researchBrandProductRelease({
+    detectedBrand,
+    detectedProductName: overview.detectedProductName,
+    detectedEdition,
+    category: input.category,
+    photoFlavors: photoFlavorLabels,
+    kitContents,
+    packagingSummary: overview.packagingSummary,
+    perImageFlavorReads: [
+      ...overviewNotes.map((n) => n.flavorsRead ?? []),
+      ...perImageAnalysis.map((i) => i.flavorLabelsRead),
+    ],
+  });
+
+  const { merged: flavorOrVariantLabels, notes: flavorMergeNotes } = mergeFlavorLists(
+    photoFlavorLabels,
+    brandResearch?.authenticFlavorList ?? []
+  );
+
+  const kitContentsFinal = mergeKitContents(
+    kitContents,
+    brandResearch?.kitContentsOfficial ?? []
+  );
+
+  const detectedProductName = pickBestProductName(overview.detectedProductName, brandResearch);
+
+  const optionGroupLayout = resolveOptionLayout(
+    overview.optionGroupLayout ?? 'none',
+    input.category ?? '',
+    flavorOrVariantLabels.length > 0,
+    overview.packagingSummary ?? ''
+  );
+
+  const confidenceRank = { high: 3, medium: 2, low: 1 };
+  const confidences = [
+    overview.confidence ?? 'medium',
+    ...perImageAnalysis.map((item) => item.confidence),
+    brandResearch?.confidence,
+  ].filter(Boolean) as Array<'high' | 'medium' | 'low'>;
+  const overallConfidence = confidences.reduce<'high' | 'medium' | 'low'>(
+    (lowest, current) => (confidenceRank[current] < confidenceRank[lowest] ? current : lowest),
+    'high'
+  );
 
   return {
-    detectedProductName: parsed.detectedProductName.trim(),
-    detectedBrand: parsed.detectedBrand?.trim() || undefined,
-    detectedEdition: parsed.detectedEdition?.trim() || undefined,
-    kitContents: uniqueLabels(parsed.kitContents ?? []),
-    packagingSummary: parsed.packagingSummary?.trim() || '',
-    flavorOrVariantLabels: uniqueLabels(parsed.flavorOrVariantLabels ?? []),
-    optionGroupLayout: parsed.optionGroupLayout ?? 'none',
-    sizeOptions: uniqueLabels(parsed.sizeOptions ?? []),
-    fullBoxLabel: parsed.fullBoxLabel?.trim() || undefined,
-    singleUnitLabel: parsed.singleUnitLabel?.trim() || undefined,
-    modelOptions: uniqueLabels(parsed.modelOptions ?? []),
-    colorOptions: uniqueLabels(parsed.colorOptions ?? []),
-    visualHighlights: uniqueLabels(parsed.visualHighlights ?? []),
-    perImageNotes: (parsed.perImageNotes ?? []).filter((note) => note?.details?.trim()),
-    confidence: parsed.confidence ?? 'medium',
+    detectedProductName,
+    detectedBrand: brandResearch?.brandName ?? detectedBrand,
+    detectedEdition: brandResearch?.edition ?? detectedEdition,
+    kitContents: kitContentsFinal,
+    packagingSummary: overview.packagingSummary?.trim() || '',
+    photoFlavorLabels,
+    flavorOrVariantLabels,
+    flavorMergeNotes,
+    brandResearch: brandResearch ?? undefined,
+    optionGroupLayout,
+    sizeOptions: uniqueLabels(overview.sizeOptions ?? []),
+    fullBoxLabel: overview.fullBoxLabel?.trim() || undefined,
+    singleUnitLabel: overview.singleUnitLabel?.trim() || undefined,
+    modelOptions: uniqueLabels(overview.modelOptions ?? []),
+    colorOptions: uniqueLabels(overview.colorOptions ?? []),
+    visualHighlights: uniqueLabels(overview.visualHighlights ?? []),
+    perImageNotes: overviewNotes,
+    perImageAnalysis,
+    confidence: overallConfidence,
   };
 }

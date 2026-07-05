@@ -2025,9 +2025,10 @@ function ProductDetailPanel({
             )}
             {grokEnabled && (
               <p className="text-xs text-zinc-500">
-                Grok reads all uploaded product photos (packaging, flavor charts, strain menus), cross-references
-                strain data for flower, and can auto-fill the product name, variant/flavor options, and SEO
-                description. Upload photos in the Photos tab first for best results.
+                Grok runs a full picture analysis on every uploaded photo — especially brand case and flavor
+                chart shots — then cross-references authentic brand releases and official flavor lists. It can
+                auto-fill product name, variant/flavor options, and SEO description. Upload case + menu photos
+                in the Photos tab first for best results.
               </p>
             )}
             {descriptionMessage && <p className="text-xs text-[#00ff9d]">{descriptionMessage}</p>}
