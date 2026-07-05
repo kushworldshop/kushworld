@@ -25,9 +25,12 @@ type SectionKey =
 type PaymentFeatureKey =
   | 'paymentCard'
   | 'paymentBitcoin'
+  | 'paymentXrp'
   | 'paymentZelle'
   | 'paymentPaypal'
-  | 'paymentChime';
+  | 'paymentChime'
+  | 'paymentVenmo'
+  | 'paymentCashapp';
 
 function PaymentMethodEditor({
   title,
@@ -455,7 +458,7 @@ export default function SiteContentTab({
           <>
             <p className="text-sm text-zinc-400">
               Turn payment methods on or off and edit what customers see at checkout — button labels,
-              pay-to info for Zelle/PayPal/Chime, and Bitcoin guide copy.
+              pay-to info for manual methods, and crypto payment copy.
             </p>
 
             <PaymentMethodEditor
@@ -468,6 +471,14 @@ export default function SiteContentTab({
             <PaymentMethodEditor
               title="Bitcoin (BTC)"
               featureKey="paymentBitcoin"
+              features={features}
+              patchFeatures={patchFeatures}
+              showSubtitle
+              showBitcoinDetails
+            />
+            <PaymentMethodEditor
+              title="XRP"
+              featureKey="paymentXrp"
               features={features}
               patchFeatures={patchFeatures}
               showSubtitle
@@ -490,6 +501,20 @@ export default function SiteContentTab({
             <PaymentMethodEditor
               title="Chime"
               featureKey="paymentChime"
+              features={features}
+              patchFeatures={patchFeatures}
+              showPayTo
+            />
+            <PaymentMethodEditor
+              title="Venmo"
+              featureKey="paymentVenmo"
+              features={features}
+              patchFeatures={patchFeatures}
+              showPayTo
+            />
+            <PaymentMethodEditor
+              title="Cash App"
+              featureKey="paymentCashapp"
               features={features}
               patchFeatures={patchFeatures}
               showPayTo

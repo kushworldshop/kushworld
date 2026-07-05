@@ -57,6 +57,17 @@ export function getAdminOrderBucket(order: {
     return 'new';
   }
 
+  if (order.paymentMethod === 'xrp' && order.paymentStatus === 'awaiting_xrp') {
+    return 'new';
+  }
+
+  if (
+    ['zelle', 'paypal', 'chime', 'venmo', 'cashapp'].includes(order.paymentMethod || '') &&
+    (order.paymentStatus === 'awaiting_manual' || !order.paymentStatus)
+  ) {
+    return 'new';
+  }
+
   if (order.paymentStatus === 'paid') {
     return 'pending';
   }

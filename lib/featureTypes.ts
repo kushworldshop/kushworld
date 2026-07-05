@@ -74,9 +74,15 @@ export interface SiteFeatures {
     /** BTC detail panel body copy */
     detailBody?: string;
   };
+  paymentXrp: CheckoutPaymentConfig & {
+    detailTitle?: string;
+    detailBody?: string;
+  };
   paymentZelle: CheckoutPaymentConfig;
   paymentPaypal: CheckoutPaymentConfig;
   paymentChime: CheckoutPaymentConfig;
+  paymentVenmo: CheckoutPaymentConfig;
+  paymentCashapp: CheckoutPaymentConfig;
   auctions: FeatureToggle;
   raffles: FeatureToggle;
   mysteryBoxes: FeatureToggle;
@@ -153,6 +159,14 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
     detailBody:
       "After you place the order, you'll get a QR code and exact BTC amount. Most customers use Cash App — payment is detected automatically on the blockchain.",
   },
+  paymentXrp: {
+    enabled: true,
+    label: 'XRP',
+    subtitle: 'Scan QR · live rate · auto-detected on-chain',
+    detailTitle: 'Pay with XRP',
+    detailBody:
+      "After you place the order, you'll get a QR code, exact XRP amount, and destination tag. Payment is detected automatically on the XRP Ledger.",
+  },
   paymentZelle: {
     enabled: true,
     label: 'Zelle',
@@ -170,6 +184,20 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
     label: 'Chime',
     payToLabel: 'Chime payment to:',
     payToValue: '$KushWorldShop',
+  },
+  paymentVenmo: {
+    enabled: true,
+    label: 'Venmo',
+    payToLabel: 'Venmo payment to:',
+    payToValue: '@kushworldshop',
+    instructions: 'Send payment after placing your order. We will verify manually before processing.',
+  },
+  paymentCashapp: {
+    enabled: true,
+    label: 'Cash App',
+    payToLabel: 'Cash App payment to:',
+    payToValue: '$KushWorldShop',
+    instructions: 'Send payment after placing your order. We will verify manually before processing.',
   },
   auctions: { enabled: false },
   raffles: { enabled: false },

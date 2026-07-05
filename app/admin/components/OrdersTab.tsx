@@ -10,6 +10,7 @@ import {
   type AdminOrderBucket,
 } from '@/lib/adminOrderBuckets';
 import { formatCartItemOptions } from '@/lib/productOptions';
+import { orderNeedsPaymentConfirmation } from '@/lib/paymentMethods';
 import { getSuggestedNextStatus, getSuggestedNextLabel } from '@/lib/orderTracker';
 
 export default function OrdersTab() {
@@ -125,16 +126,22 @@ export default function OrdersTab() {
     }
   };
 
-  const confirmBtcPayment = async (orderId: string) => {
+  const confirmPaymentReceived = async (orderId: string) => {
+    if (!confirm('Confirm that payment was received for this order?')) return;
     try {
-      await adminFetch('/api/orders', {
+      const res = await adminFetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: orderId, paymentStatus: 'paid' }),
       });
-      loadOrders();
+      const data = await res.json();
+      if (data.success) {
+        loadOrders();
+      } else {
+        alert(data.error || 'Failed to confirm payment');
+      }
     } catch {
-      alert('Failed to confirm Bitcoin payment');
+      alert('Failed to confirm payment');
     }
   };
 
@@ -426,7 +433,7 @@ export default function OrdersTab() {
                   onUpdated={loadOrders}
                   onUpdateStatus={updateStatus}
                   onApproveAction={approveOrderAction}
-                  onConfirmBtc={confirmBtcPayment}
+                  onConfirmPayment={confirmPaymentReceived}
                   onApproveId={approveIdVerification}
                   onViewId={viewIdImage}
                   onDelete={deleteOrder}
@@ -524,7 +531,7 @@ function OrderDetailPanel({
   onUpdated,
   onUpdateStatus,
   onApproveAction,
-  onConfirmBtc,
+  onConfirmPayment,
   onApproveId,
   onViewId,
   onDelete,
@@ -533,7 +540,7 @@ function OrderDetailPanel({
   onUpdated: () => void;
   onUpdateStatus: (orderId: string, status: string) => void;
   onApproveAction: (orderId: string, action: 'cancel' | 'refund') => void;
-  onConfirmBtc: (orderId: string) => void;
+  onConfirmPayment: (orderId: string) => void;
   onApproveId: (orderId: string) => void;
   onViewId: (orderId: string) => void;
   onDelete: (orderId: string) => void;
@@ -557,6 +564,12 @@ function OrderDetailPanel({
               {order.btcPayment.amountBtc.toFixed(8)} BTC
             </div>
           )}
+          {order.xrpPayment?.amountXrp && (
+            <div className="text-xs text-zinc-500 mt-1 font-mono">
+              {order.xrpPayment.amountXrp.toFixed(6)} XRP
+              {order.xrpPayment.destinationTag ? ` · tag ${order.xrpPayment.destinationTag}` : ''}
+            </div>
+          )}
           {order.paymentStatus && (
             <div
               className={`text-sm mt-1 ${
@@ -573,12 +586,14 @@ function OrderDetailPanel({
       </div>
 
       <div className="flex flex-wrap gap-3 mb-6">
-        {order.paymentMethod === 'btc' && order.paymentStatus === 'awaiting_btc' && (
+        {orderNeedsPaymentConfirmation(order) && (
           <button
-            onClick={() => onConfirmBtc(order.id)}
+            onClick={() => onConfirmPayment(order.id)}
             className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 rounded-xl text-sm font-medium"
           >
-            Confirm BTC Payment
+            {order.paymentMethod === 'btc' || order.paymentMethod === 'xrp'
+              ? 'Confirm Crypto Payment'
+              : 'Confirm Payment Received'}
           </button>
         )}
         {order.status !== 'processing' &&

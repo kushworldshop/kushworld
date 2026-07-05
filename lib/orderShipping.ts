@@ -48,6 +48,10 @@ export function getPaymentStatusLabel(paymentStatus?: string): string {
       return 'Paid';
     case 'awaiting_btc':
       return 'Awaiting Bitcoin payment';
+    case 'awaiting_xrp':
+      return 'Awaiting XRP payment';
+    case 'awaiting_manual':
+      return 'Awaiting manual payment verification';
     case 'refunded':
       return 'Refunded';
     case 'failed':
@@ -75,8 +79,12 @@ export function getShippingStatusLabel(order: OrderShippingFields): string {
     return 'Processing — tracking will appear here once your order ships';
   }
 
-  if (order.paymentStatus === 'awaiting_btc') {
+  if (order.paymentStatus === 'awaiting_btc' || order.paymentStatus === 'awaiting_xrp') {
     return 'Waiting for payment before processing';
+  }
+
+  if (order.paymentStatus === 'awaiting_manual') {
+    return 'Waiting for payment verification before processing';
   }
 
   return 'Awaiting payment';
@@ -96,6 +104,8 @@ export function getStatusBadgeTone(
   if (normalized === 'shipped' || normalized === 'delivered') return 'green';
   if (normalized === 'packing' || normalized === 'sealed' || normalized === 'quality') return 'green';
   if (paymentStatus === 'paid' || normalized === 'processing') return 'blue';
-  if (paymentStatus === 'awaiting_btc') return 'yellow';
+  if (paymentStatus === 'awaiting_btc' || paymentStatus === 'awaiting_xrp' || paymentStatus === 'awaiting_manual') {
+    return 'yellow';
+  }
   return 'zinc';
 }

@@ -7,6 +7,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import CreditCardForm, { tokenizeCard } from '@/app/components/CreditCardForm';
 import BtcPaymentScreen from '@/app/components/BtcPaymentScreen';
+import XrpPaymentScreen from '@/app/components/XrpPaymentScreen';
+import type { CheckoutPaymentConfig } from '@/lib/featureTypes';
+import { getPaymentMethodLabel, isManualPaymentMethod } from '@/lib/paymentMethods';
 import SiteLayout from '@/app/components/SiteLayout';
 import { formatCartItemOptions } from '@/lib/productOptions';
 import {
@@ -36,7 +39,30 @@ import {
   type SpinPrize,
 } from '@/lib/spinWheelTypes';
 
-type PaymentMethod = 'card' | 'zelle' | 'paypal' | 'chime' | 'btc';
+type PaymentMethod =
+  | 'card'
+  | 'btc'
+  | 'xrp'
+  | 'zelle'
+  | 'paypal'
+  | 'chime'
+  | 'venmo'
+  | 'cashapp';
+
+function ManualPaymentPanel({ config }: { config: CheckoutPaymentConfig }) {
+  return (
+    <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
+      {config.payToLabel && <p className="font-semibold mb-2">{config.payToLabel}</p>}
+      {config.payToValue && <p className="text-[#00ff9d]">{config.payToValue}</p>}
+      {config.instructions && (
+        <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{config.instructions}</p>
+      )}
+      <p className="text-sm text-zinc-500 mt-4">
+        After placing your order, send payment using the info above. Kush World will verify manually before processing.
+      </p>
+    </div>
+  );
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +125,7 @@ export default function Checkout() {
   } | null>(null);
 
   const [btcEnabled, setBtcEnabled] = useState(true);
+  const [xrpEnabled, setXrpEnabled] = useState(false);
   const [btcPayment, setBtcPayment] = useState<{
     orderId: string;
     orderAccessToken: string;
@@ -111,6 +138,18 @@ export default function Checkout() {
     qrUrl: string;
   } | null>(null);
   const [btcPaymentComplete, setBtcPaymentComplete] = useState(false);
+  const [xrpPayment, setXrpPayment] = useState<{
+    orderId: string;
+    orderAccessToken: string;
+    address: string;
+    amountXrp: number;
+    amountUsd: number;
+    rateUsd: number;
+    destinationTag: number;
+    expiresAt: string;
+    qrUrl: string;
+  } | null>(null);
+  const [xrpPaymentComplete, setXrpPaymentComplete] = useState(false);
 
   const [shippingMethod, setShippingMethod] = useState<string>('usps_ground');
   const [liveShippingOptions, setLiveShippingOptions] = useState<ShippingOption[] | null>(null);
@@ -138,6 +177,11 @@ export default function Checkout() {
       .then((res) => res.json())
       .then((data) => setBtcEnabled(!!data.enabled))
       .catch(() => setBtcEnabled(false));
+
+    fetch('/api/payments/xrp/config')
+      .then((res) => res.json())
+      .then((data) => setXrpEnabled(!!data.enabled))
+      .catch(() => setXrpEnabled(false));
   }, []);
 
   useEffect(() => {
@@ -662,6 +706,60 @@ export default function Checkout() {
     }
   };
 
+  const handleXrpPayment = async () => {
+    setLoading(true);
+    setPaymentError('');
+
+    try {
+      const res = await fetch('/api/payments/xrp/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: customerInfo,
+          items,
+          subtotal: sub,
+          promoDiscount,
+          loyaltyPointsUsed: useLoyalty ? loyaltyPointsToUse : 0,
+          spinPrizeId: useSpinPrize && selectedSpinPrize ? selectedSpinPrize.id : undefined,
+          promoCode: appliedPromo?.code,
+          isFirstOrder,
+          discount,
+          shipping: totals.shipping,
+          ...getShippingPayload(),
+          total: totals.total,
+        }),
+      });
+
+      const result = await res.json();
+      if (!result.success) {
+        setPaymentError(result.error || 'Failed to create XRP invoice');
+        return;
+      }
+
+      setOrderId(result.orderId);
+      setOrderAccessToken(result.orderAccessToken || '');
+      setRequiresIdUpload(result.requiresIdUpload);
+      setXrpPayment({
+        orderId: result.orderId,
+        orderAccessToken: result.orderAccessToken || '',
+        ...result.payment,
+      });
+      setOrderPlaced(true);
+      setPaymentComplete(false);
+      clearCart();
+      if (typeof window !== 'undefined' && customerInfo.email) {
+        localStorage.setItem(`ordered_${customerInfo.email}`, 'true');
+      }
+      if (storedReferralCode) {
+        clearReferral();
+      }
+    } catch {
+      setPaymentError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleManualOrder = async () => {
     setLoading(true);
     setPaymentError('');
@@ -712,10 +810,25 @@ export default function Checkout() {
       await handleCardPayment();
     } else if (paymentMethod === 'btc') {
       await handleBtcPayment();
+    } else if (paymentMethod === 'xrp') {
+      await handleXrpPayment();
     } else {
       await handleManualOrder();
     }
   };
+
+  if (orderPlaced && xrpPayment && !xrpPaymentComplete) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+        <XrpPaymentScreen
+          orderId={xrpPayment.orderId}
+          orderAccessToken={xrpPayment.orderAccessToken}
+          payment={xrpPayment}
+          onPaid={() => setXrpPaymentComplete(true)}
+        />
+      </div>
+    );
+  }
 
   if (orderPlaced && btcPayment && !btcPaymentComplete) {
     return (
@@ -781,9 +894,18 @@ export default function Checkout() {
         <div className="max-w-md text-center">
           <h1 className="text-4xl font-bold text-[#00ff9d] mb-6">Thank You!</h1>
           <p className="text-xl mb-4">Order <span className="font-mono text-[#00ff9d]">{orderId}</span> received.</p>
-          {(paymentComplete || btcPaymentComplete) && (
+          {(paymentComplete || btcPaymentComplete || xrpPaymentComplete) && (
             <p className="text-green-400 mb-4">
-              {paymentMethod === 'btc' ? 'Your Bitcoin payment was received.' : 'Your card payment was approved.'}
+              {paymentMethod === 'btc'
+                ? 'Your Bitcoin payment was received.'
+                : paymentMethod === 'xrp'
+                  ? 'Your XRP payment was received.'
+                  : 'Your card payment was approved.'}
+            </p>
+          )}
+          {isManualPaymentMethod(paymentMethod) && (
+            <p className="text-amber-300 mb-4 text-sm">
+              Send your {getPaymentMethodLabel(paymentMethod)} payment now. We will verify manually before processing.
             </p>
           )}
           {idUploaded && (
@@ -792,7 +914,7 @@ export default function Checkout() {
             </p>
           )}
           <p className="mb-8 text-zinc-400">
-            {paymentComplete || btcPaymentComplete
+            {paymentComplete || btcPaymentComplete || xrpPaymentComplete
               ? `Confirmation sent to ${customerInfo.email}.`
               : `We will contact you at ${customerInfo.email} once payment is verified.`}
           </p>
@@ -818,13 +940,24 @@ export default function Checkout() {
 
   const cardConfigured = (paymentConfig?.configured ?? false) && (features.paymentCard?.enabled ?? false);
   const showBitcoin = btcEnabled && (features.paymentBitcoin?.enabled ?? false);
+  const showXrp = xrpEnabled && (features.paymentXrp?.enabled ?? false);
   const manualPaymentOptions = (
     [
       { id: 'zelle' as const, config: features.paymentZelle ?? { enabled: false } },
       { id: 'paypal' as const, config: features.paymentPaypal ?? { enabled: false } },
       { id: 'chime' as const, config: features.paymentChime ?? { enabled: false } },
+      { id: 'venmo' as const, config: features.paymentVenmo ?? { enabled: false } },
+      { id: 'cashapp' as const, config: features.paymentCashapp ?? { enabled: false } },
     ] as const
   ).filter((option) => option.config.enabled);
+
+  const manualConfigById: Record<'zelle' | 'paypal' | 'chime' | 'venmo' | 'cashapp', CheckoutPaymentConfig | undefined> = {
+    zelle: features.paymentZelle,
+    paypal: features.paymentPaypal,
+    chime: features.paymentChime,
+    venmo: features.paymentVenmo,
+    cashapp: features.paymentCashapp,
+  };
 
   return (
     <SiteLayout>
@@ -1113,6 +1246,17 @@ export default function Checkout() {
                     )}
                   </button>
                 )}
+                {showXrp && (
+                  <button
+                    onClick={() => setPaymentMethod('xrp')}
+                    className={`p-6 rounded-3xl border transition col-span-2 ${paymentMethod === 'xrp' ? 'border-[#00ff9d] bg-zinc-900' : 'border-zinc-700'}`}
+                  >
+                    <p className="font-semibold">{features.paymentXrp?.label}</p>
+                    {features.paymentXrp?.subtitle && (
+                      <p className="text-xs text-zinc-400 mt-1">{features.paymentXrp?.subtitle}</p>
+                    )}
+                  </button>
+                )}
                 {manualPaymentOptions.map(({ id, config }) => (
                   <button
                     key={id}
@@ -1142,45 +1286,21 @@ export default function Checkout() {
               </div>
             )}
 
-            {paymentMethod === 'zelle' && (features.paymentZelle?.enabled ?? false) && (
-              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-                {features.paymentZelle?.payToLabel && (
-                  <p className="font-semibold mb-2">{features.paymentZelle?.payToLabel}</p>
-                )}
-                {features.paymentZelle?.payToValue && (
-                  <p className="text-[#00ff9d]">{features.paymentZelle?.payToValue}</p>
-                )}
-                {features.paymentZelle?.instructions && (
-                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentZelle?.instructions}</p>
-                )}
-              </div>
-            )}
+            {isManualPaymentMethod(paymentMethod) &&
+              manualConfigById[paymentMethod]?.enabled && (
+                <ManualPaymentPanel config={manualConfigById[paymentMethod]!} />
+              )}
 
-            {paymentMethod === 'paypal' && (features.paymentPaypal?.enabled ?? false) && (
-              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-                {features.paymentPaypal?.payToLabel && (
-                  <p className="font-semibold mb-2">{features.paymentPaypal?.payToLabel}</p>
-                )}
-                {features.paymentPaypal?.payToValue && (
-                  <p className="text-[#00ff9d]">{features.paymentPaypal?.payToValue}</p>
-                )}
-                {features.paymentPaypal?.instructions && (
-                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentPaypal?.instructions}</p>
-                )}
-              </div>
-            )}
-
-            {paymentMethod === 'chime' && (features.paymentChime?.enabled ?? false) && (
-              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30">
-                {features.paymentChime?.payToLabel && (
-                  <p className="font-semibold mb-2">{features.paymentChime?.payToLabel}</p>
-                )}
-                {features.paymentChime?.payToValue && (
-                  <p className="text-[#00ff9d]">{features.paymentChime?.payToValue}</p>
-                )}
-                {features.paymentChime?.instructions && (
-                  <p className="text-sm text-zinc-400 mt-3 whitespace-pre-line">{features.paymentChime?.instructions}</p>
-                )}
+            {paymentMethod === 'xrp' && (
+              <div className="mt-8 p-6 bg-zinc-900 rounded-3xl border border-[#00ff9d]/30 text-sm text-zinc-400 space-y-4">
+                <div>
+                  {features.paymentXrp?.detailTitle && (
+                    <p className="font-semibold text-white mb-2">{features.paymentXrp?.detailTitle}</p>
+                  )}
+                  {features.paymentXrp?.detailBody && (
+                    <p className="whitespace-pre-line">{features.paymentXrp?.detailBody}</p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1235,8 +1355,10 @@ export default function Checkout() {
                 : paymentMethod === 'card'
                   ? `PAY $${totals.total.toFixed(2)} NOW`
                   : paymentMethod === 'btc'
-                    ? `PLACE ORDER — PAY ${totals.total.toFixed(2)} IN BTC`
-                    : 'PLACE ORDER — PAYMENT VERIFIED MANUALLY'}
+                    ? `PLACE ORDER — PAY $${totals.total.toFixed(2)} IN BTC`
+                    : paymentMethod === 'xrp'
+                      ? `PLACE ORDER — PAY $${totals.total.toFixed(2)} IN XRP`
+                      : 'PLACE ORDER — MANUAL PAYMENT VERIFICATION'}
             </button>
           </div>
         </div>

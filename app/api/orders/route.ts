@@ -409,7 +409,7 @@ export async function POST(request: NextRequest) {
       throw err;
     }
 
-    const allowedPaymentMethods = ['zelle', 'paypal', 'chime', 'manual'];
+    const allowedPaymentMethods = ['zelle', 'paypal', 'chime', 'venmo', 'cashapp', 'manual'];
     const paymentMethod = allowedPaymentMethods.includes(body.paymentMethod)
       ? body.paymentMethod
       : 'manual';
@@ -420,6 +420,8 @@ export async function POST(request: NextRequest) {
       items: orderItems,
       subtotal,
       paymentMethod,
+      paymentStatus: 'awaiting_manual',
+      fulfillmentPending: true,
       promoMeta,
       resolved,
       idVerification: !needsIdVerification

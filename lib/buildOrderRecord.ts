@@ -27,6 +27,7 @@ export interface BuildOrderRecordInput {
   status?: string;
   fulfillmentPending?: boolean;
   btcPayment?: Record<string, unknown>;
+  xrpPayment?: Record<string, unknown>;
 }
 
 export function buildOrderRecord(input: BuildOrderRecordInput) {
@@ -45,6 +46,7 @@ export function buildOrderRecord(input: BuildOrderRecordInput) {
     status = 'pending',
     fulfillmentPending,
     btcPayment,
+    xrpPayment,
   } = input;
 
   const email = customer.email?.trim();
@@ -90,6 +92,7 @@ export function buildOrderRecord(input: BuildOrderRecordInput) {
     status,
     fulfillmentPending,
     btcPayment,
+    xrpPayment,
     inventoryDeducted: true,
     inventoryRestored: false,
     idVerification,
