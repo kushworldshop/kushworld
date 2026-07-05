@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       description: result.description,
       suggestedName: result.suggestedName,
       suggestedOptionGroups: result.suggestedOptionGroups,
+      suggestedFlowerMetadata: result.suggestedFlowerMetadata,
       insights: result.insights,
     });
   } catch (error) {

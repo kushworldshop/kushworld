@@ -45,6 +45,24 @@ export interface FlowerStrainContext {
   researchedProfile?: FlowerStrainResearchedProfile;
 }
 
+/** Shop badge metadata derived from strain research (ProductMetaBadges on storefront). */
+export interface FlowerProductMetadata {
+  strainType?: string;
+  tier?: string;
+  effects?: string[];
+  subcategory?: string;
+}
+
+const EFFECT_INFERENCE_KEYWORDS: Record<string, string[]> = {
+  relax: ['relax', 'sleep', 'calm', 'couch', 'indica', 'earth', 'earthy'],
+  focus: ['focus', 'alert', 'productive', 'clear'],
+  social: ['social', 'talkative', 'party', 'uplifting'],
+  relief: ['relief', 'comfort', 'soothe', 'body'],
+  creative: ['creative', 'inspire', 'artistic'],
+  energy: ['energy', 'active', 'sativa', 'daytime', 'citrus', 'lemon', 'lime', 'diesel', 'pinene'],
+  euphoric: ['euphoric', 'happy', 'mood', 'giggly', 'candy', 'sweet', 'berry', 'vanilla', 'cherry'],
+};
+
 const VARIANT_SUFFIXES = [
   /\s*-\s*INDOOR\s*SMALLS$/i,
   /\s*INDOOR\s*SMALLS$/i,
@@ -350,6 +368,67 @@ export function formatFlowerStrainContextForPrompt(ctx: FlowerStrainContext): st
   );
 
   return lines.join('\n');
+}
+
+export function normalizeStrainTypeLabel(strainType: string): string | undefined {
+  const lower = strainType.toLowerCase().trim();
+  if (!lower || lower === 'unknown') return undefined;
+  if (lower.includes('indica') && lower.includes('sativa')) return 'Hybrid';
+  if (lower.includes('indica')) return 'Indica';
+  if (lower.includes('sativa')) return 'Sativa';
+  if (lower.includes('hybrid')) return 'Hybrid';
+  return strainType.trim();
+}
+
+export function inferFlowerEffects(profile?: FlowerStrainResearchedProfile): string[] {
+  const haystack = [
+    ...(profile?.aromaFlavorNotes ?? []),
+    profile?.strainType ?? '',
+    profile?.notes ?? '',
+    profile?.socialBuzz ?? '',
+    profile?.lineage ?? '',
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  const scores = new Map<string, number>();
+  for (const [vibeId, keywords] of Object.entries(EFFECT_INFERENCE_KEYWORDS)) {
+    const hits = keywords.filter((keyword) => haystack.includes(keyword)).length;
+    if (hits > 0) scores.set(vibeId, hits);
+  }
+
+  return [...scores.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .map(([vibeId]) => vibeId);
+}
+
+export function deriveFlowerProductMetadata(ctx: FlowerStrainContext): FlowerProductMetadata {
+  const meta: FlowerProductMetadata = {};
+  const profile = ctx.researchedProfile;
+  const nameUpper = ctx.productName.toUpperCase();
+  const hintsUpper = ctx.variantHints.map((hint) => hint.toUpperCase());
+
+  if (profile?.strainType) {
+    meta.strainType = normalizeStrainTypeLabel(profile.strainType);
+  }
+
+  if (hintsUpper.some((hint) => hint.includes('SMALL')) || nameUpper.includes('SMALL')) {
+    meta.tier = 'Smalls';
+  } else if (hintsUpper.some((hint) => hint.includes('EXOTIC')) || nameUpper.includes('EXOTIC')) {
+    meta.tier = 'Exotic';
+  } else if (hintsUpper.some((hint) => hint.includes('INDOOR')) || nameUpper.includes('INDOOR')) {
+    meta.tier = 'Exotic';
+  }
+
+  if (hintsUpper.some((hint) => hint.includes('INDOOR')) || nameUpper.includes('INDOOR')) {
+    meta.subcategory = 'indoor';
+  }
+
+  const effects = inferFlowerEffects(profile);
+  if (effects.length > 0) meta.effects = effects;
+
+  return meta;
 }
 
 export async function buildFlowerStrainContext(input: {

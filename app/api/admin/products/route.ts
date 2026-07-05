@@ -159,6 +159,10 @@ export async function PATCH(request: NextRequest) {
       tierPricing,
       clearTierPricing,
       hideBulkPricing,
+      thcaPercent,
+      strainType,
+      tier,
+      effects,
     } = body;
 
     if (Array.isArray(ids) && typeof hidden === 'boolean') {
@@ -206,6 +210,12 @@ export async function PATCH(request: NextRequest) {
       tierPricing: Array.isArray(tierPricing) ? tierPricing : undefined,
       clearTierPricing: clearTierPricing === true,
       hideBulkPricing: typeof hideBulkPricing === 'boolean' ? hideBulkPricing : undefined,
+      thcaPercent: thcaPercent !== undefined ? Number(thcaPercent) : undefined,
+      strainType: typeof strainType === 'string' ? strainType : undefined,
+      tier: typeof tier === 'string' ? tier : undefined,
+      effects: Array.isArray(effects)
+        ? effects.filter((value): value is string => typeof value === 'string')
+        : undefined,
     });
 
     if (!product) {

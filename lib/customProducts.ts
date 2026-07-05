@@ -92,6 +92,10 @@ export type CustomProductUpdate = Partial<
     | 'isNew'
     | 'tierPricing'
     | 'hideBulkPricing'
+    | 'thcaPercent'
+    | 'strainType'
+    | 'tier'
+    | 'effects'
   >
 > & { clearInventory?: boolean; clearTierPricing?: boolean };
 
@@ -180,6 +184,26 @@ export async function updateCustomProduct(
   if (updates.hideBulkPricing !== undefined) {
     if (updates.hideBulkPricing) next.hideBulkPricing = true;
     else delete next.hideBulkPricing;
+  }
+  if (updates.thcaPercent !== undefined) {
+    const thca = Math.max(0, Number(updates.thcaPercent));
+    if (thca > 0) next.thcaPercent = thca;
+    else delete next.thcaPercent;
+  }
+  if (updates.strainType !== undefined) {
+    const strainType = updates.strainType.trim();
+    if (strainType) next.strainType = strainType;
+    else delete next.strainType;
+  }
+  if (updates.tier !== undefined) {
+    const tier = updates.tier.trim();
+    if (tier) next.tier = tier;
+    else delete next.tier;
+  }
+  if (updates.effects !== undefined) {
+    const effects = updates.effects.map((value) => value.trim()).filter(Boolean);
+    if (effects.length > 0) next.effects = effects;
+    else delete next.effects;
   }
 
   products[index] = next;

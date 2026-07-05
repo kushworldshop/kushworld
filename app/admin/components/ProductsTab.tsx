@@ -52,6 +52,8 @@ import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 import NewProductPanel from '@/app/admin/components/NewProductPanel';
 import TierPricingEditor from '@/app/admin/components/TierPricingEditor';
 import { getDefaultTierPricing, sanitizeTierPricing } from '@/lib/tierPricing';
+import type { FlowerProductMetadata } from '@/lib/flowerStrainResearch';
+import { SHOP_VIBES } from '@/lib/productVibes';
 import type { TierPrice } from '@/lib/products';
 
 interface AdminProduct {
@@ -82,6 +84,10 @@ interface AdminProduct {
   media?: ProductMediaItem[];
   tierPricing?: TierPrice[];
   hideBulkPricing?: boolean;
+  thcaPercent?: number;
+  strainType?: string;
+  tier?: string;
+  effects?: string[];
 }
 
 type ProductEditPatch = Partial<AdminProduct> & {
@@ -90,6 +96,17 @@ type ProductEditPatch = Partial<AdminProduct> & {
 };
 
 type ProductDraft = ReturnType<typeof buildProductDraft>;
+
+function applyFlowerMetadataToPatch(
+  patch: ProductEditPatch,
+  metadata?: FlowerProductMetadata
+): void {
+  if (!metadata) return;
+  if (metadata.strainType) patch.strainType = metadata.strainType;
+  if (metadata.tier) patch.tier = metadata.tier;
+  if (metadata.effects?.length) patch.effects = metadata.effects;
+  if (metadata.subcategory) patch.subcategory = metadata.subcategory;
+}
 
 function buildProductDraft(product: AdminProduct, edits: Record<string, ProductEditPatch>) {
   const patch = edits[product.id];
@@ -126,6 +143,10 @@ function buildProductDraft(product: AdminProduct, edits: Record<string, ProductE
       product.tierPricing ??
       getDefaultTierPricing(price),
     hideBulkPricing: patch?.hideBulkPricing ?? product.hideBulkPricing ?? false,
+    thcaPercent: patch?.thcaPercent ?? product.thcaPercent ?? 0,
+    strainType: patch?.strainType ?? product.strainType ?? '',
+    tier: patch?.tier ?? product.tier ?? '',
+    effects: patch?.effects ?? product.effects ?? [],
   };
 }
 
@@ -154,6 +175,10 @@ function buildProductSavePayload(productId: string, draft: ProductDraft) {
     tierPricing: draft.useCustomTierPricing ? sanitizeTierPricing(draft.tierPricing) : undefined,
     clearTierPricing: !draft.useCustomTierPricing,
     hideBulkPricing: draft.hideBulkPricing,
+    thcaPercent: draft.thcaPercent > 0 ? draft.thcaPercent : 0,
+    strainType: draft.strainType,
+    tier: draft.tier,
+    effects: draft.effects,
   };
 }
 
@@ -570,7 +595,7 @@ export default function ProductsTab() {
   const updateDraft = (
     id: string,
     field: keyof AdminProduct | 'trackInventory' | 'useCustomTierPricing',
-    value: string | number | boolean | ProductOptionGroup[] | ProductMediaItem[] | TierPrice[]
+    value: string | number | boolean | string[] | ProductOptionGroup[] | ProductMediaItem[] | TierPrice[]
   ) => {
     setEdits((prev) => {
       const patch = { ...prev[id], [field]: value };
@@ -820,6 +845,7 @@ export default function ProductsTab() {
         description: string;
         suggestedName?: string;
         suggestedOptionGroups?: ProductOptionGroup[];
+        suggestedFlowerMetadata?: FlowerProductMetadata;
         insights?: string;
       }
     | { success: false; error: string }
@@ -849,6 +875,7 @@ export default function ProductsTab() {
       description: data.description,
       suggestedName: data.suggestedName,
       suggestedOptionGroups: data.suggestedOptionGroups,
+      suggestedFlowerMetadata: data.suggestedFlowerMetadata,
       insights: data.insights,
     };
   };
@@ -902,6 +929,7 @@ export default function ProductsTab() {
           if (result.suggestedOptionGroups?.length) {
             patch.optionGroups = result.suggestedOptionGroups;
           }
+          applyFlowerMetadataToPatch(patch, result.suggestedFlowerMetadata);
           applyDraftPatch(product.id, patch);
           succeeded += 1;
         } else {
@@ -1590,13 +1618,14 @@ function ProductDetailPanel({
         description: string;
         suggestedName?: string;
         suggestedOptionGroups?: ProductOptionGroup[];
+        suggestedFlowerMetadata?: FlowerProductMetadata;
         insights?: string;
       }
     | { success: false; error: string }
   >;
   onDraftChange: (
     field: keyof AdminProduct | 'trackInventory' | 'useCustomTierPricing',
-    value: string | number | boolean | ProductOptionGroup[] | TierPrice[]
+    value: string | number | boolean | string[] | ProductOptionGroup[] | TierPrice[]
   ) => void;
   onDraftPatch: (patch: ProductEditPatch) => void;
   onCategoryChange: (category: string) => void;
@@ -1654,11 +1683,15 @@ function ProductDetailPanel({
       if (result.suggestedOptionGroups?.length) {
         patch.optionGroups = result.suggestedOptionGroups;
       }
+      applyFlowerMetadataToPatch(patch, result.suggestedFlowerMetadata);
       onDraftPatch(patch);
       const applied: string[] = ['description'];
       if (patch.name) applied.push('name');
       if (patch.optionGroups?.length) {
         applied.push(`${patch.optionGroups.reduce((sum, g) => sum + g.values.length, 0)} variant/flavor options`);
+      }
+      if (patch.strainType || patch.tier || patch.effects?.length) {
+        applied.push('shop badges (strain/tier/effects)');
       }
       onDescriptionMessage(
         `${result.insights ? `${result.insights}. ` : ''}Applied ${applied.join(', ')} — review in Basics / Stock & more, then Save.`
@@ -2116,6 +2149,77 @@ function ProductDetailPanel({
                 New arrival
               </label>
             </div>
+            {draft.category === 'flower' && (
+              <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4 space-y-4">
+                <div>
+                  <p className="text-sm font-medium mb-1">Flower shop badges</p>
+                  <p className="text-[11px] text-zinc-500 mb-3">
+                    These power the extra pills on the public product page (THCa %, strain type, tier, effects).
+                    Grok auto-fills strain/tier/effects when you analyze photos — add THCa % from your COA.
+                  </p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass}>THCa % (from COA)</label>
+                    <AdminNumberInput
+                      value={draft.thcaPercent}
+                      onChange={(thcaPercent) => onDraftChange('thcaPercent', thcaPercent)}
+                      className={fieldClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Strain type</label>
+                    <select
+                      value={draft.strainType}
+                      onChange={(e) => onDraftChange('strainType', e.target.value)}
+                      className={fieldClass}
+                    >
+                      <option value="">Not set</option>
+                      <option value="Indica">Indica</option>
+                      <option value="Sativa">Sativa</option>
+                      <option value="Hybrid">Hybrid</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Tier</label>
+                    <select
+                      value={draft.tier}
+                      onChange={(e) => onDraftChange('tier', e.target.value)}
+                      className={fieldClass}
+                    >
+                      <option value="">Not set</option>
+                      <option value="Exotic">Exotic</option>
+                      <option value="Smalls">Smalls</option>
+                      <option value="Indoor">Indoor</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Effect tags (max 2 show on shop)</label>
+                  <div className="flex flex-wrap gap-3 mt-1">
+                    {SHOP_VIBES.map((vibe) => {
+                      const checked = draft.effects.includes(vibe.id);
+                      return (
+                        <label key={vibe.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...draft.effects, vibe.id]
+                                : draft.effects.filter((id) => id !== vibe.id);
+                              onDraftChange('effects', next.slice(0, 2));
+                            }}
+                            className="w-4 h-4 accent-[#00ff9d]"
+                          />
+                          {vibe.emoji} {vibe.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
             <ProductOptionsEditor
               value={draft.optionGroups}
               onChange={(groups) => onDraftChange('optionGroups', groups)}

@@ -1,7 +1,9 @@
 import {
   buildFlowerStrainContext,
+  deriveFlowerProductMetadata,
   formatFlowerStrainContextForPrompt,
   isFlowerProductCategory,
+  type FlowerProductMetadata,
 } from '@/lib/flowerStrainResearch';
 import {
   analyzeProductCatalogImages,
@@ -47,6 +49,7 @@ export interface GrokProductDescriptionResult {
   description: string;
   suggestedName?: string;
   suggestedOptionGroups?: ProductOptionGroup[];
+  suggestedFlowerMetadata?: FlowerProductMetadata;
   insights?: string;
   imageAnalysis?: ProductCatalogImageAnalysis;
 }
@@ -179,6 +182,7 @@ export async function generateProductDescriptionWithGrok(
   }
 
   let flowerResearchSources = 0;
+  let suggestedFlowerMetadata: FlowerProductMetadata | undefined;
 
   if (isFlowerProductCategory(input.category)) {
     const strainContext = await buildFlowerStrainContext({
@@ -188,6 +192,15 @@ export async function generateProductDescriptionWithGrok(
     });
     promptSections.push(formatFlowerStrainContextForPrompt(strainContext));
     flowerResearchSources = strainContext.researchedProfile?.citations?.length ?? 0;
+    suggestedFlowerMetadata = deriveFlowerProductMetadata(strainContext);
+    if (
+      !suggestedFlowerMetadata.strainType &&
+      !suggestedFlowerMetadata.tier &&
+      !suggestedFlowerMetadata.effects?.length &&
+      !suggestedFlowerMetadata.subcategory
+    ) {
+      suggestedFlowerMetadata = undefined;
+    }
   }
 
   const rosterStrainNames = imageAnalysis?.flavorOrVariantLabels ?? [];
@@ -254,6 +267,16 @@ ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imag
     } else {
       insightParts.push('flower strain researched (web/X search + databases)');
     }
+    if (suggestedFlowerMetadata?.strainType || suggestedFlowerMetadata?.tier) {
+      const badgeParts = [
+        suggestedFlowerMetadata.strainType,
+        suggestedFlowerMetadata.tier,
+        suggestedFlowerMetadata.effects?.length
+          ? `${suggestedFlowerMetadata.effects.length} effect tag(s)`
+          : undefined,
+      ].filter(Boolean);
+      insightParts.push(`shop badges: ${badgeParts.join(', ')}`);
+    }
   }
   const insights = insightParts.join(' · ');
 
@@ -261,6 +284,7 @@ ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imag
     description,
     suggestedName,
     suggestedOptionGroups,
+    suggestedFlowerMetadata,
     insights,
     imageAnalysis: imageAnalysis ?? undefined,
   };
