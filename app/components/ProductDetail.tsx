@@ -18,7 +18,7 @@ import { getTierPrice } from '@/lib/checkout';
 import {
   formatSelectedOptionSkus,
   formatSelectedOptionsLabel,
-  getDefaultSelectedOptions,
+  formatProductPriceDisplay,
   getSelectedOptionsImage,
   getSelectedOptionsSkus,
   getSelectedOptionsUnitPrice,
@@ -44,7 +44,7 @@ export default function ProductDetail({ product }: { product: Product }) {
   const blocked = ready && isMerchOnly && !isMerch;
   const baseGallery = useMemo(() => getProductMedia(product), [product]);
   const [activeImage, setActiveImage] = useState(0);
-  const [selectedOptions, setSelectedOptions] = useState(() => getDefaultSelectedOptions(product));
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const displayGallery = useMemo(() => {
     const optionImage = getSelectedOptionsImage(product, selectedOptions);
     if (!optionImage) return baseGallery;
@@ -58,6 +58,13 @@ export default function ProductDetail({ product }: { product: Product }) {
   const tiers = getTierPricing(product);
   const hasOptions = productHasOptions(product);
   const inStock = isProductInStock(product);
+  const priceDisplay = useMemo(
+    () =>
+      formatProductPriceDisplay(product, selectedOptions, quantity, (basePrice, qty) =>
+        getTierPrice(basePrice, qty, tiers)
+      ),
+    [product, selectedOptions, quantity, tiers]
+  );
   const unitPrice = useMemo(
     () =>
       getSelectedOptionsUnitPrice(product, selectedOptions, quantity, (basePrice, qty) =>
@@ -212,7 +219,10 @@ export default function ProductDetail({ product }: { product: Product }) {
 
             <div className="flex items-baseline gap-3 mb-6">
               <p className="text-3xl font-bold text-[#00ff9d]">
-                {hasOptions ? 'From ' : ''}${unitPrice}
+                {priceDisplay.prefix}${priceDisplay.price.toFixed(2)}
+                {priceDisplay.suffix ? (
+                  <span className="text-xl text-zinc-400 font-semibold"> {priceDisplay.suffix}</span>
+                ) : null}
               </p>
               {product.compareAtPrice && product.compareAtPrice < product.price && (
                 <p className="text-lg text-zinc-500 line-through">${product.compareAtPrice}</p>
@@ -231,7 +241,7 @@ export default function ProductDetail({ product }: { product: Product }) {
               <div className="bg-zinc-900 rounded-2xl p-5 mb-6 border border-zinc-700">
                 <p className="text-sm font-semibold mb-3">Bulk Pricing</p>
                 <div className="space-y-1 text-sm text-zinc-400">
-                  <p>1+ units: ${product.price}</p>
+                  <p>1+ units: ${priceDisplay.price.toFixed(2)}</p>
                   {tiers.map((t) => (
                     <p key={t.minQty}>{t.minQty}+ units: ${t.price} each</p>
                   ))}
@@ -325,7 +335,9 @@ export default function ProductDetail({ product }: { product: Product }) {
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800 p-4 flex items-center gap-4 z-40">
         <div className="flex-1">
           <p className="font-bold text-sm truncate">{product.name}</p>
-          <p className="text-[#00ff9d] font-bold">${unitPrice}</p>
+          <p className="text-[#00ff9d] font-bold">
+            {priceDisplay.prefix}${priceDisplay.price.toFixed(2)}
+          </p>
         </div>
         <button
           onClick={handleAdd}

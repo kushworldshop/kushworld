@@ -120,6 +120,99 @@ export function getSelectedOptionsUnitPrice(
   return tierPrice ? tierPrice(baseWithOptions, quantity) : baseWithOptions;
 }
 
+function getGroupAdjustmentBounds(group: ProductOptionGroup): { min: number; max: number } {
+  const adjustments = group.values.map((value) => value.priceAdjustment ?? 0);
+  if (adjustments.length === 0) return { min: 0, max: 0 };
+  return { min: Math.min(...adjustments), max: Math.max(...adjustments) };
+}
+
+export function getMinimumOptionPriceAdjustment(product: Product): number {
+  return getProductOptionGroups(product).reduce(
+    (sum, group) => sum + getGroupAdjustmentBounds(group).min,
+    0
+  );
+}
+
+export function getMaximumOptionPriceAdjustment(product: Product): number {
+  return getProductOptionGroups(product).reduce(
+    (sum, group) => sum + getGroupAdjustmentBounds(group).max,
+    0
+  );
+}
+
+export function getMinimumUnitPrice(product: Product): number {
+  return product.price + getMinimumOptionPriceAdjustment(product);
+}
+
+export function getMaximumUnitPrice(product: Product): number {
+  return product.price + getMaximumOptionPriceAdjustment(product);
+}
+
+export function areAllOptionsSelected(
+  product: Product,
+  selected: SelectedProductOptions
+): boolean {
+  return getProductOptionGroups(product).every((group) => Boolean(selected[group.name]));
+}
+
+export function productHasVariableOptionPricing(product: Product): boolean {
+  return getMinimumUnitPrice(product) !== getMaximumUnitPrice(product);
+}
+
+export function formatProductPriceDisplay(
+  product: Product,
+  selected: SelectedProductOptions,
+  quantity = 1,
+  tierPrice?: (basePrice: number, qty: number) => number
+): { prefix: string; price: number; suffix?: string } {
+  const hasOptions = productHasOptions(product);
+  const allSelected = areAllOptionsSelected(product, selected);
+
+  if (hasOptions && allSelected) {
+    return {
+      prefix: '',
+      price: getSelectedOptionsUnitPrice(product, selected, quantity, tierPrice),
+    };
+  }
+
+  const minPrice = tierPrice
+    ? tierPrice(getMinimumUnitPrice(product), quantity)
+    : getMinimumUnitPrice(product);
+  const maxPrice = tierPrice
+    ? tierPrice(getMaximumUnitPrice(product), quantity)
+    : getMaximumUnitPrice(product);
+
+  if (hasOptions) {
+    if (minPrice !== maxPrice) {
+      return { prefix: 'From ', price: minPrice, suffix: `– $${maxPrice.toFixed(2)}` };
+    }
+    return { prefix: 'From ', price: minPrice };
+  }
+
+  const base = tierPrice ? tierPrice(product.price, quantity) : product.price;
+  return { prefix: '', price: base };
+}
+
+export function describeAdminShopPrice(product: Product): string {
+  const min = getMinimumUnitPrice(product);
+  const max = getMaximumUnitPrice(product);
+  const adjustment = getMinimumOptionPriceAdjustment(product);
+
+  if (!productHasOptions(product)) {
+    return `$${product.price.toFixed(2)}`;
+  }
+
+  if (adjustment === 0 && min === max) {
+    return `$${product.price.toFixed(2)}`;
+  }
+
+  if (min === max) {
+    return `$${min.toFixed(2)} (base $${product.price.toFixed(2)} + $${(min - product.price).toFixed(2)} from variants)`;
+  }
+
+  return `From $${min.toFixed(2)} – $${max.toFixed(2)} (base $${product.price.toFixed(2)})`;
+}
+
 export function formatSelectedOptionsLabel(selected: SelectedProductOptions): string {
   return Object.values(selected).filter(Boolean).join(' / ');
 }

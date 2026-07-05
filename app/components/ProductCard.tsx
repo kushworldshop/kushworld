@@ -11,7 +11,7 @@ import { EMOTES } from '@/lib/emotes';
 import {
   formatSelectedOptionSkus,
   formatSelectedOptionsLabel,
-  getDefaultSelectedOptions,
+  formatProductPriceDisplay,
   getSelectedOptionsImage,
   getSelectedOptionsSkus,
   getSelectedOptionsUnitPrice,
@@ -31,7 +31,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const { content } = useSiteContent();
   const { features } = content;
   const isMerch = product.category === 'merch';
-  const [selectedOptions, setSelectedOptions] = useState(() => getDefaultSelectedOptions(product));
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [added, setAdded] = useState(false);
   const [reactions, setReactions] = useState<Record<string, number>>({});
 
@@ -43,6 +43,10 @@ export default function ProductCard({ product }: { product: Product }) {
   const onSale = isOnSale(product);
   const coverUrl = getProductCoverUrl(product);
   const coverIsVideo = isVideoMediaUrl(coverUrl);
+  const priceDisplay = useMemo(
+    () => formatProductPriceDisplay(product, selectedOptions),
+    [product, selectedOptions]
+  );
   const unitPrice = useMemo(
     () => getSelectedOptionsUnitPrice(product, selectedOptions),
     [product, selectedOptions]
@@ -176,7 +180,10 @@ export default function ProductCard({ product }: { product: Product }) {
         )}
         <div className="mb-4">
           <p className="text-[#00ff9d] text-2xl font-bold">
-            {hasOptions ? 'From ' : ''}${unitPrice}
+            {priceDisplay.prefix}${priceDisplay.price.toFixed(2)}
+            {priceDisplay.suffix ? (
+              <span className="text-lg text-zinc-400 font-semibold"> {priceDisplay.suffix}</span>
+            ) : null}
           </p>
           {onSale && product.compareAtPrice && (
             <p className="text-xs text-zinc-500 line-through">${product.compareAtPrice}</p>

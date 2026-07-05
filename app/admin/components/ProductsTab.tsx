@@ -14,7 +14,11 @@ import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import AdminNumberInput from '@/app/admin/components/AdminNumberInput';
 import ProductOptionsEditor from '@/app/admin/components/ProductOptionsEditor';
-import { getProductOptionGroups, type ProductOptionGroup } from '@/lib/productOptions';
+import {
+  describeAdminShopPrice,
+  getProductOptionGroups,
+  type ProductOptionGroup,
+} from '@/lib/productOptions';
 import { MERCH_SUBCATEGORIES, getMerchSubcategoryLabel } from '@/lib/merch';
 import {
   ADMIN_PRODUCT_CATEGORY_TABS,
@@ -1735,6 +1739,17 @@ function ProductDetailPanel({
                 onChange={(price) => onDraftChange('price', price)}
                 className={fieldClass}
               />
+              <p className="text-[11px] text-[#00ff9d]/90 mt-1.5">
+                Shop shows:{' '}
+                {describeAdminShopPrice({
+                  id: product.id,
+                  name: draft.name,
+                  price: draft.price,
+                  image: draft.image,
+                  category: draft.category,
+                  optionGroups: draft.optionGroups,
+                })}
+              </p>
             </div>
             <div>
               <label className={labelClass}>Cost ($)</label>

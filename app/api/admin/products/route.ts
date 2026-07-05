@@ -9,6 +9,7 @@ import {
   updateProduct,
 } from '@/lib/productCatalog';
 import { clampProductOptionGroups } from '@/lib/productOptions';
+import { revalidateProductCatalog } from '@/lib/productRevalidation';
 
 export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {
@@ -86,6 +87,8 @@ export async function POST(request: NextRequest) {
         : undefined,
     });
 
+    await revalidateProductCatalog(product.id);
+
     return NextResponse.json({
       success: true,
       product: toAdminProductRecord(product, { isCustom: true }),
@@ -159,6 +162,7 @@ export async function PATCH(request: NextRequest) {
       }
 
       const updated = await setProductsHidden(productIds, hidden);
+      await revalidateProductCatalog();
       return NextResponse.json({ success: true, updated, hidden });
     }
 
@@ -198,6 +202,8 @@ export async function PATCH(request: NextRequest) {
     if (!product) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
     }
+
+    await revalidateProductCatalog(id);
 
     return NextResponse.json({ success: true, product });
   } catch {

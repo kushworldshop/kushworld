@@ -11,10 +11,13 @@ import {
   productJsonLd,
 } from '@/lib/seo';
 import { getProductSlug, type Product } from '@/lib/products';
-import { getProductBySlug, getProducts } from '@/lib/productCatalog';
+import { getProductBySlug } from '@/lib/productCatalog';
+import { formatProductPriceDisplay } from '@/lib/productOptions';
 import { getSiteContent } from '@/lib/siteContent';
 import { getShopCategoryLabel, getShopPathForProduct } from '@/lib/shopNavigation';
 import { getReviewsForProduct, getReviewStats } from '@/lib/reviews';
+
+export const dynamic = 'force-dynamic';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -35,8 +38,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const image = product.image.startsWith('http') ? product.image : absoluteUrl(product.image);
 
+  const priceLabel = formatProductPriceDisplay(product, {});
+  const priceTitle = priceLabel.prefix
+    ? `${priceLabel.prefix.trim()} $${priceLabel.price.toFixed(2)}`
+    : `$${priceLabel.price.toFixed(2)}`;
+
   return buildPageMetadata({
-    title: `${product.name} — $${product.price}`,
+    title: `${product.name} — ${priceTitle}`,
     description: getSeoDescription(product),
     path: `/products/${getProductSlug(product)}`,
     keywords: [
@@ -48,11 +56,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ].filter(Boolean),
     image,
   });
-}
-
-export async function generateStaticParams() {
-  const products = await getProducts();
-  return products.map((p) => ({ slug: getProductSlug(p) }));
 }
 
 export default async function ProductPage({ params }: Props) {

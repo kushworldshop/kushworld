@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { getAllProducts, updateProduct } from '@/lib/productCatalog';
+import { revalidateProductCatalog } from '@/lib/productRevalidation';
 import {
   appendProductMedia,
   inferMediaTypeFromMime,
@@ -106,6 +107,8 @@ export async function POST(request: NextRequest) {
       if (!product) {
         return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
       }
+
+      await revalidateProductCatalog(productId);
 
       return NextResponse.json({
         success: true,
