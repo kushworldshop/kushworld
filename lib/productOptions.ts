@@ -330,20 +330,29 @@ export function parseOptionValueLine(line: string): ProductOptionValue | null {
     };
   }
 
-  const priced = body.match(/^(.+?)\s*\(\+\$?(\d+(?:\.\d+)?)\)\s*$/);
-  if (priced) {
+  const listedPriced = body.match(/^(.+?)\s*\(\+\$?(\d+(?:\.\d+)?)\)\s*$/);
+  if (listedPriced) {
     return {
-      label: priced[1].trim(),
-      priceAdjustment: Number(priced[2]),
+      label: listedPriced[1].trim(),
+      optionPrice: Number(listedPriced[2]),
       sku,
     };
   }
 
-  const inlinePriced = body.match(/^(.+?)\s+\+\$?(\d+(?:\.\d+)?)\s*$/);
-  if (inlinePriced) {
+  const inlineListed = body.match(/^(.+?)\s+\+\$?(\d+(?:\.\d+)?)\s*$/);
+  if (inlineListed) {
     return {
-      label: inlinePriced[1].trim(),
-      priceAdjustment: Number(inlinePriced[2]),
+      label: inlineListed[1].trim(),
+      optionPrice: Number(inlineListed[2]),
+      sku,
+    };
+  }
+
+  const additivePriced = body.match(/^(.+?)\s*\(add\s+\$?(\d+(?:\.\d+)?)\)\s*$/i);
+  if (additivePriced) {
+    return {
+      label: additivePriced[1].trim(),
+      priceAdjustment: Number(additivePriced[2]),
       sku,
     };
   }
@@ -364,9 +373,9 @@ export function formatOptionValuePriceSuffix(value: ProductOptionValue): string 
 export function serializeOptionValue(value: ProductOptionValue): string {
   let line = value.label;
   if (value.optionPrice !== undefined) {
-    line += ` (=$${value.optionPrice})`;
+    line += ` (+$${value.optionPrice})`;
   } else if (value.priceAdjustment && value.priceAdjustment !== 0) {
-    line += ` (+$${value.priceAdjustment})`;
+    line += ` (add $${value.priceAdjustment})`;
   }
   if (value.sku) {
     line += ` [${value.sku}]`;
