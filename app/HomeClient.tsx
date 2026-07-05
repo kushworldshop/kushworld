@@ -13,6 +13,7 @@ import Footer from './components/Footer';
 import ProductCollectionSection from './components/ProductCollectionSection';
 import HowItWorksSection from './components/HowItWorksSection';
 import CommunitySection from './components/CommunitySection';
+import WishlistSync from './components/WishlistSync';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
 import type { ReviewCardData } from './components/ReviewCard';
@@ -30,6 +31,7 @@ export default function HomeClient({ initialReviews, initialReviewStats }: HomeC
 
   return (
     <>
+      <WishlistSync />
       <Navbar onCartClick={() => setIsCartOpen(true)} />
 
       <main>

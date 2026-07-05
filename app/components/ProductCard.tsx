@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/cartStore';
 import { useWishlistStore } from '@/lib/wishlistStore';
 import Link from 'next/link';
@@ -26,6 +27,7 @@ import { getProductCoverUrl, isVideoMediaUrl } from '@/lib/productMedia';
 import ProductMetaBadges from './ProductMetaBadges';
 
 export default function ProductCard({ product }: { product: Product }) {
+  const router = useRouter();
   const { content } = useSiteContent();
   const { features } = content;
   const isMerch = product.category === 'merch';
@@ -80,14 +82,18 @@ export default function ProductCard({ product }: { product: Product }) {
     setTimeout(() => setAdded(false), 1500);
   };
 
-  const handleToggleWishlist = () => {
-    toggleWishlist({
+  const handleToggleWishlist = async () => {
+    const result = await toggleWishlist({
       id: product.id,
       name: product.name,
       price: product.price,
       image: product.image,
       category: product.category,
     });
+    if (result === 'login_required') {
+      const redirect = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/shop';
+      router.push(`/account?redirect=${encodeURIComponent(redirect)}`);
+    }
   };
 
   const handleReact = async (emoteName: string) => {

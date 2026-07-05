@@ -12,7 +12,7 @@ import SiteBranding from './SiteBranding';
 import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useReferralStore } from '@/lib/referralStore';
-import { useWishlistStore } from '@/lib/wishlistStore';
+import WishlistSync from './WishlistSync';
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -22,11 +22,11 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
     useCartStore.persist.rehydrate();
     useLoyaltyStore.persist.rehydrate();
     useReferralStore.persist.rehydrate();
-    useWishlistStore.persist.rehydrate();
   }, []);
 
   return (
     <>
+      <WishlistSync />
       <SiteBranding />
       <Navbar onCartClick={() => setIsCartOpen(true)} />
       <main className="min-h-screen bg-black text-white">{children}</main>
