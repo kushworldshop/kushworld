@@ -5,6 +5,9 @@ import {
   formatOptionValuePriceSuffix,
   getOptionValue,
   getProductOptionGroups,
+  getSizeOptionGroup,
+  isOptionGroupRequired,
+  isWholeBoxSizeValue,
   PRODUCT_OPTION_DROPDOWN_THRESHOLD,
   type SelectedProductOptions,
 } from '@/lib/productOptions';
@@ -25,6 +28,25 @@ export default function ProductOptionSelector({
   const groups = getProductOptionGroups(product);
   if (groups.length === 0) return null;
 
+  const visibleGroups = groups.filter((group) =>
+    isOptionGroupRequired(product, group.name, selected)
+  );
+
+  const handleGroupChange = (groupName: string, valueLabel: string) => {
+    const next = { ...selected, [groupName]: valueLabel };
+    const sizeGroup = getSizeOptionGroup(product);
+
+    if (sizeGroup && groupName === sizeGroup.name && isWholeBoxSizeValue(product, sizeGroup.name, valueLabel)) {
+      for (const group of groups) {
+        if (group.name !== sizeGroup.name) {
+          delete next[group.name];
+        }
+      }
+    }
+
+    onChange(next);
+  };
+
   const labelClass = size === 'sm' ? 'text-xs text-zinc-400 mb-2' : 'text-sm text-zinc-400 mb-3';
   const buttonClass = size === 'sm' ? 'px-3 py-1.5 text-xs rounded-xl' : 'px-4 py-2 rounded-xl text-sm';
   const selectClass =
@@ -34,7 +56,7 @@ export default function ProductOptionSelector({
 
   return (
     <>
-      {groups.map((group) => {
+      {visibleGroups.map((group) => {
         const useDropdown = group.values.length > PRODUCT_OPTION_DROPDOWN_THRESHOLD;
         const currentValue = selected[group.name] ?? '';
 
@@ -50,7 +72,7 @@ export default function ProductOptionSelector({
             {useDropdown ? (
               <select
                 value={currentValue}
-                onChange={(e) => onChange({ ...selected, [group.name]: e.target.value })}
+                onChange={(e) => handleGroupChange(group.name, e.target.value)}
                 className={selectClass}
               >
                 <option value="" disabled>
@@ -72,7 +94,7 @@ export default function ProductOptionSelector({
                     <button
                       key={`${group.name}-${value.label}`}
                       type="button"
-                      onClick={() => onChange({ ...selected, [group.name]: value.label })}
+                      onClick={() => handleGroupChange(group.name, value.label)}
                       className={`${buttonClass} transition inline-flex items-center gap-2 ${
                         isSelected
                           ? 'bg-[#00ff9d] text-black font-medium'

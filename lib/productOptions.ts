@@ -88,9 +88,61 @@ export function productHasOptions(product: Product): boolean {
   return getProductOptionGroups(product).length > 0;
 }
 
+export function isWholeBoxSizeValue(
+  product: Product,
+  sizeGroupName: string,
+  valueLabel: string
+): boolean {
+  const value = getOptionValue(product, sizeGroupName, valueLabel);
+  if (!value) return false;
+
+  if (/^full\s*box$/i.test(value.label) || /^whole\s*box$/i.test(value.label)) {
+    return true;
+  }
+
+  const sizeGroup = getProductOptionGroups(product).find((group) => group.name === sizeGroupName);
+  if (!sizeGroup) return false;
+
+  const hasListedUnitOption = sizeGroup.values.some((item) => item.optionPrice !== undefined);
+  return hasListedUnitOption && value.optionPrice === undefined;
+}
+
+export function getSizeOptionGroup(product: Product): ProductOptionGroup | undefined {
+  return getProductOptionGroups(product).find((group) => group.name.toLowerCase() === 'size');
+}
+
+export function isWholeBoxSizeSelection(
+  product: Product,
+  selected: SelectedProductOptions
+): boolean {
+  const sizeGroup = getSizeOptionGroup(product);
+  if (!sizeGroup) return false;
+  const selectedSize = selected[sizeGroup.name];
+  if (!selectedSize) return false;
+  return isWholeBoxSizeValue(product, sizeGroup.name, selectedSize);
+}
+
+/** Whether the shopper must pick a value in this group before add-to-cart. */
+export function isOptionGroupRequired(
+  product: Product,
+  groupName: string,
+  selected: SelectedProductOptions
+): boolean {
+  const sizeGroup = getSizeOptionGroup(product);
+  if (!sizeGroup) return true;
+  if (groupName === sizeGroup.name) return true;
+
+  const sizeSelected = selected[sizeGroup.name];
+  if (!sizeSelected) return false;
+  if (isWholeBoxSizeSelection(product, selected)) return false;
+
+  return true;
+}
+
 export function getDefaultSelectedOptions(product: Product): SelectedProductOptions {
   const selected: SelectedProductOptions = {};
   for (const group of getProductOptionGroups(product)) {
+    if (!isOptionGroupRequired(product, group.name, selected)) continue;
     if (group.values[0]) {
       selected[group.name] = group.values[0].label;
     }
@@ -195,7 +247,9 @@ export function areAllOptionsSelected(
   product: Product,
   selected: SelectedProductOptions
 ): boolean {
-  return getProductOptionGroups(product).every((group) => Boolean(selected[group.name]));
+  return getProductOptionGroups(product)
+    .filter((group) => isOptionGroupRequired(product, group.name, selected))
+    .every((group) => Boolean(selected[group.name]));
 }
 
 export function productHasVariableOptionPricing(product: Product): boolean {
@@ -290,6 +344,8 @@ export function validateSelectedOptions(
   selected: SelectedProductOptions
 ): { valid: boolean; missingGroup?: string } {
   for (const group of getProductOptionGroups(product)) {
+    if (!isOptionGroupRequired(product, group.name, selected)) continue;
+
     const value = selected[group.name];
     if (!value) {
       return { valid: false, missingGroup: group.name };
