@@ -32,7 +32,12 @@ import {
   productMatchesAdminCategoryTab,
   type AdminProductCategoryTabId,
 } from '@/lib/shopNavigation';
-import { formatCurrency, formatPercent, getProductMargin } from '@/lib/productEconomics';
+import {
+  formatCurrency,
+  formatPercent,
+  getProductSellMargins,
+} from '@/lib/productEconomics';
+import { getSizeUnitAndBoxPricing } from '@/lib/productOptions';
 import {
   DEFAULT_PRODUCT_DESCRIPTION_TONE,
   PRODUCT_DESCRIPTION_TONES,
@@ -1656,7 +1661,15 @@ function ProductDetailPanel({
   const [showNewSubsection, setShowNewSubsection] = useState(false);
   const [draggingMediaIndex, setDraggingMediaIndex] = useState<number | null>(null);
   const [dragOverMediaIndex, setDragOverMediaIndex] = useState<number | null>(null);
-  const margin = getProductMargin(draft.price, draft.cost > 0 ? draft.cost : undefined);
+  const sizePricing = getSizeUnitAndBoxPricing({
+    price: draft.price,
+    optionGroups: draft.optionGroups,
+  });
+  const sellMargins = getProductSellMargins({
+    price: draft.price,
+    cost: draft.cost > 0 ? draft.cost : undefined,
+    optionGroups: draft.optionGroups,
+  });
   const selectedTone = PRODUCT_DESCRIPTION_TONES.find((item) => item.id === descriptionTone);
   const coverUrl = getProductCoverUrl({ image: draft.image, media: draft.media });
 
@@ -1903,12 +1916,20 @@ function ProductDetailPanel({
               </p>
             </div>
             <div>
-              <label className={labelClass}>Cost ($)</label>
+              <label className={labelClass}>
+                Cost ($){sizePricing ? ' — per device' : ''}
+              </label>
               <AdminNumberInput
                 value={draft.cost}
                 onChange={(cost) => onDraftChange('cost', cost)}
                 className={fieldClass}
               />
+              {sizePricing && draft.cost > 0 && (
+                <p className="text-[11px] text-zinc-500 mt-1.5">
+                  Box cost estimated at {formatCurrency(draft.cost * sizePricing.unitsPerBox)} (
+                  {sizePricing.unitsPerBox} devices × {formatCurrency(draft.cost)})
+                </p>
+              )}
             </div>
             <div>
               <label className={labelClass}>Compare-at price ($)</label>
@@ -1918,9 +1939,19 @@ function ProductDetailPanel({
                 className={fieldClass}
               />
             </div>
-            {margin && (
-              <div className="flex items-center text-xs text-zinc-500 px-1">
-                Margin {formatCurrency(margin.profit)} · {formatPercent(margin.marginPercent)}
+            {sellMargins && (
+              <div className="sm:col-span-2 rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2.5 space-y-1.5">
+                {sellMargins.lines.map((line) => (
+                  <div key={line.label} className="flex flex-wrap items-baseline gap-x-2 text-xs text-zinc-500">
+                    <span className="text-zinc-400 shrink-0">{line.label}</span>
+                    <span className="text-zinc-600">
+                      sell {formatCurrency(line.sellPrice)} · cost {formatCurrency(line.cost)}
+                    </span>
+                    <span className="text-[#00ff9d]/90">
+                      margin {formatCurrency(line.margin.profit)} · {formatPercent(line.margin.marginPercent)}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
             {draft.category !== 'merch' && (

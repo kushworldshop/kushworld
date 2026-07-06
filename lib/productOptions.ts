@@ -88,6 +88,98 @@ export function productHasOptions(product: Product): boolean {
   return getProductOptionGroups(product).length > 0;
 }
 
+export function isBoxSizeLabel(label: string): boolean {
+  const normalized = label.trim();
+  if (/^full\s*box$/i.test(normalized) || /^whole\s*box$/i.test(normalized)) return true;
+  if (/\b\d+\s*[-\s]?\s*pack\b/i.test(normalized)) return true;
+  if (/\b(?:case|carton|master\s*case)\b/i.test(normalized)) return true;
+  return false;
+}
+
+export function parseBoxUnitCount(label: string): number | null {
+  const pack = label.match(/(\d+)\s*[-\s]?\s*pack\b/i);
+  if (pack) return Number(pack[1]);
+
+  const count = label.match(/(\d+)\s*[-\s]?\s*(?:ct|count|pc|pcs|units?)\b/i);
+  if (count) return Number(count[1]);
+
+  return null;
+}
+
+export interface SizeUnitAndBoxPricing {
+  unitSellPrice: number;
+  unitLabel: string;
+  boxSellPrice: number;
+  boxLabel: string;
+  unitsPerBox: number;
+}
+
+export function getSizeUnitAndBoxPricing(
+  product: Pick<Product, 'price' | 'optionGroups'>
+): SizeUnitAndBoxPricing | null {
+  const sizeGroup = (product.optionGroups ?? [])
+    .filter((group) => group.name.trim() && group.values.length > 0)
+    .find((group) => group.name.toLowerCase() === 'size');
+  if (!sizeGroup || sizeGroup.values.length < 2) return null;
+
+  const hasListedUnitOption = sizeGroup.values.some((item) => item.optionPrice !== undefined);
+
+  let boxValue: ProductOptionValue | undefined;
+  let unitValue: ProductOptionValue | undefined;
+
+  for (const value of sizeGroup.values) {
+    const isBox =
+      isBoxSizeLabel(value.label) ||
+      (hasListedUnitOption && value.optionPrice === undefined);
+
+    if (isBox) {
+      const sell = value.optionPrice ?? product.price;
+      const currentSell = boxValue?.optionPrice ?? product.price;
+      if (!boxValue || sell > currentSell) {
+        boxValue = value;
+      }
+      continue;
+    }
+
+    if (value.optionPrice !== undefined) {
+      const unitPrice = value.optionPrice;
+      if (!unitValue || unitPrice < (unitValue.optionPrice ?? Number.POSITIVE_INFINITY)) {
+        unitValue = value;
+      }
+    }
+  }
+
+  if ((!boxValue || !unitValue) && sizeGroup.values.length === 2) {
+    const priced = sizeGroup.values.filter((value) => value.optionPrice !== undefined);
+    if (priced.length === 2) {
+      const [low, high] = [...priced].sort(
+        (a, b) => (a.optionPrice ?? 0) - (b.optionPrice ?? 0)
+      );
+      unitValue = unitValue ?? low;
+      boxValue = boxValue ?? high;
+    }
+  }
+
+  if (!boxValue || !unitValue) return null;
+
+  const unitSellPrice = unitValue.optionPrice ?? product.price;
+  const boxSellPrice = boxValue.optionPrice ?? product.price;
+  if (unitSellPrice <= 0 || boxSellPrice <= 0 || boxSellPrice <= unitSellPrice) return null;
+
+  let unitsPerBox = parseBoxUnitCount(boxValue.label);
+  if (!unitsPerBox || unitsPerBox < 2) {
+    unitsPerBox = Math.max(2, Math.round(boxSellPrice / unitSellPrice));
+  }
+
+  return {
+    unitSellPrice,
+    unitLabel: unitValue.label,
+    boxSellPrice,
+    boxLabel: boxValue.label,
+    unitsPerBox,
+  };
+}
+
 export function isWholeBoxSizeValue(
   product: Product,
   sizeGroupName: string,
@@ -96,7 +188,7 @@ export function isWholeBoxSizeValue(
   const value = getOptionValue(product, sizeGroupName, valueLabel);
   if (!value) return false;
 
-  if (/^full\s*box$/i.test(value.label) || /^whole\s*box$/i.test(value.label)) {
+  if (isBoxSizeLabel(value.label)) {
     return true;
   }
 
