@@ -108,6 +108,10 @@ type ProductEditPatch = Partial<AdminProduct> & {
 
 type ProductDraft = ReturnType<typeof buildProductDraft>;
 
+function isDeletableAdminProduct(product: AdminProduct): boolean {
+  return product.isCustom === true || product.id.startsWith('custom-');
+}
+
 function applyFlowerMetadataToPatch(
   patch: ProductEditPatch,
   metadata?: FlowerProductMetadata
@@ -328,11 +332,16 @@ export default function ProductsTab() {
 
   const filteredIds = useMemo(() => filteredProducts.map((product) => product.id), [filteredProducts]);
 
-  const bulkTargets = useMemo(() => {
-    if (checkedIds.length === 0) return filteredProducts;
+  const selectedProducts = useMemo(() => {
+    if (checkedIds.length === 0) return [];
     const checkedSet = new Set(checkedIds);
-    return filteredProducts.filter((product) => checkedSet.has(product.id));
-  }, [filteredProducts, checkedIds]);
+    return products.filter((product) => checkedSet.has(product.id));
+  }, [products, checkedIds]);
+
+  const bulkTargets = useMemo(() => {
+    if (checkedIds.length > 0) return selectedProducts;
+    return filteredProducts;
+  }, [filteredProducts, checkedIds.length, selectedProducts]);
 
   const usingSelection = checkedIds.length > 0;
   const allFilteredChecked =
@@ -349,7 +358,7 @@ export default function ProductsTab() {
   );
 
   const deletableBulkCount = useMemo(
-    () => bulkTargets.filter((product) => product.isCustom).length,
+    () => bulkTargets.filter(isDeletableAdminProduct).length,
     [bulkTargets]
   );
 
@@ -776,11 +785,11 @@ export default function ProductsTab() {
 
   const deleteSelectedProducts = async () => {
     if (bulkTargets.length === 0) {
-      setMessage('No products to delete.');
+      setMessage(usingSelection ? 'No selected products found.' : 'No products to delete.');
       return;
     }
 
-    const customTargets = bulkTargets.filter((product) => product.isCustom);
+    const customTargets = bulkTargets.filter(isDeletableAdminProduct);
     const catalogCount = bulkTargets.length - customTargets.length;
 
     if (customTargets.length === 0) {
@@ -790,7 +799,7 @@ export default function ProductsTab() {
 
     let confirmText = `Permanently delete ${customTargets.length} custom product${customTargets.length === 1 ? '' : 's'}? This cannot be undone.`;
     if (catalogCount > 0) {
-      confirmText += `\n\n${catalogCount} catalog product${catalogCount === 1 ? '' : 's'} will be skipped (hide those instead).`;
+      confirmText += `\n\n${catalogCount} catalog product${catalogCount === 1 ? '' : 's'} in your selection will be skipped (hide those instead).`;
     }
     if (!window.confirm(confirmText)) return;
 
@@ -800,7 +809,7 @@ export default function ProductsTab() {
       const res = await adminFetch('/api/admin/products', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: bulkTargets.map((product) => product.id) }),
+        body: JSON.stringify({ ids: customTargets.map((product) => product.id) }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -810,7 +819,8 @@ export default function ProductsTab() {
 
       const deleted = data.deleted ?? 0;
       const skipped = Array.isArray(data.skippedCatalogIds) ? data.skippedCatalogIds.length : 0;
-      setCheckedIds((prev) => prev.filter((id) => !customTargets.some((product) => product.id === id)));
+      const deletedIds = new Set(customTargets.map((product) => product.id));
+      setCheckedIds((prev) => prev.filter((id) => !deletedIds.has(id)));
       setEdits((prev) => {
         const next = { ...prev };
         for (const product of customTargets) delete next[product.id];
@@ -1389,7 +1399,9 @@ export default function ProductsTab() {
                       </div>
                       <p className="text-[11px] text-zinc-500 truncate">
                         ${draft.price}
-                        {product.isCustom && <span className="text-zinc-600 ml-1">· Custom</span>}
+                        {isDeletableAdminProduct(product) && (
+                          <span className="text-zinc-600 ml-1">· Custom</span>
+                        )}
                       </p>
                     </div>
                     {dirty && (
@@ -1405,6 +1417,36 @@ export default function ProductsTab() {
           </div>
 
           <div className="flex-shrink-0 pt-3 mt-2 border-t border-zinc-800 space-y-2">
+            {usingSelection && (
+              <div className="rounded-lg border border-[#00ff9d]/25 bg-[#00ff9d]/5 px-3 py-2 space-y-2">
+                <p className="text-xs text-[#00ff9d] font-medium">
+                  {checkedIds.length} product{checkedIds.length === 1 ? '' : 's'} selected
+                </p>
+                <button
+                  type="button"
+                  onClick={deleteSelectedProducts}
+                  disabled={
+                    loading ||
+                    bulkVisibility !== null ||
+                    bulkDeleting ||
+                    bulkGrokProgress !== null ||
+                    deletableBulkCount === 0
+                  }
+                  title={
+                    deletableBulkCount === 0
+                      ? 'Only custom/imported products can be deleted'
+                      : undefined
+                  }
+                  className="w-full bg-red-500/15 text-red-200 hover:bg-red-500/25 border border-red-500/35 px-3 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-40"
+                >
+                  {bulkDeleting
+                    ? 'Deleting...'
+                    : deletableBulkCount > 0
+                      ? `Delete selected (${deletableBulkCount})`
+                      : 'Delete selected (catalog only — hide instead)'}
+                </button>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => setBulkVisibilityForFiltered(true)}
@@ -1434,7 +1476,7 @@ export default function ProductsTab() {
                     {showImportPanel ? 'Close import' : 'Import images'}
                   </button>
                 )}
-                {deletableBulkCount > 0 && (
+                {!usingSelection && deletableBulkCount > 0 && (
                   <button
                     type="button"
                     onClick={deleteSelectedProducts}
