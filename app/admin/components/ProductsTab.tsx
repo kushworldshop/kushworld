@@ -1663,10 +1663,12 @@ function ProductDetailPanel({
   const [dragOverMediaIndex, setDragOverMediaIndex] = useState<number | null>(null);
   const sizePricing = getSizeUnitAndBoxPricing({
     price: draft.price,
+    category: draft.category,
     optionGroups: draft.optionGroups,
   });
   const sellMargins = getProductSellMargins({
     price: draft.price,
+    category: draft.category,
     cost: draft.cost > 0 ? draft.cost : undefined,
     optionGroups: draft.optionGroups,
   });
@@ -1917,7 +1919,12 @@ function ProductDetailPanel({
             </div>
             <div>
               <label className={labelClass}>
-                Cost ($){sizePricing ? ' — per device' : ''}
+                Cost ($)
+                {sizePricing
+                  ? sizePricing.unitKind === 'jar'
+                    ? ' — per jar'
+                    : ' — per device'
+                  : ''}
               </label>
               <AdminNumberInput
                 value={draft.cost}
@@ -1927,7 +1934,9 @@ function ProductDetailPanel({
               {sizePricing && draft.cost > 0 && (
                 <p className="text-[11px] text-zinc-500 mt-1.5">
                   Box cost estimated at {formatCurrency(draft.cost * sizePricing.unitsPerBox)} (
-                  {sizePricing.unitsPerBox} devices × {formatCurrency(draft.cost)})
+                  {sizePricing.unitsPerBox}{' '}
+                  {sizePricing.unitKind === 'jar' ? 'jars' : 'devices'} ×{' '}
+                  {formatCurrency(draft.cost)})
                 </p>
               )}
             </div>

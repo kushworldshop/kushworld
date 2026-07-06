@@ -100,11 +100,32 @@ export function parseBoxUnitCount(label: string): number | null {
   const pack = label.match(/(\d+)\s*[-\s]?\s*pack\b/i);
   if (pack) return Number(pack[1]);
 
+  const jars = label.match(/(\d+)\s*[-\s]?\s*jars?\b/i);
+  if (jars) return Number(jars[1]);
+
   const count = label.match(/(\d+)\s*[-\s]?\s*(?:ct|count|pc|pcs|units?)\b/i);
   if (count) return Number(count[1]);
 
   return null;
 }
+
+export function isJarSizeLabel(label: string): boolean {
+  const normalized = label.trim();
+  if (/\b(?:single\s+)?(?:1\s*oz|1oz)\s*jar\b/i.test(normalized)) return true;
+  if (/\bsingle\s+jar\b/i.test(normalized)) return true;
+  if (/\bper\s+jar\b/i.test(normalized)) return true;
+  return false;
+}
+
+export function isConcentrateStyleCategory(category?: string): boolean {
+  const normalized = category?.toLowerCase().trim();
+  return normalized === 'concentrates' || normalized === 'snowcaps';
+}
+
+/** Standard 1 lb concentrate box = 16 × 1oz jars */
+export const CONCENTRATE_JARS_PER_BOX = 16;
+
+export type SizeSellUnitKind = 'jar' | 'device';
 
 export interface SizeUnitAndBoxPricing {
   unitSellPrice: number;
@@ -112,10 +133,39 @@ export interface SizeUnitAndBoxPricing {
   boxSellPrice: number;
   boxLabel: string;
   unitsPerBox: number;
+  unitKind: SizeSellUnitKind;
+}
+
+function inferUnitsPerBox(input: {
+  boxLabel: string;
+  unitLabel: string;
+  category?: string;
+  boxSellPrice: number;
+  unitSellPrice: number;
+}): number {
+  const parsed = parseBoxUnitCount(input.boxLabel);
+  if (parsed && parsed >= 2) return parsed;
+
+  const isJarProduct =
+    isJarSizeLabel(input.unitLabel) || isConcentrateStyleCategory(input.category);
+
+  if (isJarProduct) {
+    if (/\b(?:1\s*lb|1\s*pound|pound\s*box)\b/i.test(input.boxLabel)) {
+      return CONCENTRATE_JARS_PER_BOX;
+    }
+    if (isBoxSizeLabel(input.boxLabel) && isJarSizeLabel(input.unitLabel)) {
+      return CONCENTRATE_JARS_PER_BOX;
+    }
+    if (isConcentrateStyleCategory(input.category) && isBoxSizeLabel(input.boxLabel)) {
+      return CONCENTRATE_JARS_PER_BOX;
+    }
+  }
+
+  return Math.max(2, Math.round(input.boxSellPrice / input.unitSellPrice));
 }
 
 export function getSizeUnitAndBoxPricing(
-  product: Pick<Product, 'price' | 'optionGroups'>
+  product: Pick<Product, 'price' | 'optionGroups'> & { category?: string }
 ): SizeUnitAndBoxPricing | null {
   const sizeGroup = (product.optionGroups ?? [])
     .filter((group) => group.name.trim() && group.values.length > 0)
@@ -166,10 +216,18 @@ export function getSizeUnitAndBoxPricing(
   const boxSellPrice = boxValue.optionPrice ?? product.price;
   if (unitSellPrice <= 0 || boxSellPrice <= 0 || boxSellPrice <= unitSellPrice) return null;
 
-  let unitsPerBox = parseBoxUnitCount(boxValue.label);
-  if (!unitsPerBox || unitsPerBox < 2) {
-    unitsPerBox = Math.max(2, Math.round(boxSellPrice / unitSellPrice));
-  }
+  const unitsPerBox = inferUnitsPerBox({
+    boxLabel: boxValue.label,
+    unitLabel: unitValue.label,
+    category: product.category,
+    boxSellPrice,
+    unitSellPrice,
+  });
+
+  const unitKind: SizeSellUnitKind =
+    isJarSizeLabel(unitValue.label) || isConcentrateStyleCategory(product.category)
+      ? 'jar'
+      : 'device';
 
   return {
     unitSellPrice,
@@ -177,6 +235,7 @@ export function getSizeUnitAndBoxPricing(
     boxSellPrice,
     boxLabel: boxValue.label,
     unitsPerBox,
+    unitKind,
   };
 }
 

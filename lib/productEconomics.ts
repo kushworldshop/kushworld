@@ -35,6 +35,7 @@ export function getProductMargin(sellPrice: number, cost?: number): ProductMargi
 export function getProductSellMargins(input: {
   price: number;
   cost?: number;
+  category?: string;
   optionGroups?: ProductOptionGroup[];
 }): ProductSellMargins | null {
   const unitCost = input.cost;
@@ -44,6 +45,7 @@ export function getProductSellMargins(input: {
 
   const sizePricing = getSizeUnitAndBoxPricing({
     price: input.price,
+    category: input.category,
     optionGroups: input.optionGroups,
   });
 
@@ -54,10 +56,16 @@ export function getProductSellMargins(input: {
       unitCost * sizePricing.unitsPerBox
     );
 
+    const unitLineLabel = sizePricing.unitKind === 'jar' ? 'Per jar' : 'Per device';
+    const boxLineLabel =
+      sizePricing.unitKind === 'jar'
+        ? `Per box (${sizePricing.unitsPerBox} jars · 1 lb)`
+        : `Per box (${sizePricing.boxLabel})`;
+
     const lines: ProductSellMarginLine[] = [];
     if (unitMargin) {
       lines.push({
-        label: 'Per device',
+        label: unitLineLabel,
         sellPrice: sizePricing.unitSellPrice,
         cost: unitCost,
         margin: unitMargin,
@@ -65,7 +73,7 @@ export function getProductSellMargins(input: {
     }
     if (boxMargin) {
       lines.push({
-        label: `Per box (${sizePricing.boxLabel})`,
+        label: boxLineLabel,
         sellPrice: sizePricing.boxSellPrice,
         cost: unitCost * sizePricing.unitsPerBox,
         margin: boxMargin,
