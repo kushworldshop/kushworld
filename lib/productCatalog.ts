@@ -24,6 +24,7 @@ import {
 } from '@/lib/shopNavigation';
 
 const OVERRIDES_FILE = path.join(process.cwd(), 'data', 'product-overrides.json');
+const RETIRED_CATALOG_FILE = path.join(process.cwd(), 'data', 'retired-catalog-ids.json');
 
 export type ProductOverride = Partial<
   Pick<
@@ -77,6 +78,63 @@ export function filterVisibleProducts<T extends Pick<Product, 'hidden'>>(product
 export type ProductOverridesMap = Record<string, ProductOverride>;
 
 let overridesWriteLock: Promise<void> = Promise.resolve();
+let retiredWriteLock: Promise<void> = Promise.resolve();
+
+async function withRetiredLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = retiredWriteLock.then(fn, fn);
+  retiredWriteLock = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
+async function ensureRetiredCatalogFile() {
+  const dataDir = path.join(process.cwd(), 'data');
+  await fs.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.access(RETIRED_CATALOG_FILE);
+  } catch {
+    await fs.writeFile(RETIRED_CATALOG_FILE, JSON.stringify([], null, 2));
+  }
+}
+
+async function readRetiredCatalogIdsUnsafe(): Promise<string[]> {
+  await ensureRetiredCatalogFile();
+  const data = await fs.readFile(RETIRED_CATALOG_FILE, 'utf8');
+  const parsed = JSON.parse(data) as unknown;
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter((id): id is string => typeof id === 'string' && id.length > 0);
+}
+
+export async function readRetiredCatalogIds(): Promise<Set<string>> {
+  return withRetiredLock(async () => new Set(await readRetiredCatalogIdsUnsafe()));
+}
+
+async function retireCatalogProducts(ids: string[]): Promise<number> {
+  const validIds = ids.filter(
+    (id) => !isCustomProductId(id) && baseProducts.some((product) => product.id === id)
+  );
+  if (validIds.length === 0) return 0;
+
+  return withRetiredLock(async () => {
+    const current = new Set(await readRetiredCatalogIdsUnsafe());
+    let added = 0;
+    for (const id of validIds) {
+      if (!current.has(id)) {
+        current.add(id);
+        added += 1;
+      }
+    }
+    if (added > 0) {
+      await fs.writeFile(
+        RETIRED_CATALOG_FILE,
+        JSON.stringify([...current].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), null, 2)
+      );
+    }
+    return added;
+  });
+}
 
 async function withOverridesLock<T>(fn: () => Promise<T>): Promise<T> {
   const run = overridesWriteLock.then(fn, fn);
@@ -196,7 +254,10 @@ function mergeProduct(
 
 async function getBaseProductsMerged(): Promise<Product[]> {
   const overrides = await readProductOverrides();
-  return baseProducts.map((product) => mergeProduct(product, overrides[product.id]));
+  const retired = await readRetiredCatalogIds();
+  return baseProducts
+    .filter((product) => !retired.has(product.id))
+    .map((product) => mergeProduct(product, overrides[product.id]));
 }
 
 export async function getAllProducts(): Promise<Product[]> {
@@ -574,12 +635,18 @@ export async function setProductHidden(id: string, hidden: boolean): Promise<Pro
 
 export async function deleteProducts(
   ids: string[]
-): Promise<{ deleted: number; skippedCatalogIds: string[] }> {
+): Promise<{ deleted: number; retired: number; skippedIds: string[] }> {
   const uniqueIds = [...new Set(ids.filter((id) => typeof id === 'string' && id.length > 0))];
   const customIds = uniqueIds.filter(isCustomProductId);
-  const skippedCatalogIds = uniqueIds.filter((id) => !isCustomProductId(id));
+  const catalogIds = uniqueIds.filter(
+    (id) => !isCustomProductId(id) && baseProducts.some((product) => product.id === id)
+  );
+  const skippedIds = uniqueIds.filter(
+    (id) => !isCustomProductId(id) && !baseProducts.some((product) => product.id === id)
+  );
   const deleted = customIds.length > 0 ? await deleteCustomProducts(customIds) : 0;
-  return { deleted, skippedCatalogIds };
+  const retired = await retireCatalogProducts(catalogIds);
+  return { deleted, retired, skippedIds };
 }
 
 export async function getAdminProducts(): Promise<
@@ -595,22 +662,25 @@ export async function getAdminProducts(): Promise<
   >
 > {
   const overrides = await readProductOverrides();
-  const baseAdmin = baseProducts.map((base) => {
-    const merged = mergeProduct(base, overrides[base.id]);
-    const syncedMedia = syncProductMediaFields(getProductMedia(merged));
-    return {
-      ...merged,
-      media: syncedMedia.media,
-      image: syncedMedia.image || merged.image,
-      images: syncedMedia.images ?? merged.images,
-      hidden: isProductHidden(merged),
-      hasOverride: !!overrides[base.id],
-      basePrice: base.price,
-      baseName: base.name,
-      baseImage: base.image,
-      isCustom: false,
-    };
-  });
+  const retired = await readRetiredCatalogIds();
+  const baseAdmin = baseProducts
+    .filter((base) => !retired.has(base.id))
+    .map((base) => {
+      const merged = mergeProduct(base, overrides[base.id]);
+      const syncedMedia = syncProductMediaFields(getProductMedia(merged));
+      return {
+        ...merged,
+        media: syncedMedia.media,
+        image: syncedMedia.image || merged.image,
+        images: syncedMedia.images ?? merged.images,
+        hidden: isProductHidden(merged),
+        hasOverride: !!overrides[base.id],
+        basePrice: base.price,
+        baseName: base.name,
+        baseImage: base.image,
+        isCustom: false,
+      };
+    });
 
   const custom = await readCustomProducts();
   const customAdmin = custom.map((product) => ({

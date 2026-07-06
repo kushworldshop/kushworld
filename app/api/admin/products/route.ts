@@ -121,8 +121,14 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Product ids required' }, { status: 400 });
     }
 
-    const { deleted, skippedCatalogIds } = await deleteProducts(ids);
-    return NextResponse.json({ success: true, deleted, skippedCatalogIds });
+    const { deleted, retired, skippedIds } = await deleteProducts(ids);
+    return NextResponse.json({
+      success: true,
+      deleted,
+      retired,
+      skippedIds,
+      skippedCatalogIds: skippedIds,
+    });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to delete products' }, { status: 500 });
   }
