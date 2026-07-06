@@ -37,6 +37,12 @@ import {
   formatPercent,
   getProductSellMargins,
 } from '@/lib/productEconomics';
+import {
+  applyFlowerProductOptions,
+  describeFlowerSellPrice,
+  isFlowerProductCategory,
+  mergeFlowerWeightOptionGroups,
+} from '@/lib/flowerWeights';
 import { getSizeUnitAndBoxPricing } from '@/lib/productOptions';
 import {
   DEFAULT_PRODUCT_DESCRIPTION_TONE,
@@ -125,7 +131,7 @@ function buildProductDraft(product: AdminProduct, edits: Record<string, ProductE
       ? patch.useCustomTierPricing
       : (product.tierPricing?.length ?? 0) > 0;
 
-  return {
+  const draft = {
     name: patch?.name ?? product.name,
     price,
     cost: patch?.cost ?? product.cost ?? 0,
@@ -153,6 +159,8 @@ function buildProductDraft(product: AdminProduct, edits: Record<string, ProductE
     tier: patch?.tier ?? product.tier ?? '',
     effects: patch?.effects ?? product.effects ?? [],
   };
+
+  return applyFlowerProductOptions(draft);
 }
 
 function buildProductSavePayload(productId: string, draft: ProductDraft) {
@@ -603,6 +611,8 @@ export default function ProductsTab() {
     value: string | number | boolean | string[] | ProductOptionGroup[] | ProductMediaItem[] | TierPrice[]
   ) => {
     setEdits((prev) => {
+      const product = products.find((item) => item.id === id);
+      const currentDraft = product ? buildProductDraft(product, prev) : null;
       const patch = { ...prev[id], [field]: value };
       if (field === 'category') {
         if (value === 'merch') {
@@ -610,6 +620,20 @@ export default function ProductsTab() {
         } else {
           patch.merchSubcategory = '';
         }
+      }
+      if (currentDraft && field === 'price' && isFlowerProductCategory(currentDraft.category)) {
+        patch.optionGroups = mergeFlowerWeightOptionGroups(
+          currentDraft.optionGroups,
+          Number(value)
+        );
+        patch.hideBulkPricing = true;
+      }
+      if (field === 'category' && isFlowerProductCategory(String(value)) && currentDraft) {
+        patch.optionGroups = mergeFlowerWeightOptionGroups(
+          currentDraft.optionGroups,
+          currentDraft.price
+        );
+        patch.hideBulkPricing = true;
       }
       return { ...prev, [id]: patch };
     });
@@ -1899,7 +1923,10 @@ function ProductDetailPanel({
               />
             </div>
             <div>
-              <label className={labelClass}>Sell price ($)</label>
+              <label className={labelClass}>
+                Sell price ($)
+                {isFlowerProductCategory(draft.category) ? ' — per 446g (1 lb)' : ''}
+              </label>
               <AdminNumberInput
                 value={draft.price}
                 onChange={(price) => onDraftChange('price', price)}
@@ -1907,14 +1934,16 @@ function ProductDetailPanel({
               />
               <p className="text-[11px] text-[#00ff9d]/90 mt-1.5">
                 Shop shows:{' '}
-                {describeAdminShopPrice({
-                  id: product.id,
-                  name: draft.name,
-                  price: draft.price,
-                  image: draft.image,
-                  category: draft.category,
-                  optionGroups: draft.optionGroups,
-                })}
+                {isFlowerProductCategory(draft.category)
+                  ? describeFlowerSellPrice(draft.price)
+                  : describeAdminShopPrice({
+                      id: product.id,
+                      name: draft.name,
+                      price: draft.price,
+                      image: draft.image,
+                      category: draft.category,
+                      optionGroups: draft.optionGroups,
+                    })}
               </p>
             </div>
             <div>

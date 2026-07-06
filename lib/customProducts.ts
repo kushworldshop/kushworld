@@ -2,6 +2,11 @@ import fs from 'fs/promises';
 import path from 'path';
 import type { Product } from '@/lib/products';
 import { getProductSlug } from '@/lib/products';
+import {
+  applyFlowerProductOptions,
+  isFlowerProductCategory,
+  stripFlowerWeightOptionGroups,
+} from '@/lib/flowerWeights';
 import { sanitizeTierPricing } from '@/lib/tierPricing';
 
 const CUSTOM_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'custom-products.json');
@@ -58,12 +63,12 @@ export async function createCustomProduct(input: Omit<Product, 'id'> & { id?: st
     throw new Error(`Product already exists: ${input.name}`);
   }
 
-  const product: Product = {
+  const product: Product = applyFlowerProductOptions({
     ...input,
     id,
     slug: input.slug || slugifyProductName(input.name),
     isNew: input.isNew ?? true,
-  };
+  });
 
   products.push(product);
   await writeCustomProducts(products);
@@ -204,6 +209,17 @@ export async function updateCustomProduct(
     const effects = updates.effects.map((value) => value.trim()).filter(Boolean);
     if (effects.length > 0) next.effects = effects;
     else delete next.effects;
+  }
+
+  if (isFlowerProductCategory(next.category)) {
+    Object.assign(next, applyFlowerProductOptions(next));
+  } else if (
+    updates.category !== undefined &&
+    !isFlowerProductCategory(next.category)
+  ) {
+    const stripped = stripFlowerWeightOptionGroups(next.optionGroups);
+    if (stripped) next.optionGroups = stripped;
+    else delete next.optionGroups;
   }
 
   products[index] = next;

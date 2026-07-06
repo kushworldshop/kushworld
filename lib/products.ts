@@ -1,3 +1,4 @@
+import { productHasFlowerWeightOptions } from '@/lib/flowerWeights';
 import { getEffectiveTierPricing } from '@/lib/tierPricing';
 import type { ProductOptionGroup } from '@/lib/productOptions';
 
@@ -129,6 +130,7 @@ export function getProductDescription(product: Product): string {
 
 export function getTierPricing(product: Product): TierPrice[] {
   if (product.hideBulkPricing) return [];
+  if (productHasFlowerWeightOptions(product)) return [];
   return getEffectiveTierPricing(product);
 }
 

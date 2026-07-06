@@ -13,6 +13,11 @@ import {
 } from '@/lib/shopNavigation';
 import type { SiteContent } from '@/lib/siteContentTypes';
 import type { ProductOptionGroup } from '@/lib/productOptions';
+import {
+  describeFlowerSellPrice,
+  isFlowerProductCategory,
+  mergeFlowerWeightOptionGroups,
+} from '@/lib/flowerWeights';
 import { getProductMedia, syncProductMediaFields } from '@/lib/productMedia';
 
 const fieldClass = 'w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm';
@@ -56,9 +61,10 @@ export default function NewProductPanel({
   onCreated: (productId: string) => void;
 }) {
   const initialCategory = defaultCategoryForTab(categoryTab);
+  const initialPrice = defaultPriceForCategory(initialCategory);
   const [name, setName] = useState('');
   const [category, setCategory] = useState(initialCategory);
-  const [price, setPrice] = useState(defaultPriceForCategory(initialCategory));
+  const [price, setPrice] = useState(initialPrice);
   const [cost, setCost] = useState(0);
   const [compareAtPrice, setCompareAtPrice] = useState(0);
   const [description, setDescription] = useState('');
@@ -67,7 +73,11 @@ export default function NewProductPanel({
   const [featured, setFeatured] = useState(false);
   const [bestSeller, setBestSeller] = useState(false);
   const [isNew, setIsNew] = useState(true);
-  const [optionGroups, setOptionGroups] = useState<ProductOptionGroup[]>([]);
+  const [optionGroups, setOptionGroups] = useState<ProductOptionGroup[]>(() =>
+    isFlowerProductCategory(initialCategory)
+      ? mergeFlowerWeightOptionGroups([], initialPrice)
+      : []
+  );
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -332,10 +342,14 @@ export default function NewProductPanel({
               value={category}
               onChange={(e) => {
                 const next = e.target.value;
+                const nextPrice = defaultPriceForCategory(next);
                 setCategory(next);
-                setPrice(defaultPriceForCategory(next));
+                setPrice(nextPrice);
                 if (next === 'merch') setSubcategory('');
                 else setMerchSubcategory('');
+                if (isFlowerProductCategory(next)) {
+                  setOptionGroups(mergeFlowerWeightOptionGroups(optionGroups, nextPrice));
+                }
               }}
               className={fieldClass}
             >
@@ -347,8 +361,25 @@ export default function NewProductPanel({
             </select>
           </div>
           <div>
-            <label className={labelClass}>Sell price ($) *</label>
-            <AdminNumberInput value={price} onChange={setPrice} className={fieldClass} />
+            <label className={labelClass}>
+              Sell price ($) *
+              {isFlowerProductCategory(category) ? ' — per 446g (1 lb)' : ''}
+            </label>
+            <AdminNumberInput
+              value={price}
+              onChange={(nextPrice) => {
+                setPrice(nextPrice);
+                if (isFlowerProductCategory(category)) {
+                  setOptionGroups(mergeFlowerWeightOptionGroups(optionGroups, nextPrice));
+                }
+              }}
+              className={fieldClass}
+            />
+            {isFlowerProductCategory(category) && (
+              <p className="text-[11px] text-[#00ff9d]/90 mt-1.5">
+                Shop weights: {describeFlowerSellPrice(price)}
+              </p>
+            )}
           </div>
           <div>
             <label className={labelClass}>Cost ($)</label>
