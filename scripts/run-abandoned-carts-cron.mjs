@@ -37,7 +37,11 @@ function loadEnvFile(filePath) {
 loadEnvFile(path.join(ROOT, '.env'));
 loadEnvFile(path.join(ROOT, '.env.local'));
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://kushworld.shop';
+/** Use localhost on the VPS to bypass Cloudflare (set CRON_BASE_URL=http://127.0.0.1:3000 in .env). */
+const siteUrl =
+  process.env.CRON_BASE_URL?.trim() ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  'https://kushworld.shop';
 const secret = process.env.CRON_SECRET;
 
 if (!secret) {
