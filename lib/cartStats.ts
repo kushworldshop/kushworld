@@ -29,6 +29,7 @@ export interface CartSnapshot {
   itemCount: number;
   createdAt: string;
   updatedAt: string;
+  reminderSentAt?: string;
 }
 
 interface CartEntriesFile {
@@ -138,6 +139,7 @@ export async function upsertCartSnapshot(input: {
     itemCount: calcItemCount(items),
     createdAt: existingIndex >= 0 ? file.carts[existingIndex].createdAt : now,
     updatedAt: now,
+    reminderSentAt: existingIndex >= 0 ? file.carts[existingIndex].reminderSentAt : undefined,
   };
 
   if (existingIndex >= 0) {

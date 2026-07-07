@@ -351,6 +351,78 @@ export async function sendInquiryEmail(input: {
   }
 }
 
+export async function sendAbandonedCartEmail(
+  to: string,
+  input: {
+    name?: string;
+    items: { name: string; quantity: number; price: number }[];
+    subtotal: number;
+  }
+): Promise<EmailSendResult> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://kushworld.shop';
+  const cartUrl = `${siteUrl}/cart`;
+  const greeting = input.name?.trim() ? `Hi ${input.name.trim()},` : 'Hi there,';
+
+  const itemsList = input.items
+    .map((item) => `• ${item.name} × ${item.quantity} — $${(item.price * item.quantity).toFixed(2)}`)
+    .join('\n');
+
+  const body = `${greeting}
+
+You left some great picks in your Kush World cart — they're still waiting for you.
+
+${itemsList}
+
+Cart subtotal: $${input.subtotal.toFixed(2)}
+
+Finish checkout anytime:
+${cartUrl}
+
+Free shipping on hemp orders $150+ and studio merch $100+. Lab-tested products, discreet shipping nationwide.
+
+— Kush World Team`;
+
+  if (!RESEND_API_KEY) {
+    console.log(`[Email stub] To: ${to}\nSubject: Your Kush World cart is waiting\n${body}`);
+    return { sent: false, stub: true };
+  }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: FROM_EMAIL,
+        to,
+        subject: 'Your Kush World cart is waiting',
+        text: body,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('[Resend] Abandoned cart email failed:', res.status, errBody);
+      return {
+        sent: false,
+        stub: false,
+        error: 'Could not send abandoned cart email.',
+      };
+    }
+
+    return { sent: true, stub: false };
+  } catch (err) {
+    console.error('[Resend] Abandoned cart email error:', err);
+    return {
+      sent: false,
+      stub: false,
+      error: 'Could not send abandoned cart email.',
+    };
+  }
+}
+
 export async function sendReferralProgramUpdateEmail(
   to: string,
   input: { name?: string; title: string; message: string }

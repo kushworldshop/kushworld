@@ -29,6 +29,7 @@ interface CartSnapshot {
   itemCount: number;
   createdAt: string;
   updatedAt: string;
+  reminderSentAt?: string;
 }
 
 interface CartMeta {
@@ -38,6 +39,32 @@ interface CartMeta {
   loggedInCarts: number;
   guestCarts: number;
   updatedAt: string;
+}
+
+interface AbandonedMeta {
+  abandonedCount: number;
+  eligibleForReminder: number;
+  remindedCount: number;
+  staleCount: number;
+  settings: {
+    abandonedHours: number;
+    reminderCooldownDays: number;
+    staleDays: number;
+  };
+}
+
+interface AbandonedActionResult {
+  pruned?: number;
+  eligible?: number;
+  sent?: number;
+  skipped?: number;
+  failed?: number;
+  dryRun?: boolean;
+  message?: string;
+}
+
+function hoursSince(iso: string): number {
+  return (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60);
 }
 
 export default function CartsTab() {
@@ -50,7 +77,10 @@ export default function CartsTab() {
     guestCarts: 0,
     updatedAt: '',
   });
+  const [abandoned, setAbandoned] = useState<AbandonedMeta | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionResult, setActionResult] = useState<AbandonedActionResult | null>(null);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   const loadCartStats = async () => {
@@ -68,6 +98,7 @@ export default function CartsTab() {
           guestCarts: data.guestCarts ?? 0,
           updatedAt: data.updatedAt ?? '',
         });
+        setAbandoned(data.abandoned ?? null);
       }
     } catch {
       console.error('Failed to load cart stats');
@@ -76,9 +107,50 @@ export default function CartsTab() {
     }
   };
 
+  const runAbandonedAction = async (action: 'send' | 'dry_run' | 'cleanup') => {
+    setActionLoading(action);
+    setActionResult(null);
+    try {
+      const res = await adminFetch('/api/admin/abandoned-carts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: action === 'cleanup' ? 'cleanup' : 'send',
+          dryRun: action === 'dry_run',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActionResult({
+          pruned: data.pruned,
+          eligible: data.eligible,
+          sent: data.sent,
+          skipped: data.skipped,
+          failed: data.failed,
+          dryRun: data.dryRun,
+          message:
+            action === 'cleanup'
+              ? `Removed ${data.pruned ?? 0} stale cart(s).`
+              : action === 'dry_run'
+                ? `Would email ${data.eligible ?? 0} cart(s).`
+                : `Sent ${data.sent ?? 0} reminder(s).`,
+        });
+        await loadCartStats();
+      } else {
+        setActionResult({ message: data.error || 'Action failed' });
+      }
+    } catch {
+      setActionResult({ message: 'Action failed' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   useEffect(() => {
     loadCartStats();
   }, []);
+
+  const abandonedHours = abandoned?.settings.abandonedHours ?? 1;
 
   return (
     <div className="mb-10">
@@ -87,7 +159,7 @@ export default function CartsTab() {
           <div>
             <h2 className="text-2xl font-bold mb-2">Live Carts</h2>
             <p className="text-zinc-400 text-sm max-w-2xl">
-              See what customers and guests currently have in their carts — useful for outreach, restocks, and spotting hot products before checkout.
+              See what customers and guests currently have in their carts. Abandoned cart emails go to logged-in customers after {abandonedHours} hour{abandonedHours === 1 ? '' : 's'} of inactivity.
             </p>
           </div>
           <button
@@ -123,6 +195,72 @@ export default function CartsTab() {
         </div>
       </div>
 
+      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
+          <div>
+            <h3 className="text-xl font-bold mb-2">Abandoned Cart Reminders</h3>
+            <p className="text-zinc-400 text-sm max-w-2xl">
+              Automatically email logged-in customers who left items in their cart. Guests are visible here but cannot receive emails. Stale carts older than {abandoned?.settings.staleDays ?? 30} days are auto-removed when reminders run.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => runAbandonedAction('send')}
+              disabled={!!actionLoading}
+              className="bg-[#00ff9d] hover:bg-[#00ff9d]/90 text-black px-5 py-3 rounded-xl text-sm font-semibold disabled:opacity-50"
+            >
+              {actionLoading === 'send' ? 'Sending...' : 'Send reminders now'}
+            </button>
+            <button
+              onClick={() => runAbandonedAction('dry_run')}
+              disabled={!!actionLoading}
+              className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium disabled:opacity-50"
+            >
+              {actionLoading === 'dry_run' ? 'Checking...' : 'Preview eligible'}
+            </button>
+            <button
+              onClick={() => runAbandonedAction('cleanup')}
+              disabled={!!actionLoading}
+              className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium disabled:opacity-50"
+            >
+              {actionLoading === 'cleanup' ? 'Cleaning...' : 'Cleanup stale'}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div className="bg-black rounded-2xl p-5 border border-zinc-800">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Abandoned</p>
+            <p className="text-2xl font-bold text-amber-400">{abandoned?.abandonedCount ?? 0}</p>
+          </div>
+          <div className="bg-black rounded-2xl p-5 border border-zinc-800">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Eligible for email</p>
+            <p className="text-2xl font-bold text-[#00ff9d]">{abandoned?.eligibleForReminder ?? 0}</p>
+          </div>
+          <div className="bg-black rounded-2xl p-5 border border-zinc-800">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Reminders sent</p>
+            <p className="text-2xl font-bold">{abandoned?.remindedCount ?? 0}</p>
+          </div>
+          <div className="bg-black rounded-2xl p-5 border border-zinc-800">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Stale (to prune)</p>
+            <p className="text-2xl font-bold text-zinc-400">{abandoned?.staleCount ?? 0}</p>
+          </div>
+        </div>
+
+        {actionResult?.message && (
+          <p className="text-sm text-zinc-300 bg-black/40 border border-zinc-800 rounded-xl px-4 py-3">
+            {actionResult.message}
+            {actionResult.failed ? ` · ${actionResult.failed} failed` : ''}
+            {actionResult.skipped ? ` · ${actionResult.skipped} skipped` : ''}
+          </p>
+        )}
+
+        <p className="text-xs text-zinc-600 mt-4">
+          Hourly auto-send: set <code className="text-zinc-500">CRON_SECRET</code> on the server and add{' '}
+          <code className="text-zinc-500">scripts/run-abandoned-carts-cron.mjs</code> to crontab.
+        </p>
+      </div>
+
       {loading ? (
         <p className="text-center py-20 text-zinc-400">Loading live carts...</p>
       ) : carts.length === 0 ? (
@@ -139,6 +277,8 @@ export default function CartsTab() {
             const label = cart.isGuest
               ? 'Guest visitor'
               : cart.userName || cart.userEmail || 'Logged-in customer';
+            const idleHours = hoursSince(cart.updatedAt);
+            const isAbandoned = !cart.isGuest && cart.userEmail && idleHours >= abandonedHours;
 
             return (
               <div key={cart.ownerKey} className="bg-zinc-900 border border-zinc-700 rounded-2xl overflow-hidden">
@@ -156,13 +296,25 @@ export default function CartsTab() {
                       {cart.isGuest ? 'G' : (cart.userName?.[0] || cart.userEmail?.[0] || '?').toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold truncate">{label}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold truncate">{label}</p>
+                        {isAbandoned && (
+                          <span className="text-[10px] uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            Abandoned
+                          </span>
+                        )}
+                        {cart.reminderSentAt && (
+                          <span className="text-[10px] uppercase tracking-wider bg-[#00ff9d]/10 text-[#00ff9d] border border-[#00ff9d]/20 px-2 py-0.5 rounded-full">
+                            Reminded
+                          </span>
+                        )}
+                      </div>
                       {cart.userEmail && <p className="text-xs text-zinc-400 truncate">{cart.userEmail}</p>}
                       {cart.isGuest && cart.guestTrackId && (
                         <p className="text-[10px] text-zinc-600 mt-1">Session {cart.guestTrackId.slice(0, 8)}…</p>
                       )}
                       <p className="text-xs text-zinc-500 mt-1">
-                        Updated {new Date(cart.updatedAt).toLocaleString()}
+                        Updated {new Date(cart.updatedAt).toLocaleString()} ({idleHours.toFixed(1)}h ago)
                       </p>
                     </div>
                   </div>
