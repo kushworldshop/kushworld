@@ -12,9 +12,10 @@ import ProductsTab from '@/app/admin/components/ProductsTab';
 import SpinWheelTab from '@/app/admin/components/SpinWheelTab';
 import SubscriptionsTab from '@/app/admin/components/SubscriptionsTab';
 import WishlistTab from '@/app/admin/components/WishlistTab';
+import CartsTab from '@/app/admin/components/CartsTab';
 
 
-type AdminTab = 'orders' | 'members' | 'products' | 'wheel' | 'wishlist' | 'subscriptions' | 'settings';
+type AdminTab = 'orders' | 'members' | 'products' | 'wheel' | 'wishlist' | 'carts' | 'subscriptions' | 'settings';
 
 export default function AdminOrders() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -160,6 +161,12 @@ export default function AdminOrders() {
             Wishlist
           </button>
           <button
+            onClick={() => setTab('carts')}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'carts' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Live Carts
+          </button>
+          <button
             onClick={() => setTab('subscriptions')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'subscriptions' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
@@ -197,6 +204,8 @@ export default function AdminOrders() {
         {tab === 'wheel' && <SpinWheelTab />}
 
         {tab === 'wishlist' && <WishlistTab />}
+
+        {tab === 'carts' && <CartsTab />}
 
         {tab === 'orders' && <OrdersTab />}
       </div>

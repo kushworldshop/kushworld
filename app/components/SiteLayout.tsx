@@ -13,6 +13,7 @@ import { useCartStore } from '@/lib/cartStore';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useReferralStore } from '@/lib/referralStore';
 import WishlistSync from './WishlistSync';
+import CartSync from './CartSync';
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -27,6 +28,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
   return (
     <>
       <WishlistSync />
+      <CartSync />
       <SiteBranding />
       <Navbar onCartClick={() => setIsCartOpen(true)} />
       <main className="min-h-screen bg-black text-white">{children}</main>
