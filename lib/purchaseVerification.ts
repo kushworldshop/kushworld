@@ -2,8 +2,13 @@ import { readOrders } from '@/lib/ordersStore';
 
 interface StoredOrder {
   email?: string;
+  customer?: { email?: string };
   status?: string;
   items?: { id: string }[];
+}
+
+function orderEmail(order: StoredOrder): string {
+  return (order.customer?.email || order.email || '').trim().toLowerCase();
 }
 
 function isQualifyingOrder(order: StoredOrder): boolean {
@@ -22,7 +27,7 @@ export async function customerHasPurchasedProduct(
   return orders.some(
     (order) =>
       isQualifyingOrder(order) &&
-      order.email?.trim().toLowerCase() === normalized &&
+      orderEmail(order) === normalized &&
       (order.items || []).some((item) => item.id === productId)
   );
 }
@@ -35,7 +40,7 @@ export async function customerHasAnyPurchase(email: string): Promise<boolean> {
   return orders.some(
     (order) =>
       isQualifyingOrder(order) &&
-      order.email?.trim().toLowerCase() === normalized &&
+      orderEmail(order) === normalized &&
       (order.items || []).length > 0
   );
 }

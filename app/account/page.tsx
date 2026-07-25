@@ -17,6 +17,7 @@ import OrderTracker from '@/app/components/OrderTracker';
 import TurnstileField from '@/app/components/TurnstileField';
 import { useTurnstileConfig } from '@/lib/useTurnstileConfig';
 import SubscriptionPanel from '@/app/components/SubscriptionPanel';
+import SocialHaulRewards from '@/app/components/SocialHaulRewards';
 
 interface PromoTerms {
   customerDiscount: number;
@@ -1102,37 +1103,42 @@ export default function Account() {
         )}
 
         {tab === 'loyalty' && (
-          <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
-            <h2 className="text-2xl font-bold mb-6">Loyalty Rewards</h2>
-            <p className="text-5xl font-bold text-[#00ff9d] mb-2">{(user.loyaltyPoints ?? 0).toLocaleString()}</p>
-            <p className="text-zinc-400 mb-2">
-              total points · {(user.redeemableLoyaltyPoints ?? 0).toLocaleString()} redeemable
-            </p>
-            {(user.lockedLoyaltyPoints ?? 0) > 0 && (
-              <p className="text-yellow-400 text-sm mb-8">
-                {(user.lockedLoyaltyPoints ?? 0).toLocaleString()} pts locked until your first purchase
+          <div className="space-y-6">
+            <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
+              <h2 className="text-2xl font-bold mb-6">Loyalty Rewards</h2>
+              <p className="text-5xl font-bold text-[#00ff9d] mb-2">{(user.loyaltyPoints ?? 0).toLocaleString()}</p>
+              <p className="text-zinc-400 mb-2">
+                total points · {(user.redeemableLoyaltyPoints ?? 0).toLocaleString()} redeemable
               </p>
-            )}
-            {(user.lockedLoyaltyPoints ?? 0) === 0 && <div className="mb-8" />}
+              {(user.lockedLoyaltyPoints ?? 0) > 0 && (
+                <p className="text-yellow-400 text-sm mb-8">
+                  {(user.lockedLoyaltyPoints ?? 0).toLocaleString()} pts locked until your first purchase
+                </p>
+              )}
+              {(user.lockedLoyaltyPoints ?? 0) === 0 && <div className="mb-8" />}
 
-            <div className="space-y-4 text-sm text-zinc-300">
-              <p>• Earn <strong>1 point per $10</strong> spent on orders (logged-in checkout)</p>
-              <p>• Earn <strong>{promoTerms?.referrerRewardPoints ?? 100} points</strong> per promo code use</p>
-              <p>• Share your <strong>personal promo code</strong> — earn <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on each order</p>
-              <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
-              <p>• New members earn <strong>${SIGNUP_BONUS_DOLLARS} ({SIGNUP_BONUS_POINTS.toLocaleString()} pts)</strong> after verifying email or phone — unlocked after first purchase</p>
-              <p>• Gamble <strong>{spinCost} points</strong> on the prize wheel for discounts, free shipping, and more</p>
+              <div className="space-y-4 text-sm text-zinc-300">
+                <p>• Earn <strong>1 point per $10</strong> spent on orders (logged-in checkout)</p>
+                <p>• Earn <strong>{promoTerms?.referrerRewardPoints ?? 100} points</strong> per promo code use</p>
+                <p>• Share your <strong>personal promo code</strong> — earn <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on each order</p>
+                <p>• Post haul pics on <strong>X</strong> and submit the link below for bonus points (after review)</p>
+                <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
+                <p>• New members earn <strong>${SIGNUP_BONUS_DOLLARS} ({SIGNUP_BONUS_POINTS.toLocaleString()} pts)</strong> after verifying email or phone — unlocked after first purchase</p>
+                <p>• Gamble <strong>{spinCost} points</strong> on the prize wheel for discounts, free shipping, and more</p>
+              </div>
+
+              <button
+                onClick={() => setTab('wheel')}
+                className="inline-block mt-6 mr-4 bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold hover:bg-[#00ff9d]/90 transition"
+              >
+                Spin the Wheel
+              </button>
+              <Link href="/shop" className="inline-block mt-6 bg-white text-black px-8 py-4 rounded-2xl font-bold hover:bg-zinc-200 transition">
+                Shop & Earn Points
+              </Link>
             </div>
 
-            <button
-              onClick={() => setTab('wheel')}
-              className="inline-block mt-6 mr-4 bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold hover:bg-[#00ff9d]/90 transition"
-            >
-              Spin the Wheel
-            </button>
-            <Link href="/shop" className="inline-block mt-6 bg-white text-black px-8 py-4 rounded-2xl font-bold hover:bg-zinc-200 transition">
-              Shop & Earn Points
-            </Link>
+            <SocialHaulRewards loyaltyEnabled={features.loyaltyProgram?.enabled !== false} />
           </div>
         )}
 
