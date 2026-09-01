@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       strainType,
       tier,
       effects,
+      priceMarkup,
     } = body;
 
     if (!name || typeof name !== 'string') {
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
       effects: Array.isArray(effects)
         ? effects.filter((value): value is string => typeof value === 'string')
         : undefined,
+      priceMarkup: priceMarkup === 2 || priceMarkup === 3 ? priceMarkup : undefined,
     });
 
     await revalidateProductCatalog(product.id);
@@ -169,6 +171,7 @@ export async function PATCH(request: NextRequest) {
       strainType,
       tier,
       effects,
+      priceMarkup,
     } = body;
 
     if (Array.isArray(ids) && typeof hidden === 'boolean') {
@@ -222,6 +225,7 @@ export async function PATCH(request: NextRequest) {
       effects: Array.isArray(effects)
         ? effects.filter((value): value is string => typeof value === 'string')
         : undefined,
+      priceMarkup: priceMarkup === 2 || priceMarkup === 3 ? priceMarkup : undefined,
     });
 
     if (!product) {

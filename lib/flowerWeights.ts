@@ -1,5 +1,6 @@
 import type { Product } from '@/lib/products';
 import type { ProductOptionGroup } from '@/lib/productOptions';
+import { roundCustomerPrice } from '@/lib/customerPricing';
 
 /** Standard B2B flower weights; base sell price is for the full pound (446g). */
 export const FLOWER_POUND_GRAMS = 446;
@@ -18,7 +19,7 @@ export function formatFlowerWeightLabel(grams: number): string {
 
 export function getFlowerWeightPrice(poundPrice: number, grams: number): number {
   if (!Number.isFinite(poundPrice) || poundPrice <= 0 || grams <= 0) return 0;
-  return Math.round(((poundPrice * grams) / FLOWER_POUND_GRAMS) * 100) / 100;
+  return roundCustomerPrice((poundPrice * grams) / FLOWER_POUND_GRAMS);
 }
 
 export function buildFlowerWeightOptionGroup(poundPrice: number): ProductOptionGroup {
@@ -79,5 +80,5 @@ export function applyFlowerProductOptions<
 export function describeFlowerSellPrice(poundPrice: number): string {
   const min = getFlowerWeightPrice(poundPrice, FLOWER_WEIGHT_GRAMS[0]);
   const max = getFlowerWeightPrice(poundPrice, FLOWER_POUND_GRAMS);
-  return `From $${min.toFixed(2)} – $${max.toFixed(2)} (${FLOWER_WEIGHT_GRAMS.map((g) => `${g}g`).join(', ')}) · base $${poundPrice.toFixed(2)} / ${FLOWER_POUND_GRAMS}g`;
+  return `From $${min} – $${max} · ${FLOWER_WEIGHT_GRAMS.map((grams) => `${formatFlowerWeightLabel(grams)} $${getFlowerWeightPrice(poundPrice, grams)}`).join(' · ')}`;
 }

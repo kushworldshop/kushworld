@@ -45,6 +45,8 @@ export interface Product {
   effects?: string[];
   limitedEdition?: number;
   isDrop?: boolean;
+  /** 2x or 3x the purchase cost used to fill shop prices */
+  priceMarkup?: 2 | 3;
 }
 
 function slugifyProductName(name: string): string {

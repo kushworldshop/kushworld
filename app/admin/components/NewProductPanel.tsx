@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import AdminNumberInput from '@/app/admin/components/AdminNumberInput';
+import CostMarkupControls from '@/app/admin/components/CostMarkupControls';
+import { type PriceMarkup } from '@/lib/customerPricing';
 import ProductOptionsEditor from '@/app/admin/components/ProductOptionsEditor';
 import { MERCH_SUBCATEGORIES } from '@/lib/merch';
 import {
@@ -66,6 +68,7 @@ export default function NewProductPanel({
   const [category, setCategory] = useState(initialCategory);
   const [price, setPrice] = useState(initialPrice);
   const [cost, setCost] = useState(0);
+  const [priceMarkup, setPriceMarkup] = useState<PriceMarkup | undefined>(undefined);
   const [compareAtPrice, setCompareAtPrice] = useState(0);
   const [description, setDescription] = useState('');
   const [subcategory, setSubcategory] = useState('');
@@ -162,6 +165,7 @@ export default function NewProductPanel({
           name: trimmedName,
           price,
           cost: cost > 0 ? cost : undefined,
+          priceMarkup,
           compareAtPrice: compareAtPrice > 0 ? compareAtPrice : undefined,
           description,
           category,
@@ -381,10 +385,19 @@ export default function NewProductPanel({
               </p>
             )}
           </div>
-          <div>
-            <label className={labelClass}>Cost ($)</label>
-            <AdminNumberInput value={cost} onChange={setCost} className={fieldClass} />
-          </div>
+          <CostMarkupControls
+            cost={cost}
+            category={category}
+            markup={priceMarkup}
+            onCostChange={setCost}
+            onApply={(markup, sellPrice) => {
+              setPriceMarkup(markup);
+              setPrice(sellPrice);
+              if (isFlowerProductCategory(category)) {
+                setOptionGroups(mergeFlowerWeightOptionGroups(optionGroups, sellPrice));
+              }
+            }}
+          />
           <div>
             <label className={labelClass}>Compare-at price ($)</label>
             <AdminNumberInput value={compareAtPrice} onChange={setCompareAtPrice} className={fieldClass} />

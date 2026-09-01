@@ -61,6 +61,8 @@ import {
 } from '@/lib/productMedia';
 import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 import NewProductPanel from '@/app/admin/components/NewProductPanel';
+import CostMarkupControls from '@/app/admin/components/CostMarkupControls';
+import { type PriceMarkup } from '@/lib/customerPricing';
 import TierPricingEditor from '@/app/admin/components/TierPricingEditor';
 import { getDefaultTierPricing, sanitizeTierPricing } from '@/lib/tierPricing';
 import type { FlowerProductMetadata } from '@/lib/flowerStrainResearch';
@@ -99,6 +101,7 @@ interface AdminProduct {
   strainType?: string;
   tier?: string;
   effects?: string[];
+  priceMarkup?: 2 | 3;
 }
 
 type ProductEditPatch = Partial<AdminProduct> & {
@@ -162,6 +165,7 @@ function buildProductDraft(product: AdminProduct, edits: Record<string, ProductE
     strainType: patch?.strainType ?? product.strainType ?? '',
     tier: patch?.tier ?? product.tier ?? '',
     effects: patch?.effects ?? product.effects ?? [],
+    priceMarkup: patch?.priceMarkup ?? product.priceMarkup,
   };
 
   return applyFlowerProductOptions(draft);
@@ -196,6 +200,7 @@ function buildProductSavePayload(productId: string, draft: ProductDraft) {
     strainType: draft.strainType,
     tier: draft.tier,
     effects: draft.effects,
+    priceMarkup: draft.priceMarkup,
   };
 }
 
@@ -2002,29 +2007,19 @@ function ProductDetailPanel({
                     })}
               </p>
             </div>
-            <div>
-              <label className={labelClass}>
-                Cost ($)
-                {sizePricing
-                  ? sizePricing.unitKind === 'jar'
-                    ? ' — per jar'
-                    : ' — per device'
-                  : ''}
-              </label>
-              <AdminNumberInput
-                value={draft.cost}
-                onChange={(cost) => onDraftChange('cost', cost)}
-                className={fieldClass}
-              />
-              {sizePricing && draft.cost > 0 && (
-                <p className="text-[11px] text-zinc-500 mt-1.5">
-                  Box cost estimated at {formatCurrency(draft.cost * sizePricing.unitsPerBox)} (
-                  {sizePricing.unitsPerBox}{' '}
-                  {sizePricing.unitKind === 'jar' ? 'jars' : 'devices'} ×{' '}
-                  {formatCurrency(draft.cost)})
-                </p>
-              )}
-            </div>
+            <CostMarkupControls
+              cost={draft.cost}
+              category={draft.category}
+              markup={draft.priceMarkup}
+              onCostChange={(cost) => onDraftChange('cost', cost)}
+              onApply={(markup: PriceMarkup, sellPrice: number) => {
+                onDraftPatch({
+                  cost: draft.cost,
+                  priceMarkup: markup,
+                  price: sellPrice,
+                });
+              }}
+            />
             <div>
               <label className={labelClass}>Compare-at price ($)</label>
               <AdminNumberInput

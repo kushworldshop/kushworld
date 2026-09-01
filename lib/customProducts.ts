@@ -101,6 +101,7 @@ export type CustomProductUpdate = Partial<
     | 'strainType'
     | 'tier'
     | 'effects'
+    | 'priceMarkup'
   >
 > & { clearInventory?: boolean; clearTierPricing?: boolean };
 
@@ -121,6 +122,10 @@ export async function updateCustomProduct(
     const cost = Math.max(0, Number(updates.cost));
     if (cost > 0) next.cost = cost;
     else delete next.cost;
+  }
+  if (updates.priceMarkup !== undefined) {
+    if (updates.priceMarkup === 2 || updates.priceMarkup === 3) next.priceMarkup = updates.priceMarkup;
+    else delete next.priceMarkup;
   }
   if (updates.clearInventory) {
     delete next.inventory;

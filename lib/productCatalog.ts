@@ -55,6 +55,7 @@ export type ProductOverride = Partial<
     | 'isDrop'
     | 'tierPricing'
     | 'hideBulkPricing'
+    | 'priceMarkup'
   >
 >;
 
@@ -324,6 +325,7 @@ export type CreateProductInput = {
   strainType?: string;
   tier?: string;
   effects?: string[];
+  priceMarkup?: 2 | 3;
 };
 
 export async function createProduct(input: CreateProductInput): Promise<Product> {
@@ -376,6 +378,7 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
     strainType: input.strainType?.trim() || undefined,
     tier: input.tier?.trim() || undefined,
     effects: input.effects?.filter(Boolean),
+    priceMarkup: input.priceMarkup === 2 || input.priceMarkup === 3 ? input.priceMarkup : undefined,
   });
 }
 
@@ -423,6 +426,10 @@ function applyProductOverrideUpdates(
     const cost = Math.max(0, Number(updates.cost));
     if (cost > 0) next.cost = cost;
     else delete next.cost;
+  }
+  if (updates.priceMarkup !== undefined) {
+    if (updates.priceMarkup === 2 || updates.priceMarkup === 3) next.priceMarkup = updates.priceMarkup;
+    else delete next.priceMarkup;
   }
   if (updates.clearInventory) {
     delete next.inventory;

@@ -2711,7 +2711,7 @@
     "id": "custom-budget-flower",
     "name": "Budget Flower",
     "slug": "budget-flower",
-    "price": 796.43,
+    "price": 800,
     "image": "/products/uploads/product-custom-budget-flower.jpg",
     "images": [
       "/products/uploads/product-custom-budget-flower.jpg"
@@ -2740,11 +2740,11 @@
         "values": [
           {
             "label": "3.5g",
-            "optionPrice": 6.25
+            "optionPrice": 10
           },
           {
             "label": "7g",
-            "optionPrice": 12.5
+            "optionPrice": 15
           },
           {
             "label": "14g",
@@ -2760,11 +2760,11 @@
           },
           {
             "label": "228g",
-            "optionPrice": 407.14
+            "optionPrice": 400
           },
           {
             "label": "446g (1 lb)",
-            "optionPrice": 796.43
+            "optionPrice": 800
           }
         ]
       },
@@ -2777,6 +2777,6 @@
         ]
       }
     ],
-    "description": "Kush World Budget Flower is the everyday zip. House mix, no frills, $50 an ounce. Grab a 3.5, a zip, or a pound — same $50/oz scale all the way up.\n\nThis is the daily-driver lane: indoor, smalls, and whatever we have running that week. Strain can rotate. If you want a named exotic, shop Indoor or Exotic. If you want to stock up without the luxury tax, this is it.\n\n• $50 / oz (28g)\n• House mix — strain rotates\n• 21+ only, discreet shipping"
+    "description": "Kush World Budget Flower is the everyday zip. House mix, no frills, $50 an ounce.\n\nSizes shop clean: 3.5g $10 · 7g $15 · 14g $25 · oz $50 · lb $800. In admin, enter what you paid per pound and tap 2x or 3x to refill prices from cost.\n\nStrain can rotate. Named indoor and exotic stays in those filters.\n\n• $50 / oz\n• House mix\n• 21+ only"
   }
 ]
