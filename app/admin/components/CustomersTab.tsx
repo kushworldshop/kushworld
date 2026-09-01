@@ -4,6 +4,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import GrokChat from '@/app/components/GrokChat';
 import type { UserSocials } from '@/lib/users';
+import {
+  STAFF_PERMISSIONS,
+  STAFF_PERMISSION_LABELS,
+  type StaffPermission,
+} from '@/lib/adminPermissions';
+
+const DEFAULT_MOD_PERMISSIONS: StaffPermission[] = ['orders', 'products'];
 
 interface AdminUser {
   id: string;
@@ -62,6 +69,9 @@ interface AdminUser {
   discordServerVerified?: boolean;
   discordVerifySyncPending?: boolean;
   discordVerifiedAt?: string;
+  staffRole?: 'mod' | 'admin' | null;
+  staffPermissions?: StaffPermission[];
+  staffEnabled?: boolean;
 }
 
 type MemberDraft = {
@@ -87,6 +97,8 @@ type MemberDraft = {
   state: string;
   zip: string;
   address2: string;
+  staffRole: 'none' | 'mod' | 'admin';
+  staffPermissions: StaffPermission[];
 };
 
 const emptySocials: UserSocials = {
@@ -97,7 +109,7 @@ const emptySocials: UserSocials = {
   website: '',
 };
 
-export default function CustomersTab() {
+export default function CustomersTab({ canManageStaff = false }: { canManageStaff?: boolean }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [search, setSearch] = useState('');
   const [showFree8thOnly, setShowFree8thOnly] = useState(false);
@@ -228,6 +240,8 @@ export default function CustomersTab() {
       city: patch?.city ?? user.shippingAddress?.city ?? '',
       state: patch?.state ?? user.shippingAddress?.state ?? '',
       zip: patch?.zip ?? user.shippingAddress?.zip ?? '',
+      staffRole: patch?.staffRole ?? (user.staffRole === 'admin' || user.staffRole === 'mod' ? user.staffRole : 'none'),
+      staffPermissions: patch?.staffPermissions ?? user.staffPermissions ?? DEFAULT_MOD_PERMISSIONS,
     };
   };
 
@@ -271,6 +285,15 @@ export default function CustomersTab() {
         zip: draft.zip,
       },
     };
+    if (canManageStaff) {
+      const currentRole = user.staffRole === 'admin' || user.staffRole === 'mod' ? user.staffRole : 'none';
+      const currentPerms = [...(user.staffPermissions ?? [])].sort().join(',');
+      const nextPerms = [...draft.staffPermissions].sort().join(',');
+      if (draft.staffRole !== currentRole || (draft.staffRole === 'mod' && nextPerms !== currentPerms)) {
+        payload.staffRole = draft.staffRole;
+        payload.staffPermissions = draft.staffPermissions;
+      }
+    }
 
     const normalizedPromo = draft.promoCode.trim().toUpperCase();
     if (normalizedPromo && normalizedPromo !== (user.promoCode || '').toUpperCase()) {
@@ -607,6 +630,9 @@ export default function CustomersTab() {
         <p className="text-zinc-400 text-sm">
           View every registered member, review ID and Discord verification, edit profiles and social
           links, and manage loyalty points and commission settings per person.
+          {canManageStaff
+            ? ' Check Mod or Admin on a profile to let them sign in at /admin with their account email and password.'
+            : ''}
         </p>
       </div>
 
@@ -689,6 +715,8 @@ export default function CustomersTab() {
                     {user.discordVerifySyncPending && (
                       <span className="text-amber-400">Discord sync</span>
                     )}
+                    {user.staffRole === 'admin' && <span className="text-[#00ff9d]">Admin</span>}
+                    {user.staffRole === 'mod' && <span className="text-sky-400">Mod</span>}
                     {user.promoCode && <span className="text-[#00ff9d]">{user.promoCode}</span>}
                     {(user.lockedLoyaltyPoints ?? 0) > 0 && (
                       <span className="text-amber-400">{user.lockedLoyaltyPoints.toLocaleString()} locked</span>
@@ -722,6 +750,7 @@ export default function CustomersTab() {
             <MemberProfilePanel
               user={selectedUser}
               draft={getDraft(selectedUser)}
+              canManageStaff={canManageStaff}
               saving={savingId === selectedUser.id}
               deleting={deletingId === selectedUser.id}
               message={message}
@@ -767,6 +796,7 @@ export default function CustomersTab() {
 function MemberProfilePanel({
   user,
   draft,
+  canManageStaff,
   saving,
   deleting,
   message,
@@ -804,6 +834,7 @@ function MemberProfilePanel({
 }: {
   user: AdminUser;
   draft: MemberDraft;
+  canManageStaff: boolean;
   saving: boolean;
   deleting: boolean;
   message: string;
@@ -903,6 +934,8 @@ function MemberProfilePanel({
             {user.discordVerifySyncPending && <Badge label="Discord sync pending" tone="amber" />}
             {user.signupBonusClaimed && <Badge label="Signup bonus" tone="amber" />}
             {user.freeEighthReceivedAt && <Badge label="Free 1/8th" tone="green" />}
+            {draft.staffRole === 'admin' && <Badge label="Admin" tone="green" />}
+            {draft.staffRole === 'mod' && <Badge label="Mod" tone="amber" />}
             {draft.blocked && <Badge label="Blocked" tone="red" />}
           </div>
         </div>
@@ -929,6 +962,75 @@ function MemberProfilePanel({
           {message}
         </p>
       )}
+
+      <section className="bg-zinc-950/60 border border-[#00ff9d]/20 rounded-2xl p-5">
+        <SectionTitle>Staff roles</SectionTitle>
+        {canManageStaff ? (
+          <>
+            <p className="text-sm text-zinc-500 mb-4">
+              Check a role to let this member work the site. They sign in at <span className="text-zinc-300">/admin</span> with
+              their account email and password. Admins get everything except adding staff. Mods only get the boxes you check.
+              Only you can change this.
+            </p>
+            <div className="flex flex-wrap gap-6 text-sm mb-4">
+              <Checkbox
+                label="Member (no admin access)"
+                checked={draft.staffRole === 'none'}
+                onChange={(checked) => {
+                  if (checked) onDraftChange({ staffRole: 'none' });
+                }}
+              />
+              <Checkbox
+                label="Mod"
+                checked={draft.staffRole === 'mod'}
+                onChange={(checked) =>
+                  onDraftChange({
+                    staffRole: checked ? 'mod' : 'none',
+                    staffPermissions:
+                      draft.staffPermissions.length > 0 ? draft.staffPermissions : DEFAULT_MOD_PERMISSIONS,
+                  })
+                }
+              />
+              <Checkbox
+                label="Admin"
+                checked={draft.staffRole === 'admin'}
+                onChange={(checked) => onDraftChange({ staffRole: checked ? 'admin' : 'none' })}
+              />
+            </div>
+            {draft.staffRole === 'mod' && (
+              <div className="grid sm:grid-cols-2 gap-2 pt-2 border-t border-zinc-800">
+                {STAFF_PERMISSIONS.map((permission) => (
+                  <Checkbox
+                    key={permission}
+                    label={STAFF_PERMISSION_LABELS[permission]}
+                    checked={draft.staffPermissions.includes(permission)}
+                    onChange={(checked) =>
+                      onDraftChange({
+                        staffPermissions: checked
+                          ? [...draft.staffPermissions, permission]
+                          : draft.staffPermissions.filter((item) => item !== permission),
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            )}
+            {draft.staffRole !== 'none' && (
+              <p className="text-xs text-zinc-500 mt-4">
+                Save the profile after checking a role. If they only signed up with Discord, set a password in Reset Password first.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-zinc-400">
+            {draft.staffRole === 'admin'
+              ? 'This member is an admin.'
+              : draft.staffRole === 'mod'
+                ? `This member is a mod with ${draft.staffPermissions.length} permission${draft.staffPermissions.length === 1 ? '' : 's'}.`
+                : 'No staff role. Only the owner can assign mod or admin from this tab.'}
+          </p>
+        )}
+      </section>
 
       <section className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5">
         <SectionTitle>ID Verification</SectionTitle>

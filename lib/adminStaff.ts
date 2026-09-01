@@ -22,6 +22,8 @@ export interface AdminStaffRecord {
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Linked site member. When set, they can sign in to /admin with their account email + password. */
+  userId?: string;
 }
 
 interface StaffFile {
@@ -80,13 +82,38 @@ export function getStaffByUsername(username: string): AdminStaffRecord | undefin
   return readFile().staff.find((row) => row.username === key);
 }
 
+export function getStaffByUserId(userId: string): AdminStaffRecord | undefined {
+  const id = userId.trim();
+  if (!id) return undefined;
+  return readFile().staff.find((row) => row.userId === id);
+}
+
 export function verifyStaffPasscode(row: AdminStaffRecord, passcode: string): boolean {
-  if (!row.enabled || !passcode) return false;
+  if (!row.enabled || !passcode || !row.passcodeHash) return false;
   try {
     return bcrypt.compareSync(passcode, row.passcodeHash);
   } catch {
     return false;
   }
+}
+
+function uniqueUsernameForEmail(email: string): string {
+  const local = email
+    .split('@')[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '')
+    .replace(/^[._-]+|[._-]+$/g, '')
+    .slice(0, 24);
+  const base = isValidUsername(local) ? local : `member${Date.now().toString(36).slice(-8)}`;
+  const file = readFile();
+  if (!file.staff.some((row) => row.username === base)) return base;
+  for (let i = 2; i < 1000; i++) {
+    const candidate = `${base.slice(0, 28)}${i}`.slice(0, 32);
+    if (isValidUsername(candidate) && !file.staff.some((row) => row.username === candidate)) {
+      return candidate;
+    }
+  }
+  return `m${randomUUID().replace(/-/g, '').slice(0, 12)}`;
 }
 
 export function createStaff(input: {
@@ -95,18 +122,23 @@ export function createStaff(input: {
   passcode: string;
   role: 'admin' | 'mod';
   permissions?: StaffPermission[];
+  userId?: string;
 }): PublicStaff {
   const name = input.name.trim();
   const username = normalizeUsername(input.username);
   const passcode = input.passcode;
+  const userId = input.userId?.trim() || undefined;
   if (!name) throw new Error('Name is required');
   if (!isValidUsername(username)) throw new Error('Username must be 2–32 letters, numbers, dots, or dashes');
-  if (passcode.trim().length < 6) throw new Error('Passcode must be at least 6 characters');
+  if (passcode.trim().length < 6 && !userId) throw new Error('Passcode must be at least 6 characters');
   if (input.role !== 'admin' && input.role !== 'mod') throw new Error('Role must be admin or mod');
 
   const file = readFile();
   if (file.staff.some((row) => row.username === username)) {
     throw new Error('That username is already in use');
+  }
+  if (userId && file.staff.some((row) => row.userId === userId)) {
+    throw new Error('This member already has a staff role');
   }
 
   const now = new Date().toISOString();
@@ -114,16 +146,52 @@ export function createStaff(input: {
     id: randomUUID(),
     name,
     username,
-    passcodeHash: bcrypt.hashSync(passcode, 10),
+    passcodeHash: passcode.trim().length >= 6 ? bcrypt.hashSync(passcode, 10) : '',
     role: input.role,
     permissions: input.role === 'admin' ? allStaffPermissions() : permissionsForRole('mod', input.permissions),
     enabled: true,
     createdAt: now,
     updatedAt: now,
+    userId,
   };
   file.staff.push(row);
   writeFile(file);
   return toPublicStaff(row);
+}
+
+export function setMemberStaffAccess(input: {
+  userId: string;
+  name: string;
+  email: string;
+  role: 'none' | 'mod' | 'admin';
+  permissions?: StaffPermission[];
+}): PublicStaff | null {
+  const userId = input.userId.trim();
+  if (!userId) throw new Error('User id required');
+  const existing = getStaffByUserId(userId);
+
+  if (input.role === 'none') {
+    if (existing) deleteStaff(existing.id);
+    return null;
+  }
+
+  if (existing) {
+    return updateStaff(existing.id, {
+      name: input.name,
+      role: input.role,
+      permissions: input.permissions,
+      enabled: true,
+    });
+  }
+
+  return createStaff({
+    name: input.name,
+    username: uniqueUsernameForEmail(input.email),
+    passcode: '',
+    role: input.role,
+    permissions: input.permissions,
+    userId,
+  });
 }
 
 export function updateStaff(

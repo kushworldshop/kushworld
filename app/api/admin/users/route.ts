@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAdminRequest } from '@/lib/adminAuth';
+import { getAdminSession, isAdminRequest } from '@/lib/adminAuth';
+import {
+  getStaffByUserId,
+  listStaff,
+  sanitizePermissionList,
+  setMemberStaffAccess,
+  deleteStaff,
+} from '@/lib/adminStaff';
+import type { StaffPermission } from '@/lib/adminPermissions';
 import { readOrders } from '@/lib/ordersStore';
 import { normalizePhone } from '@/lib/accountVerification';
 import {
@@ -78,6 +86,9 @@ export interface AdminUserSummary {
   discordServerVerified?: boolean;
   discordVerifySyncPending?: boolean;
   discordVerifiedAt?: string;
+  staffRole?: 'mod' | 'admin' | null;
+  staffPermissions?: StaffPermission[];
+  staffEnabled?: boolean;
 }
 
 function sanitizeSocials(socials: unknown): UserSocials | undefined {
@@ -114,10 +125,20 @@ async function countOrdersByEmail(email: string): Promise<number> {
   }).length;
 }
 
+function staffByUserId(): Map<string, ReturnType<typeof listStaff>[number]> {
+  const map = new Map<string, ReturnType<typeof listStaff>[number]>();
+  for (const row of listStaff()) {
+    if (row.userId) map.set(row.userId, row);
+  }
+  return map;
+}
+
 async function toAdminSummary(
-  user: Awaited<ReturnType<typeof readUsers>>[number]
+  user: Awaited<ReturnType<typeof readUsers>>[number],
+  staffMap?: Map<string, ReturnType<typeof listStaff>[number]>
 ): Promise<AdminUserSummary> {
   const settings = await getSettings();
+  const staff = staffMap?.get(user.id) ?? listStaff().find((row) => row.userId === user.id);
   const referral = await getReferralByEmail(user.email);
   const effectiveCommission = referral
     ? resolveReferralCommissionPercent(referral, settings.referrerCommissionPercent)
@@ -189,6 +210,9 @@ async function toAdminSummary(
     discordServerVerified: Boolean(user.discordVerifiedAt),
     discordVerifySyncPending: Boolean(user.discordVerifySyncPending),
     discordVerifiedAt: user.discordVerifiedAt,
+    staffRole: staff?.enabled === false ? null : staff?.role ?? null,
+    staffPermissions: staff?.role === 'mod' ? staff.permissions : staff?.role === 'admin' ? staff.permissions : [],
+    staffEnabled: staff ? staff.enabled : undefined,
   };
 }
 
@@ -213,7 +237,8 @@ export async function GET(request: NextRequest) {
     );
   });
 
-  const summaries = await Promise.all(filtered.map(toAdminSummary));
+  const staffMap = staffByUserId();
+  const summaries = await Promise.all(filtered.map((user) => toAdminSummary(user, staffMap)));
   summaries.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return NextResponse.json({ success: true, users: summaries, total: summaries.length });
@@ -238,6 +263,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     const current = users[index];
+    if (body.staffRole !== undefined) {
+      const session = getAdminSession(request);
+      if (!session || session.role !== 'owner') {
+        return NextResponse.json(
+          { success: false, error: 'Only the owner can assign mod and admin roles' },
+          { status: 403 }
+        );
+      }
+    }
     const newPhone = body.phone !== undefined ? String(body.phone).trim() || undefined : current.phone;
     if (newPhone) {
       const normNewPhone = normalizePhone(newPhone);
@@ -386,6 +420,22 @@ export async function PATCH(request: NextRequest) {
 
     await writeUsers(users);
 
+    if (body.staffRole !== undefined) {
+      const nextRole = body.staffRole === 'admin' ? 'admin' : body.staffRole === 'mod' ? 'mod' : 'none';
+      try {
+        setMemberStaffAccess({
+          userId,
+          name: users[index].name,
+          email: users[index].email,
+          role: nextRole,
+          permissions: sanitizePermissionList(body.staffPermissions),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to update staff role';
+        return NextResponse.json({ success: false, error: message }, { status: 400 });
+      }
+    }
+
     if (body.discordSync === true) {
       const { syncUserDiscordVerificationByUserId } = await import('@/lib/discordGuildSync');
       const syncResult = await syncUserDiscordVerificationByUserId(userId);
@@ -415,8 +465,9 @@ export async function PATCH(request: NextRequest) {
       user,
       unlockedPoints: unlockedPoints > 0 ? unlockedPoints : undefined,
     });
-  } catch {
-    return NextResponse.json({ success: false, error: 'Failed to update user' }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update user';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
@@ -437,10 +488,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
+    const linkedStaff = getStaffByUserId(userId);
     const deleted = await deleteUserById(userId);
     if (!deleted) {
       return NextResponse.json({ success: false, error: 'Failed to delete user' }, { status: 500 });
     }
+    if (linkedStaff) deleteStaff(linkedStaff.id);
 
     return NextResponse.json({
       success: true,

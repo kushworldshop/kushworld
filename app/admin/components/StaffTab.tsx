@@ -15,6 +15,7 @@ interface StaffRow {
   role: 'admin' | 'mod';
   permissions: StaffPermission[];
   enabled: boolean;
+  userId?: string;
 }
 
 const emptyForm = {
@@ -143,6 +144,7 @@ export default function StaffTab() {
         <h2 className="text-2xl font-bold mb-2">Mods & admins</h2>
         <p className="text-zinc-400 text-sm max-w-2xl">
           Only you can add or remove people. Admins get full site access except this staff list. Mods only get the boxes you check.
+          You can also check Mod or Admin on a member under Members — they then sign in with their account email and password.
         </p>
       </div>
 
@@ -241,6 +243,7 @@ export default function StaffTab() {
               </p>
               <p className="text-xs text-zinc-500 mt-1">
                 {row.role === 'admin' ? 'Admin · full access' : `Mod · ${row.permissions.length} permission${row.permissions.length === 1 ? '' : 's'}`}
+                {row.userId ? ' · linked member' : ''}
                 {row.enabled ? '' : ' · disabled'}
               </p>
             </div>

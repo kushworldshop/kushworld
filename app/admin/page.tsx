@@ -66,7 +66,7 @@ export default function AdminOrders() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Incorrect name or passcode');
+        setError(data.error || 'Incorrect name, email, or passcode');
         return;
       }
       setAuthenticated(true);
@@ -139,7 +139,7 @@ export default function AdminOrders() {
           <input
             type="text"
             autoComplete="username"
-            placeholder="Login name (owner leave blank)"
+            placeholder="Login name or email (owner leave blank)"
             value={usernameInput}
             onChange={(e) => setUsernameInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
@@ -149,7 +149,7 @@ export default function AdminOrders() {
           <input
             type="password"
             autoComplete="current-password"
-            placeholder="Passcode"
+            placeholder="Passcode or account password"
             value={passwordInput}
             onChange={(e) => setPasswordInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
@@ -288,7 +288,7 @@ export default function AdminOrders() {
           <SubscriptionsTab featureEnabled={siteContent.features.subscriptions?.enabled ?? false} />
         )}
 
-        {tab === 'members' && can('members') && <CustomersTab />}
+        {tab === 'members' && can('members') && <CustomersTab canManageStaff={role === 'owner'} />}
 
         {tab === 'products' && can('products') && (
           <ProductsTab canDeleteProducts={can('productsDelete')} />
