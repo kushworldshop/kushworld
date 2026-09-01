@@ -7,6 +7,9 @@ import LoyaltySection from './components/LoyaltySection';
 import ReviewsSection from './components/ReviewsSection';
 import MerchSection from './components/MerchSection';
 import DropHeroSection from './components/DropHeroSection';
+import Categories from './components/Categories';
+import BrandRowSection from './components/BrandRowSection';
+import HomeVibeStrip from './components/HomeVibeStrip';
 
 import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
@@ -39,41 +42,50 @@ export default function HomeClient({ initialReviews, initialReviewStats }: HomeC
 
         {!isMerchOnly && features.dropHero?.enabled && <DropHeroSection />}
 
-        {features.bestSellers.enabled && (
-          <ProductCollectionSection
-            type="best-sellers"
-            title={features.bestSellers.title}
-            subtitle={features.bestSellers.subtitle}
-            ctaHref="/shop"
-            ctaLabel="Shop Best Sellers"
-          />
-        )}
+        <Categories merchOnly={isMerchOnly} />
 
-        {features.merchSection.enabled && <MerchSection />}
+        {!isMerchOnly && <HomeVibeStrip />}
 
-        {features.newArrivals.enabled && (
+        {!isMerchOnly && features.newArrivals.enabled && (
           <ProductCollectionSection
             type="new-arrivals"
             title={features.newArrivals.title}
             subtitle={features.newArrivals.subtitle}
             ctaHref="/shop"
             ctaLabel="Shop New Arrivals"
+            hempOnly
           />
         )}
 
-        {features.onSale.enabled && (
+        {!isMerchOnly && features.onSale.enabled && (
           <ProductCollectionSection
             type="on-sale"
-            title={features.onSale.title}
-            subtitle={features.onSale.subtitle}
+            title="Fire sales"
+            subtitle="Marked-down picks while they last."
             ctaHref="/shop"
             ctaLabel="Shop Deals"
+            hempOnly
           />
         )}
+
+        {!isMerchOnly && features.bestSellers.enabled && (
+          <ProductCollectionSection
+            type="best-sellers"
+            title={features.bestSellers.title}
+            subtitle={features.bestSellers.subtitle}
+            ctaHref="/shop"
+            ctaLabel="Shop Best Sellers"
+            hempOnly
+          />
+        )}
+
+        {!isMerchOnly && <BrandRowSection />}
 
         {features.howItWorks.enabled && (
           <HowItWorksSection title={features.howItWorks.title} steps={features.howItWorks.steps} />
         )}
+
+        {features.merchSection.enabled && <MerchSection />}
 
         {features.reviewsSection.enabled && (
           <ReviewsSection initialReviews={initialReviews} initialStats={initialReviewStats} />

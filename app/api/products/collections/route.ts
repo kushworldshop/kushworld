@@ -9,8 +9,12 @@ import {
 
 export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get('type');
+  const hempOnly = request.nextUrl.searchParams.get('hemp') === '1';
   const content = await getSiteContent();
-  const products = await getProducts();
+  const catalog = await getProducts();
+  const products = hempOnly
+    ? catalog.filter((product) => product.category !== 'merch')
+    : catalog;
 
   switch (type) {
     case 'best-sellers':

@@ -33,7 +33,7 @@ export default function Hero({ merchOnly = false }: { merchOnly?: boolean }) {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/shop/merch"
+            href={merchOnly ? '/shop/merch' : '/shop/flower'}
             className="w-full sm:w-auto px-10 py-5 bg-[#00ff9d] text-black text-lg font-semibold rounded-2xl hover:scale-[1.02] active:scale-[0.985] transition text-center"
           >
             {variant.primaryCtaLabel}

@@ -27,21 +27,11 @@ export default function CoaLink({ coaPdf, productName }: CoaLinkProps) {
   }, [coaPdf]);
 
   if (available === null) {
-    return (
-      <p className="text-xs text-zinc-500 mt-3 flex items-center gap-2">
-        <i className="fa-solid fa-file-pdf text-zinc-600" />
-        Checking lab COA...
-      </p>
-    );
+    return null;
   }
 
   if (!available) {
-    return (
-      <p className="text-xs text-zinc-500 mt-3 flex items-center gap-2">
-        <i className="fa-solid fa-file-pdf text-zinc-600" />
-        Lab COA coming soon
-      </p>
-    );
+    return null;
   }
 
   return (

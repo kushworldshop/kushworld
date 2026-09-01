@@ -58,7 +58,7 @@ export default function ShopSection({
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
-  const [activeVibe, setActiveVibe] = useState<string | null>(null);
+  const [activeVibe, setActiveVibe] = useState<string | null>(searchParams.get('vibe'));
 
   const shopCategories = useMemo(
     () => getShopCategoriesWithProducts(nav, products),
@@ -81,6 +81,9 @@ export default function ShopSection({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchQuery(q);
     }
+    const vibe = searchParams.get('vibe');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveVibe(vibe);
   }, [searchParams]);
 
   useEffect(() => {

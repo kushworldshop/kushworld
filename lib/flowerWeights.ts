@@ -3,7 +3,7 @@ import type { ProductOptionGroup } from '@/lib/productOptions';
 
 /** Standard B2B flower weights; base sell price is for the full pound (446g). */
 export const FLOWER_POUND_GRAMS = 446;
-export const FLOWER_WEIGHT_GRAMS = [7, 14, 28, 112, 228, 446] as const;
+export const FLOWER_WEIGHT_GRAMS = [3.5, 7, 14, 28, 112, 228, 446] as const;
 export const FLOWER_WEIGHT_OPTION_GROUP_NAME = 'Weight';
 
 export function isFlowerProductCategory(category?: string): boolean {
@@ -11,6 +11,7 @@ export function isFlowerProductCategory(category?: string): boolean {
 }
 
 export function formatFlowerWeightLabel(grams: number): string {
+  if (grams === 28) return '28g (zip)';
   if (grams === FLOWER_POUND_GRAMS) return `${grams}g (1 lb)`;
   return `${grams}g`;
 }

@@ -51,6 +51,10 @@ export default function ProductCard({ product }: { product: Product }) {
     () => getSelectedOptionsUnitPrice(product, selectedOptions),
     [product, selectedOptions]
   );
+  const sizeChips = useMemo(() => {
+    const group = product.optionGroups?.find((item) => /weight|size/i.test(item.name));
+    return group?.values.slice(0, 4).map((value) => value.label).filter(Boolean) ?? [];
+  }, [product.optionGroups]);
 
   useEffect(() => {
     fetch(`/api/products/reactions?productId=${product.id}`)
@@ -187,6 +191,18 @@ export default function ProductCard({ product }: { product: Product }) {
           </p>
           {onSale && product.compareAtPrice && (
             <p className="text-xs text-zinc-500 line-through">${product.compareAtPrice}</p>
+          )}
+          {sizeChips.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {sizeChips.map((label) => (
+                <span
+                  key={label}
+                  className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
           )}
         </div>
 

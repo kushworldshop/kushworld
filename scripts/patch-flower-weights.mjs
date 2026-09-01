@@ -11,7 +11,7 @@ const file = path.join(__dirname, '..', 'data', 'custom-products.json');
 const filter = process.argv[2]?.toLowerCase().trim();
 
 const FLOWER_POUND_GRAMS = 446;
-const FLOWER_WEIGHT_GRAMS = [7, 14, 28, 112, 228, 446];
+const FLOWER_WEIGHT_GRAMS = [3.5, 7, 14, 28, 112, 228, 446];
 const WEIGHT_GROUP_NAME = 'Weight';
 
 function formatLabel(grams) {

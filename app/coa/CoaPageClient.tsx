@@ -18,7 +18,7 @@ const COA_FAQS = [
   {
     question: 'How do I download a COA?',
     answer:
-      'On this page, click "View COA" next to any product. If the PDF is not yet available it will say "COA coming soon". COAs are batch-specific.',
+      'On this page, click "View COA" next to any product that has a PDF uploaded. Items without a file are not listed.',
   },
   {
     question: 'Are COAs available for merch?',
@@ -65,41 +65,44 @@ export default function CoaPageClient({ products }: { products: Product[] }) {
       <div className="max-w-7xl mx-auto px-6 py-16">
         <h1 className="text-5xl font-bold mb-4">Certificates of Analysis</h1>
         <p className="text-zinc-400 mb-12 max-w-2xl">
-          Every Kush World hemp product is lab tested. Download the COA (Certificate of Analysis) for full potency and purity results.
+          Lab reports are listed here when a file is on the product. We do not put placeholder PDFs on items that do not have a report uploaded.
         </p>
 
+        {products.some((product) => availability[product.id] === true) ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {products.map((product) => {
             const coaPath = getCoaPdfPath(product);
             const available = availability[product.id];
+            if (available !== true) return null;
 
             return (
               <div key={product.id} className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 flex gap-4">
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                  <Image src={product.image} alt={`${product.name} — ${product.category} lab tested product`} fill className="object-cover" />
+                  <Image src={product.image} alt={`${product.name} — ${product.category}`} fill className="object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link href={`/products/${getProductSlug(product)}`} className="font-semibold hover:text-[#00ff9d] transition">
                     {product.name}
                   </Link>
                   <p className="text-xs text-zinc-500 mt-1 capitalize">{product.category}</p>
-                  {available === true ? (
-                    <a
-                      href={coaPath}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 mt-3 text-sm text-[#00ff9d] hover:underline"
-                    >
-                      <i className="fa-solid fa-file-pdf" /> View COA
-                    </a>
-                  ) : (
-                    <p className="text-xs text-zinc-500 mt-3">COA coming soon</p>
-                  )}
+                  <a
+                    href={coaPath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 mt-3 text-sm text-[#00ff9d] hover:underline"
+                  >
+                    <i className="fa-solid fa-file-pdf" /> View COA
+                  </a>
                 </div>
               </div>
             );
           })}
         </div>
+        ) : (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-10 text-center text-zinc-400">
+            No lab PDFs are uploaded yet. Product pages still show strain, size, and flavor options.
+          </div>
+        )}
       </div>
     </SiteLayout>
   );

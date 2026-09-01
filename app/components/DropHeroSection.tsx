@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getProductSlug, type Product } from '@/lib/products';
+import { getFlowerWeightPrice, isFlowerProductCategory } from '@/lib/flowerWeights';
 import { useSiteContent } from '@/lib/useSiteContent';
 import ProductMetaBadges from './ProductMetaBadges';
 
@@ -17,10 +18,17 @@ export default function DropHeroSection() {
     fetch('/api/products')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        const match = (data?.products as Product[] | undefined)?.find(
+        const products = ((data?.products as Product[] | undefined) ?? []).filter(
+          (item) => !item.hidden && item.category !== 'merch'
+        );
+        const match = products.find(
           (item) => getProductSlug(item) === features.dropHero.productSlug
         );
-        if (match) setProduct(match);
+        const fallback =
+          products.find((item) => item.isNew && item.category === 'flower') ||
+          products.find((item) => item.category === 'flower') ||
+          products[0];
+        setProduct(match || fallback || null);
       })
       .catch(() => {});
   }, [features.dropHero?.enabled, features.dropHero?.productSlug]);
@@ -56,7 +64,36 @@ export default function DropHeroSection() {
             <p className="text-zinc-400 leading-relaxed mb-6 line-clamp-4">
               {product.description?.split('\n\n')[0]}
             </p>
-            <p className="text-[#00ff9d] text-3xl font-bold mb-6">From ${product.price}</p>
+            {(() => {
+              const flavors =
+                product.optionGroups
+                  ?.find((group) => /flavor|variant/i.test(group.name))
+                  ?.values.map((value) => value.label)
+                  .filter(Boolean) ?? [];
+              if (flavors.length === 0) return null;
+              return (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {flavors.slice(0, 8).map((flavor) => (
+                    <span
+                      key={flavor}
+                      className="text-xs px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300"
+                    >
+                      {flavor}
+                    </span>
+                  ))}
+                  {flavors.length > 8 && (
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-500">
+                      +{flavors.length - 8} more
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
+            <p className="text-[#00ff9d] text-3xl font-bold mb-6">
+              {isFlowerProductCategory(product.category)
+                ? `From $${getFlowerWeightPrice(product.price, 3.5).toFixed(2)}`
+                : `From $${product.price}`}
+            </p>
 
             {features.dropHero.discordEarlyAccess && (
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6">

@@ -126,7 +126,7 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
     enabled: true,
     title: 'How It Works',
     steps: [
-      { icon: '🛒', title: 'Shop', body: 'Browse lab-tested hemp and studio merch.' },
+      { icon: '🛒', title: 'Shop', body: 'Browse flower, vapes, concentrates, and studio merch.' },
       { icon: '💳', title: 'Checkout', body: 'Pay securely with card, crypto, or manual options.' },
       { icon: '📦', title: 'We Ship', body: 'Orders process in 1–3 business days, discreet packaging.' },
       { icon: '✅', title: 'Enjoy', body: 'Track your order and earn loyalty rewards.' },
@@ -140,7 +140,7 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
   merchSection: { enabled: true },
   dropHero: {
     enabled: true,
-    productSlug: 'bl3-junkie',
+    productSlug: 'red-pillz',
     eyebrow: 'New Drop',
     headline: 'JUST DROPPED',
     discordEarlyAccess: true,

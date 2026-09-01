@@ -127,18 +127,18 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   },
   announcementBar: {
     enabled: true,
-    fullAccess: '👕 Studio merch now in shop • Lab-tested hemp • Discreet shipping nationwide',
+    fullAccess: 'Free 8th on first order • Free shipping $150+ • Discord early drops',
     merchOnly: '👕 Studio merch — Custom made to order',
   },
   hero: {
     fullAccess: {
       eyebrow: 'Kush World',
-      headline: 'Premium Goods,\nDelivered Right',
+      headline: 'Indoor Flower.\nDelivered Right.',
       subtitle:
-        'Lab-tested hemp products and official Kush World Studio merch. Discreet shipping nationwide.',
-      primaryCtaLabel: 'Shop Merch',
+        'Fresh drops, vapes, concentrates, and official Kush World Studio merch. Discreet shipping nationwide.',
+      primaryCtaLabel: 'Shop Flower',
       secondaryCtaLabel: 'Full Catalog',
-      badges: ['Lab Tested + COAs', 'Free Shipping $200+', '21+ Only'],
+      badges: ['Free 8th first order', 'Free Shipping $150+', '21+ Only'],
     },
     merchOnly: {
       eyebrow: 'Kush World Studio',
@@ -150,7 +150,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   },
   footer: {
     tagline:
-      'Lab-tested hemp vapes, concentrates, flower, and official Kush World Studio merch. COAs on every product. Discreet shipping. 21+ only.',
+      'Hemp flower, vapes, concentrates, and official Kush World Studio merch. Discreet shipping. 21+ only.',
     copyright: '© 2026 Kush World. 21+ only.',
   },
   contact: {
@@ -192,7 +192,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       {
         icon: '🎁',
         title: 'First Order Bonus',
-        body: 'Free 8th or $20 off + free shipping on qualifying orders',
+        body: 'Free 8th on your first qualifying order',
       },
       {
         icon: '👥',

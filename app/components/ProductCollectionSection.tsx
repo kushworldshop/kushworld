@@ -11,6 +11,7 @@ interface ProductCollectionSectionProps {
   subtitle: string;
   ctaHref?: string;
   ctaLabel?: string;
+  hempOnly?: boolean;
 }
 
 export default function ProductCollectionSection({
@@ -19,17 +20,19 @@ export default function ProductCollectionSection({
   subtitle,
   ctaHref = '/shop',
   ctaLabel = 'View All',
+  hempOnly = false,
 }: ProductCollectionSectionProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/products/collections?type=${type}`)
+    const query = hempOnly ? `&hemp=1` : '';
+    fetch(`/api/products/collections?type=${type}${query}`)
       .then((res) => res.json())
       .then((data) => setProducts(data.products || []))
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [type]);
+  }, [type, hempOnly]);
 
   if (loading || products.length === 0) return null;
 
