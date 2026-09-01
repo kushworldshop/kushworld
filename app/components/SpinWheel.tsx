@@ -6,6 +6,7 @@ import {
   WHEEL_SEGMENTS,
   getSpinPrizeDaysRemaining,
   getWheelRotationDelta,
+  isTdCoupon,
   type SpinPrize,
 } from '@/lib/spinWheelTypes';
 
@@ -34,6 +35,7 @@ export default function SpinWheel({
   const [wonPrize, setWonPrize] = useState<SpinPrize | null>(null);
   const [error, setError] = useState('');
   const [acting, setActing] = useState(false);
+  const [tradingId, setTradingId] = useState<string | null>(null);
 
   const displayPending = pendingPrize ?? wonPrize;
   const mustDecide = !!displayPending;
@@ -107,6 +109,32 @@ export default function SpinWheel({
       setError('Network error. Try again.');
     } finally {
       setActing(false);
+    }
+  };
+
+  const handleTradeTd = async (prizeId: string) => {
+    setTradingId(prizeId);
+    setError('');
+    try {
+      const res = await fetch('/api/td-rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'trade' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResult(data.message || 'Traded TD credit for wheel spins.');
+        onPrizeChange({
+          remainingPoints: data.remainingPoints,
+          savedCoupons: savedCoupons.filter((coupon) => coupon.id !== prizeId),
+        });
+      } else {
+        setError(data.error || 'Could not trade credit');
+      }
+    } catch {
+      setError('Network error. Try again.');
+    } finally {
+      setTradingId(null);
     }
   };
 
@@ -231,6 +259,19 @@ export default function SpinWheel({
                 {' · '}
                 {getSpinPrizeDaysRemaining(coupon)} day
                 {getSpinPrizeDaysRemaining(coupon) === 1 ? '' : 's'} left
+                {isTdCoupon(coupon) && (
+                  <>
+                    {' · '}
+                    <button
+                      type="button"
+                      onClick={() => void handleTradeTd(coupon.id)}
+                      disabled={tradingId === coupon.id}
+                      className="text-[#00ff9d] hover:underline disabled:opacity-50"
+                    >
+                      {tradingId === coupon.id ? 'Trading…' : 'Trade for spins'}
+                    </button>
+                  </>
+                )}
               </li>
             ))}
           </ul>

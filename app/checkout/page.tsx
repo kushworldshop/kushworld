@@ -1173,13 +1173,13 @@ export default function Checkout() {
             {isLoggedIn && savedSpinCoupons.length > 0 && (
               <div className="bg-zinc-900 border border-[#00ff9d]/30 rounded-2xl p-4 mb-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold">Wheel Coupons</h3>
+                  <h3 className="font-semibold">Saved Coupons</h3>
                   <Link href="/account?tab=wheel" className="text-xs text-[#00ff9d] hover:underline">
                     Spin again
                   </Link>
                 </div>
                 <p className="text-xs text-zinc-500 mb-3">
-                  Pick one coupon for this order. Cannot combine with promo codes.
+                  Pick one coupon for this order. Coupons do not stack with promo codes or each other.
                 </p>
                 <div className="space-y-2">
                   <label className="flex items-center gap-3 cursor-pointer rounded-xl px-3 py-2 hover:bg-zinc-800/50">
@@ -1190,7 +1190,7 @@ export default function Checkout() {
                       onChange={() => selectSpinPrize(null)}
                       className="accent-[#00ff9d]"
                     />
-                    <span className="text-sm text-zinc-400">No wheel coupon</span>
+                    <span className="text-sm text-zinc-400">No coupon</span>
                   </label>
                   {savedSpinCoupons.map((coupon) => (
                     <label

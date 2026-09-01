@@ -115,6 +115,16 @@ export async function acceptSpinPrize(userId: string): Promise<{
     };
   }
 
+  if (slot === 'fixed_off' && existingInSlot) {
+    await clearPendingSpinPrize(userId);
+    await markSpinHistoryForfeited(pending.id);
+    return {
+      savedCoupons: saved,
+      replacedPrevious: false,
+      keptExistingBetter: true,
+    };
+  }
+
   const acceptedAt = new Date().toISOString();
   const expiresAt = buildPrizeExpiryDate();
   const accepted: SpinPrize = {

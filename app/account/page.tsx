@@ -5,7 +5,7 @@ import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import SpinWheel from '@/app/components/SpinWheel';
 import type { PublicUserProfile, UserSocials } from '@/lib/users';
-import { getSpinPrizeDaysRemaining } from '@/lib/spinWheelTypes';
+import { getSpinPrizeDaysRemaining, isTdCoupon } from '@/lib/spinWheelTypes';
 import type { ReferralNotification } from '@/lib/referralNotifications';
 import { SIGNUP_BONUS_DOLLARS, SIGNUP_BONUS_POINTS } from '@/lib/signupBonus';
 import { useSiteContent } from '@/lib/useSiteContent';
@@ -18,6 +18,7 @@ import TurnstileField from '@/app/components/TurnstileField';
 import { useTurnstileConfig } from '@/lib/useTurnstileConfig';
 import SubscriptionPanel from '@/app/components/SubscriptionPanel';
 import SocialHaulRewards from '@/app/components/SocialHaulRewards';
+import TouchdownRewards from '@/app/components/TouchdownRewards';
 
 interface PromoTerms {
   customerDiscount: number;
@@ -972,6 +973,7 @@ export default function Account() {
         )}
 
         {tab === 'profile' && (
+          <div className="space-y-6">
           <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800 space-y-6">
             <h2 className="text-2xl font-bold">Profile & Socials</h2>
 
@@ -1001,9 +1003,9 @@ export default function Account() {
               />
             </div>
 
-            <h3 className="text-lg font-semibold pt-2">Wheel Coupons</h3>
+            <h3 className="text-lg font-semibold pt-2">Wheel & TD Coupons</h3>
             <p className="text-sm text-zinc-500 mb-4">
-              Accepted prizes save here for 7 days. Different types can stack (e.g. % off + free shipping) — pick one per checkout. A better % off coupon automatically replaces a lower one.
+              Wheel prizes save for 7 days. TD credits save for 30 days. Pick <strong className="text-zinc-300">one coupon per checkout</strong> — they do not stack with promo codes or each other.
             </p>
             {user.pendingSpinPrize ? (
               <div className="bg-black border border-amber-400/30 rounded-2xl p-5 mb-4">
@@ -1020,11 +1022,17 @@ export default function Account() {
                   <div key={coupon.id} className="bg-black border border-[#00ff9d]/30 rounded-2xl p-5">
                     <p className="text-xl font-bold text-[#00ff9d]">{coupon.label}</p>
                     <p className="text-sm text-zinc-500 mt-2">
+                      {isTdCoupon(coupon) ? 'TouchDown credit · ' : ''}
                       Expires {coupon.expiresAt ? new Date(coupon.expiresAt).toLocaleDateString() : 'N/A'}
                       {getSpinPrizeDaysRemaining(coupon) !== null && (
                         <> · {getSpinPrizeDaysRemaining(coupon)} day{getSpinPrizeDaysRemaining(coupon) === 1 ? '' : 's'} left</>
                       )}
                     </p>
+                    {isTdCoupon(coupon) && (
+                      <p className="text-xs text-zinc-500 mt-2">
+                        Use at checkout or trade for wheel spins in the TouchDown section below.
+                      </p>
+                    )}
                   </div>
                 ))}
                 <Link href="/checkout" className="inline-block text-sm text-[#00ff9d] hover:underline">
@@ -1100,6 +1108,12 @@ export default function Account() {
               {saving ? 'Saving...' : 'Save Profile'}
             </button>
           </div>
+            <TouchdownRewards
+              onUpdated={() => {
+                void loadProfile();
+              }}
+            />
+          </div>
         )}
 
         {tab === 'loyalty' && (
@@ -1122,6 +1136,7 @@ export default function Account() {
                 <p>• Earn <strong>{promoTerms?.referrerRewardPoints ?? 100} points</strong> per promo code use</p>
                 <p>• Share your <strong>personal promo code</strong> — earn <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on each order</p>
                 <p>• Post haul pics on <strong>X</strong> and submit the link below for bonus points (after review)</p>
+                <p>• Post a <strong>TouchDown / TD</strong> of your pack landing for an automatic <strong>$5 coupon</strong> — one at a time, trade it for wheel spins if you want</p>
                 <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
                 <p>• New members earn <strong>${SIGNUP_BONUS_DOLLARS} ({SIGNUP_BONUS_POINTS.toLocaleString()} pts)</strong> after verifying email or phone — unlocked after first purchase</p>
                 <p>• Gamble <strong>{spinCost} points</strong> on the prize wheel for discounts, free shipping, and more</p>
@@ -1137,6 +1152,12 @@ export default function Account() {
                 Shop & Earn Points
               </Link>
             </div>
+
+            <TouchdownRewards
+              onUpdated={() => {
+                void loadProfile();
+              }}
+            />
 
             <SocialHaulRewards loyaltyEnabled={features.loyaltyProgram?.enabled !== false} />
           </div>

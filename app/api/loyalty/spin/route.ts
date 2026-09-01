@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
           success: true,
           message: kept
             ? `You already have a better coupon (${kept.label}) — kept that one. You can keep spinning!`
-            : 'You already have a better coupon — kept your existing one. You can keep spinning!',
+            : 'You already have a $5 credit — coupons do not stack. Kept your existing one. You can keep spinning!',
           savedCoupons: result.savedCoupons,
           keptExistingBetter: true,
         });

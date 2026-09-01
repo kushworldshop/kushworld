@@ -25,7 +25,7 @@ jobs:
             git pull origin main
             mkdir -p data
             cp -a /var/www/kushworld-data-keep/. data/
-            npm ci
+            npm ci --ignore-scripts --no-audit --no-fund
             npm run build
             mkdir -p data
             pm2 restart kushworld || pm2 start npm --name "kushworld" -- start

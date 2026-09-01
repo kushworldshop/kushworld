@@ -547,6 +547,11 @@ export async function markUserSpinPrizeUsed(
   users[index].activeSpinPrize = undefined;
   await writeUsers(users);
   await markSpinHistoryUsed(prizeId, meta);
+  const used = stored[couponIndex];
+  if (used.source === 'td' || used.segmentId === 'td_five_off') {
+    const { markTdCreditUsed } = await import('@/lib/tdRewards');
+    await markTdCreditUsed(prizeId);
+  }
 }
 
 export async function getUserDashboard(userId: string): Promise<PublicUserProfile | null> {

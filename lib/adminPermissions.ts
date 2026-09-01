@@ -75,7 +75,9 @@ export function permissionForRequest(request: NextRequest): StaffPermission | 'o
   if (path.startsWith('/api/admin/abandoned-carts') || path.startsWith('/api/admin/cart-stats')) {
     return 'carts';
   }
-  if (path.startsWith('/api/admin/social-rewards')) return 'social';
+  if (path.startsWith('/api/admin/social-rewards') || path.startsWith('/api/admin/td-rewards')) {
+    return 'social';
+  }
   if (path.startsWith('/api/admin/subscriptions')) return 'subscriptions';
   if (
     path.startsWith('/api/admin/site-content') ||

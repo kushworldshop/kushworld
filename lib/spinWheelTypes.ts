@@ -76,6 +76,15 @@ export interface SpinPrize {
   acceptedAt?: string;
   expiresAt?: string;
   usedAt?: string;
+  /** Wheel win vs TouchDown / TD post credit. */
+  source?: 'wheel' | 'td';
+  tdPostUrl?: string;
+  tdSubmissionId?: string;
+}
+
+export function isTdCoupon(prize: Pick<SpinPrize, 'source' | 'segmentId'> | null | undefined): boolean {
+  if (!prize) return false;
+  return prize.source === 'td' || prize.segmentId === 'td_five_off';
 }
 
 /** Weights use a 1000-point pool (slot-style RTP). Higher weight = more common outcome. */
