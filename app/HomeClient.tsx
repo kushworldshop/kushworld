@@ -60,8 +60,8 @@ export default function HomeClient({ initialReviews, initialReviewStats }: HomeC
         {!isMerchOnly && features.onSale.enabled && (
           <ProductCollectionSection
             type="on-sale"
-            title="Fire sales"
-            subtitle="Marked-down picks while they last."
+            title={features.onSale.title}
+            subtitle={features.onSale.subtitle}
             ctaHref="/shop"
             ctaLabel="Shop Deals"
             hempOnly

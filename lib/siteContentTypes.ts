@@ -127,15 +127,15 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
   },
   announcementBar: {
     enabled: true,
-    fullAccess: 'Free 8th on first order • Free shipping $150+ • Discord early drops',
+    fullAccess: 'Free 8th on first order • Free shipping $150+ • Discreet nationwide',
     merchOnly: '👕 Studio merch — Custom made to order',
   },
   hero: {
     fullAccess: {
       eyebrow: 'Kush World',
-      headline: 'Indoor Flower.\nDelivered Right.',
+      headline: 'Premium Goods,\nDelivered Right',
       subtitle:
-        'Fresh drops, vapes, concentrates, and official Kush World Studio merch. Discreet shipping nationwide.',
+        'Indoor, smalls, exotics, vapes, concentrates, and official Kush World Studio merch. Discreet shipping nationwide.',
       primaryCtaLabel: 'Shop Flower',
       secondaryCtaLabel: 'Full Catalog',
       badges: ['Free 8th first order', 'Free Shipping $150+', '21+ Only'],

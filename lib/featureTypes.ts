@@ -142,7 +142,7 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
     enabled: true,
     productSlug: 'red-pillz',
     eyebrow: 'New Drop',
-    headline: 'JUST DROPPED',
+    headline: 'Now on the menu',
     discordEarlyAccess: true,
   },
   reviewsSection: { enabled: true },

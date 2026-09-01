@@ -21,7 +21,7 @@ export default function Categories({ merchOnly = false }: { merchOnly?: boolean 
     <section id="categories" className="py-16 bg-zinc-950">
       <div className="max-w-7xl mx-auto px-6">
         <h2 className="text-4xl md:text-5xl font-bold text-center mb-10">
-          {merchOnly ? 'Studio merch' : 'Shop by category'}
+          {merchOnly ? 'STUDIO MERCH' : 'THE SHOP'}
         </h2>
         <div
           className={`grid gap-4 ${
