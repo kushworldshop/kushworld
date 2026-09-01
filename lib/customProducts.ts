@@ -10,6 +10,33 @@ import {
 import { sanitizeTierPricing } from '@/lib/tierPricing';
 
 const CUSTOM_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'custom-products.json');
+const DELETED_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'deleted-product-ids.json');
+
+interface DeletedProductsFile {
+  ids: string[];
+  updatedAt: string;
+}
+
+async function readDeletedProductIds(): Promise<string[]> {
+  try {
+    const raw = await fs.readFile(DELETED_PRODUCTS_FILE, 'utf8');
+    const parsed = JSON.parse(raw) as Partial<DeletedProductsFile>;
+    return Array.isArray(parsed.ids) ? parsed.ids.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeDeletedProductIds(ids: string[]): Promise<void> {
+  const dataDir = path.join(process.cwd(), 'data');
+  await fs.mkdir(dataDir, { recursive: true });
+  const unique = [...new Set(ids.filter(isCustomProductId))];
+  const payload: DeletedProductsFile = {
+    ids: unique,
+    updatedAt: new Date().toISOString(),
+  };
+  await fs.writeFile(DELETED_PRODUCTS_FILE, JSON.stringify(payload, null, 2));
+}
 
 async function ensureCustomProductsFile() {
   const dataDir = path.join(process.cwd(), 'data');
@@ -24,12 +51,21 @@ async function ensureCustomProductsFile() {
 export async function readCustomProducts(): Promise<Product[]> {
   await ensureCustomProductsFile();
   const data = await fs.readFile(CUSTOM_PRODUCTS_FILE, 'utf8');
-  return JSON.parse(data) as Product[];
+  const products = JSON.parse(data) as Product[];
+  const deleted = new Set(await readDeletedProductIds());
+  if (deleted.size === 0) return products;
+  const kept = products.filter((product) => !deleted.has(product.id));
+  if (kept.length !== products.length) {
+    await fs.writeFile(CUSTOM_PRODUCTS_FILE, JSON.stringify(kept, null, 2));
+  }
+  return kept;
 }
 
 export async function writeCustomProducts(products: Product[]): Promise<void> {
   await ensureCustomProductsFile();
-  await fs.writeFile(CUSTOM_PRODUCTS_FILE, JSON.stringify(products, null, 2));
+  const deleted = new Set(await readDeletedProductIds());
+  const next = deleted.size > 0 ? products.filter((product) => !deleted.has(product.id)) : products;
+  await fs.writeFile(CUSTOM_PRODUCTS_FILE, JSON.stringify(next, null, 2));
 }
 
 export function isCustomProductId(id: string): boolean {
@@ -61,6 +97,10 @@ export async function createCustomProduct(input: Omit<Product, 'id'> & { id?: st
   const id = input.id || buildCustomProductId(input.name);
   if (products.some((product) => product.id === id)) {
     throw new Error(`Product already exists: ${input.name}`);
+  }
+  const deleted = await readDeletedProductIds();
+  if (deleted.includes(id)) {
+    await writeDeletedProductIds(deleted.filter((value) => value !== id));
   }
 
   const product: Product = applyFlowerProductOptions({
@@ -244,6 +284,8 @@ export async function deleteCustomProducts(ids: string[]): Promise<number> {
   const products = await readCustomProducts();
   const next = products.filter((product) => !idSet.has(product.id));
   const removed = products.length - next.length;
+  const deleted = await readDeletedProductIds();
+  await writeDeletedProductIds([...deleted, ...idSet]);
   if (removed > 0) await writeCustomProducts(next);
   return removed;
 }

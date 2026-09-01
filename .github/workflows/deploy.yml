@@ -20,7 +20,11 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /var/www/kushworld
+            mkdir -p /var/www/kushworld-data-keep
+            if [ -d data ]; then cp -a data/. /var/www/kushworld-data-keep/; fi
             git pull origin main
+            mkdir -p data
+            cp -a /var/www/kushworld-data-keep/. data/
             npm ci
             npm run build
             mkdir -p data

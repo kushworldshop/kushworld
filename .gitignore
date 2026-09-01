@@ -26,7 +26,6 @@
 /_product_import*
 /data/*
 !data/ship-from-addresses.json
-!data/custom-products.json
 
 # debug
 npm-debug.log*

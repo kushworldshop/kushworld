@@ -14,7 +14,11 @@ $sshKey = "$env:USERPROFILE\.ssh\kushworld_github_actions_ci"
 $remote = "root@46.62.249.173"
 $remoteCmd = @'
 cd /var/www/kushworld && \
+mkdir -p /var/www/kushworld-data-keep && \
+if [ -d data ]; then cp -a data/. /var/www/kushworld-data-keep/; fi && \
 git pull && \
+mkdir -p data && \
+cp -a /var/www/kushworld-data-keep/. data/ && \
 pm2 stop kushworld || true && \
 rm -rf node_modules .next package-lock.json && \
 npm cache clean --force && \
