@@ -14,16 +14,22 @@ import SubscriptionsTab from '@/app/admin/components/SubscriptionsTab';
 import WishlistTab from '@/app/admin/components/WishlistTab';
 import CartsTab from '@/app/admin/components/CartsTab';
 import SocialRewardsTab from '@/app/admin/components/SocialRewardsTab';
+import StaffTab from '@/app/admin/components/StaffTab';
+import type { StaffPermission, StaffRole } from '@/lib/adminPermissions';
 
 
-type AdminTab = 'orders' | 'members' | 'products' | 'wheel' | 'wishlist' | 'carts' | 'social' | 'subscriptions' | 'settings';
+type AdminTab = 'orders' | 'members' | 'products' | 'wheel' | 'wishlist' | 'carts' | 'social' | 'subscriptions' | 'settings' | 'staff';
 
 export default function AdminOrders() {
   const [authenticated, setAuthenticated] = useState(false);
+  const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<AdminTab>('orders');
+  const [role, setRole] = useState<StaffRole>('owner');
+  const [staffName, setStaffName] = useState('Owner');
+  const [permissions, setPermissions] = useState<StaffPermission[]>([]);
   const [siteContent, setSiteContent] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
   const bootstrapAdmin = () => {
     loadSiteContent();
@@ -36,6 +42,12 @@ export default function AdminOrders() {
       .then((data) => {
         if (data.authenticated) {
           setAuthenticated(true);
+          setRole(data.role || 'owner');
+          setStaffName(data.name || 'Owner');
+          const nextRole = data.role || 'owner';
+          const nextPermissions = Array.isArray(data.permissions) ? data.permissions : [];
+          setPermissions(nextPermissions);
+          setTab(firstAllowedTab(nextRole, nextPermissions));
           bootstrapAdmin();
         } else {
           setLoading(false);
@@ -50,14 +62,20 @@ export default function AdminOrders() {
       const res = await adminFetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: passwordInput }),
+        body: JSON.stringify({ username: usernameInput, password: passwordInput }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Incorrect password');
+        setError(data.error || 'Incorrect name or passcode');
         return;
       }
       setAuthenticated(true);
+      setRole(data.role || 'owner');
+      setStaffName(data.name || 'Owner');
+      const nextRole = data.role || 'owner';
+      const nextPermissions = Array.isArray(data.permissions) ? data.permissions : [];
+      setPermissions(nextPermissions);
+      setTab(firstAllowedTab(nextRole, nextPermissions));
       setError('');
       bootstrapAdmin();
     } catch {
@@ -68,7 +86,31 @@ export default function AdminOrders() {
   const logout = async () => {
     await adminFetch('/api/admin/logout', { method: 'POST' });
     setAuthenticated(false);
+    setUsernameInput('');
     setPasswordInput('');
+    setRole('owner');
+    setPermissions([]);
+  };
+
+  const can = (permission: StaffPermission, nextRole = role, nextPermissions = permissions) =>
+    nextRole === 'owner' || nextRole === 'admin' || nextPermissions.includes(permission);
+
+  const firstAllowedTab = (nextRole: StaffRole, nextPermissions: StaffPermission[]): AdminTab => {
+    const tabs: Array<[AdminTab, StaffPermission]> = [
+      ['orders', 'orders'],
+      ['products', 'products'],
+      ['members', 'members'],
+      ['carts', 'carts'],
+      ['wishlist', 'wishlist'],
+      ['social', 'social'],
+      ['wheel', 'wheel'],
+      ['subscriptions', 'subscriptions'],
+      ['settings', 'settings'],
+    ];
+    for (const [nextTab, permission] of tabs) {
+      if (can(permission, nextRole, nextPermissions)) return nextTab;
+    }
+    return nextRole === 'owner' ? 'staff' : 'orders';
   };
 
   const loadSiteContent = async () => {
@@ -93,10 +135,21 @@ export default function AdminOrders() {
       <div className="min-h-screen bg-black flex items-center justify-center p-6">
         <div className="bg-zinc-900 p-10 rounded-3xl w-full max-w-md text-center border border-zinc-700">
           <h1 className="text-4xl font-bold mb-8 text-[#00ff9d]">KushWorld Admin</h1>
+
+          <input
+            type="text"
+            autoComplete="username"
+            placeholder="Login name (owner leave blank)"
+            value={usernameInput}
+            onChange={(e) => setUsernameInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            className="w-full bg-black border border-zinc-700 p-5 rounded-2xl text-lg mb-4 focus:outline-none focus:border-[#00ff9d]"
+          />
           
           <input
             type="password"
-            placeholder="Enter Admin Password"
+            autoComplete="current-password"
+            placeholder="Passcode"
             value={passwordInput}
             onChange={(e) => setPasswordInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
@@ -120,8 +173,13 @@ export default function AdminOrders() {
   return (
     <div className="min-h-screen bg-black text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-5xl font-bold">KushWorld Admin</h1>
+        <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
+          <div>
+            <h1 className="text-5xl font-bold">KushWorld Admin</h1>
+            <p className="text-sm text-zinc-500 mt-2">
+              Signed in as {staffName} · {role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : 'Mod'}
+            </p>
+          </div>
           <button 
             onClick={logout}
             className="px-8 py-4 bg-red-600 hover:bg-red-700 rounded-2xl font-medium transition"
@@ -131,63 +189,89 @@ export default function AdminOrders() {
         </div>
 
         <div className="flex flex-wrap gap-3 mb-10">
+          {can('orders') && (
           <button
             onClick={() => setTab('orders')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'orders' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Orders
           </button>
+          )}
+          {can('members') && (
           <button
             onClick={() => setTab('members')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'members' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Members
           </button>
+          )}
+          {can('products') && (
           <button
             onClick={() => setTab('products')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'products' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Products
           </button>
+          )}
+          {can('wheel') && (
           <button
             onClick={() => setTab('wheel')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'wheel' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Wheel Wins
           </button>
+          )}
+          {can('wishlist') && (
           <button
             onClick={() => setTab('wishlist')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'wishlist' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Wishlist
           </button>
+          )}
+          {can('carts') && (
           <button
             onClick={() => setTab('carts')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'carts' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Live Carts
           </button>
+          )}
+          {can('social') && (
           <button
             onClick={() => setTab('social')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'social' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             X Rewards
           </button>
+          )}
+          {can('subscriptions') && (
           <button
             onClick={() => setTab('subscriptions')}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'subscriptions' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Subscriptions
           </button>
+          )}
+          {can('settings') && (
           <button
             onClick={() => { setTab('settings'); loadSiteContent(); }}
             className={`px-6 py-3 rounded-xl font-medium ${tab === 'settings' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
           >
             Site Settings
           </button>
+          )}
+          {role === 'owner' && (
+          <button
+            onClick={() => setTab('staff')}
+            className={`px-6 py-3 rounded-xl font-medium ${tab === 'staff' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
+          >
+            Staff
+          </button>
+          )}
         </div>
 
-        {tab === 'settings' && (
+        {tab === 'settings' && can('settings') && (
           <div className="space-y-16">
             <div>
               <p className="text-xs uppercase tracking-widest text-zinc-500 mb-6">Step 1 — Feature toggles</p>
@@ -200,23 +284,26 @@ export default function AdminOrders() {
           </div>
         )}
 
-        {tab === 'subscriptions' && (
+        {tab === 'subscriptions' && can('subscriptions') && (
           <SubscriptionsTab featureEnabled={siteContent.features.subscriptions?.enabled ?? false} />
         )}
 
-        {tab === 'members' && <CustomersTab />}
+        {tab === 'members' && can('members') && <CustomersTab />}
 
-        {tab === 'products' && <ProductsTab />}
+        {tab === 'products' && can('products') && (
+          <ProductsTab canDeleteProducts={can('productsDelete')} />
+        )}
+        {tab === 'staff' && role === 'owner' && <StaffTab />}
 
-        {tab === 'wheel' && <SpinWheelTab />}
+        {tab === 'wheel' && can('wheel') && <SpinWheelTab />}
 
-        {tab === 'wishlist' && <WishlistTab />}
+        {tab === 'wishlist' && can('wishlist') && <WishlistTab />}
 
-        {tab === 'carts' && <CartsTab />}
+        {tab === 'carts' && can('carts') && <CartsTab />}
 
-        {tab === 'social' && <SocialRewardsTab />}
+        {tab === 'social' && can('social') && <SocialRewardsTab />}
 
-        {tab === 'orders' && <OrdersTab />}
+        {tab === 'orders' && can('orders') && <OrdersTab />}
       </div>
     </div>
   );

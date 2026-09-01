@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAdminRequest } from '@/lib/adminAuth';
+import { getAdminSession, sessionHasPermission } from '@/lib/adminAuth';
 import { getSiteContent } from '@/lib/siteContent';
 import { isFeatureEnabled } from '@/lib/featureTypes';
 import { isXaiConfigured } from '@/lib/xai';
@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (mode === 'admin' || mode === 'content') {
-      const isAdmin = await isAdminRequest(request);
-      if (!isAdmin) {
+      const session = getAdminSession(request);
+      if (!session || !sessionHasPermission(session, 'settings')) {
         return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 401 });
       }
     }

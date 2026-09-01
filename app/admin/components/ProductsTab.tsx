@@ -204,7 +204,7 @@ function buildProductSavePayload(productId: string, draft: ProductDraft) {
   };
 }
 
-export default function ProductsTab() {
+export default function ProductsTab({ canDeleteProducts = true }: { canDeleteProducts?: boolean }) {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [edits, setEdits] = useState<Record<string, ProductEditPatch>>({});
   const [search, setSearch] = useState('');
@@ -1442,6 +1442,7 @@ export default function ProductsTab() {
                 <p className="text-xs text-[#00ff9d] font-medium">
                   {checkedIds.length} product{checkedIds.length === 1 ? '' : 's'} selected
                 </p>
+                {canDeleteProducts && (
                 <button
                   type="button"
                   onClick={deleteSelectedProducts}
@@ -1464,6 +1465,7 @@ export default function ProductsTab() {
                             : ''
                       }`}
                 </button>
+                )}
               </div>
             )}
             <div className="grid grid-cols-2 gap-2">
@@ -1495,7 +1497,7 @@ export default function ProductsTab() {
                     {showImportPanel ? 'Close import' : 'Import images'}
                   </button>
                 )}
-                {!usingSelection && removableBulkCount > 0 && (
+                {!usingSelection && canDeleteProducts && removableBulkCount > 0 && (
                   <button
                     type="button"
                     onClick={deleteSelectedProducts}
