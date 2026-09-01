@@ -2706,5 +2706,77 @@
     ],
     "hideBulkPricing": true,
     "description": "Terp Burst Liquid Diamond Infused Gummies — premium 800mg pouches with 8 pieces at 100mg each (22.4g net weight). California-compliant packaging. Pick your flavor below.\n\nEach pouch is liquid diamond infused for a clean, potent edible experience. Lab-tested hemp-derived product — 21+ only."
+  },
+  {
+    "id": "custom-budget-flower",
+    "name": "Budget Flower",
+    "slug": "budget-flower",
+    "price": 796.43,
+    "image": "/products/uploads/product-custom-budget-flower.jpg",
+    "images": [
+      "/products/uploads/product-custom-budget-flower.jpg"
+    ],
+    "media": [
+      {
+        "type": "image",
+        "url": "/products/uploads/product-custom-budget-flower.jpg"
+      }
+    ],
+    "category": "flower",
+    "subcategory": "budget",
+    "tier": "Budget",
+    "strainType": "Hybrid",
+    "effects": [
+      "relax",
+      "social"
+    ],
+    "isNew": true,
+    "featured": true,
+    "hideBulkPricing": true,
+    "sizes": [],
+    "optionGroups": [
+      {
+        "name": "Weight",
+        "values": [
+          {
+            "label": "3.5g",
+            "optionPrice": 6.25
+          },
+          {
+            "label": "7g",
+            "optionPrice": 12.5
+          },
+          {
+            "label": "14g",
+            "optionPrice": 25
+          },
+          {
+            "label": "28g (zip)",
+            "optionPrice": 50
+          },
+          {
+            "label": "112g",
+            "optionPrice": 200
+          },
+          {
+            "label": "228g",
+            "optionPrice": 407.14
+          },
+          {
+            "label": "446g (1 lb)",
+            "optionPrice": 796.43
+          }
+        ]
+      },
+      {
+        "name": "Flavor",
+        "values": [
+          {
+            "label": "House Mix"
+          }
+        ]
+      }
+    ],
+    "description": "Kush World Budget Flower is the everyday zip. House mix, no frills, $50 an ounce. Grab a 3.5, a zip, or a pound — same $50/oz scale all the way up.\n\nThis is the daily-driver lane: indoor, smalls, and whatever we have running that week. Strain can rotate. If you want a named exotic, shop Indoor or Exotic. If you want to stock up without the luxury tax, this is it.\n\n• $50 / oz (28g)\n• House mix — strain rotates\n• 21+ only, discreet shipping"
   }
 ]

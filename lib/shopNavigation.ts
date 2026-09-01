@@ -56,9 +56,14 @@ export const DEFAULT_SHOP_NAVIGATION: ShopNavigation = {
     {
       id: 'flower',
       label: 'Flower',
-      description: 'Premium hemp flower in every style — indoor, smalls, exotic, and more. Lab-tested with COAs. 21+ only.',
+      description: 'Indoor, smalls, exotic, and budget flower. Discreet shipping nationwide. 21+ only.',
       productCategories: ['flower'],
-      subsections: [],
+      subsections: [
+        { id: 'indoor', label: 'Indoor' },
+        { id: 'smalls', label: 'Smalls' },
+        { id: 'exotic', label: 'Exotic' },
+        { id: 'budget', label: 'Budget' },
+      ],
       enabled: true,
     },
     {
@@ -163,14 +168,21 @@ export function mergeShopNavigation(partial?: Partial<ShopNavigation>): ShopNavi
   const normalizedCategories = flowerDefaults
     ? categories.map((category) => {
         if (category.id !== 'flower') return category;
+        const subsections = [...(category.subsections ?? [])];
+        for (const subsection of flowerDefaults.subsections) {
+          if (!subsections.some((item) => item.id === subsection.id)) {
+            subsections.push({ ...subsection });
+          }
+        }
         if (category.label === 'Exotic Flower') {
           return {
             ...category,
             label: flowerDefaults.label,
             description: flowerDefaults.description,
+            subsections,
           };
         }
-        return category;
+        return { ...category, subsections };
       })
     : categories;
 
