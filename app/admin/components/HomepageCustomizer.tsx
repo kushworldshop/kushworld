@@ -241,10 +241,15 @@ export default function HomepageCustomizer({
           </div>
         </div>
 
-        <div className="hidden xl:block rounded-[1.5rem] border border-zinc-800 overflow-hidden bg-black min-h-[640px]">
+        <div className="rounded-[1.5rem] border border-zinc-800 overflow-hidden bg-black min-h-[420px] lg:min-h-[640px]">
           <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
             <p className="text-[10px] uppercase tracking-widest text-zinc-500">Live homepage</p>
-            <a href="/" target="_blank" rel="noreferrer" className="text-[11px] text-[#00ff9d]">
+            <a
+              href={`/?preview=${previewKey}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] text-[#00ff9d]"
+            >
               Open in tab
             </a>
           </div>
@@ -252,7 +257,7 @@ export default function HomepageCustomizer({
             key={previewKey}
             title="Homepage preview"
             src={`/?preview=${previewKey}`}
-            className="w-full h-[720px] bg-black"
+            className="w-full h-[480px] lg:h-[720px] bg-black"
           />
         </div>
 

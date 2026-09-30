@@ -4,9 +4,13 @@ import { checkRateLimit, getClientIp, getRouteRateLimit, rateLimitResponse } fro
 
 const isProd = process.env.NODE_ENV === 'production';
 
-function applySecurityHeaders(response: NextResponse) {
+function applySecurityHeaders(request: NextRequest, response: NextResponse) {
+  const allowAdminPreviewFrame =
+    request.nextUrl.pathname === '/' && request.nextUrl.searchParams.has('preview');
+
   // Core security headers (many also set at CF layer; we enforce at origin too)
-  response.headers.set('X-Frame-Options', 'DENY');
+  // SAMEORIGIN only for the admin homepage preview iframe. Everything else stays unframeable.
+  response.headers.set('X-Frame-Options', allowAdminPreviewFrame ? 'SAMEORIGIN' : 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
@@ -46,7 +50,7 @@ function applySecurityHeaders(response: NextResponse) {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: https://cdnjs.cloudflare.com",
     "connect-src 'self' https: wss:",
-    "frame-ancestors 'none'",
+    allowAdminPreviewFrame ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
@@ -75,7 +79,7 @@ export function proxy(request: NextRequest) {
   }
 
   const response = NextResponse.next();
-  applySecurityHeaders(response);
+  applySecurityHeaders(request, response);
   return response;
 }
 
