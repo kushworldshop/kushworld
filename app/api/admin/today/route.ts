@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminSession } from '@/lib/adminAuth';
-import { getAdminTodayItems } from '@/lib/adminToday';
+import { getAdminTodayItems } from '@/lib/adminTodayCounts';
 
 export async function GET(request: NextRequest) {
   const session = getAdminSession(request);

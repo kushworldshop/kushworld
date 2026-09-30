@@ -26,9 +26,11 @@ jobs:
             git reset --hard origin/main
             mkdir -p data
             cp -a /var/www/kushworld-data-keep/. data/
+            pm2 stop kushworld || true
             npm ci --ignore-scripts --no-audit --no-fund
             npm run build
             mkdir -p data
+            cp -a /var/www/kushworld-data-keep/. data/
             pm2 restart kushworld || pm2 start npm --name "kushworld" -- start
             pm2 save
             # One-time HTTPS setup (run manually if https://kushworld.shop fails):
