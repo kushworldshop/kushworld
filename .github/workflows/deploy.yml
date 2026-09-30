@@ -22,7 +22,8 @@ jobs:
             cd /var/www/kushworld
             mkdir -p /var/www/kushworld-data-keep
             if [ -d data ]; then cp -a data/. /var/www/kushworld-data-keep/; fi
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             mkdir -p data
             cp -a /var/www/kushworld-data-keep/. data/
             npm ci --ignore-scripts --no-audit --no-fund
