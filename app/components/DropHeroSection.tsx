@@ -5,29 +5,31 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getProductSlug, type Product } from '@/lib/products';
 import { getFlowerWeightPrice, isFlowerProductCategory } from '@/lib/flowerWeights';
+import { isDropClockVisible, type DropHeroConfig } from '@/lib/dropClock';
 import { useSiteContent } from '@/lib/useSiteContent';
+import DropClock from './DropClock';
 import ProductMetaBadges from './ProductMetaBadges';
 
 export default function DropHeroSection({
   initialProduct = null,
+  initialDrop = null,
 }: {
   initialProduct?: Product | null;
+  initialDrop?: DropHeroConfig | null;
 }) {
-  const { content } = useSiteContent();
-  const { features } = content;
+  const { content, ready } = useSiteContent();
+  const drop = (ready ? content.features.dropHero : initialDrop) ?? content.features.dropHero;
   const [product, setProduct] = useState<Product | null>(initialProduct);
 
   useEffect(() => {
-    if (!features.dropHero?.enabled) return;
+    if (!drop?.enabled) return;
     fetch('/api/products')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         const products = ((data?.products as Product[] | undefined) ?? []).filter(
           (item) => !item.hidden && item.category !== 'merch'
         );
-        const match = products.find(
-          (item) => getProductSlug(item) === features.dropHero.productSlug
-        );
+        const match = products.find((item) => getProductSlug(item) === drop.productSlug);
         const fallback =
           products.find((item) => item.isNew && item.category === 'flower') ||
           products.find((item) => item.category === 'flower') ||
@@ -35,9 +37,47 @@ export default function DropHeroSection({
         setProduct(match || fallback || null);
       })
       .catch(() => {});
-  }, [features.dropHero?.enabled, features.dropHero?.productSlug]);
+  }, [drop?.enabled, drop?.productSlug]);
 
-  if (!features.dropHero?.enabled || !product) return null;
+  if (!drop?.enabled) return null;
+  const showClock = isDropClockVisible(drop);
+  if (!product && !showClock) return null;
+
+  if (!product) {
+    return (
+      <section className="py-16 md:py-20 bg-gradient-to-b from-zinc-950 to-black border-y border-zinc-900">
+        <div className="max-w-3xl mx-auto px-6 text-center">
+          <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-4">
+            ▶ {drop.headline}
+          </p>
+          {drop.eyebrow && <h2 className="text-4xl md:text-5xl font-bold mb-6">{drop.eyebrow}</h2>}
+          <DropClock drop={drop} />
+          {drop.discordEarlyAccess && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6 text-left">
+              <p className="text-sm text-zinc-300 mb-2">
+                <i className="fa-brands fa-discord text-[#00ff9d] mr-2" />
+                Discord Verified members get early access to new drops.
+              </p>
+              <a
+                href={content.social.discordUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-[#00ff9d] hover:underline font-semibold"
+              >
+                Join Discord for early drops →
+              </a>
+            </div>
+          )}
+          <Link
+            href="/shop/flower"
+            className="inline-block px-8 py-4 bg-[#00ff9d] text-black font-bold rounded-2xl hover:bg-[#00ff9d]/90 transition"
+          >
+            Shop Flower
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="py-16 md:py-20 bg-gradient-to-b from-zinc-950 to-black border-y border-zinc-900">
@@ -53,14 +93,15 @@ export default function DropHeroSection({
               priority
             />
             <div className="absolute top-4 left-4 bg-[#00ff9d] text-black text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
-              {features.dropHero.eyebrow}
+              {drop.eyebrow}
             </div>
           </div>
 
           <div>
             <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-4">
-              ▶ {features.dropHero.headline}
+              ▶ {drop.headline}
             </p>
+            <DropClock drop={drop} />
             <h2 className="text-4xl md:text-5xl font-bold mb-4">{product.name}</h2>
             <div className="mb-4">
               <ProductMetaBadges product={product} size="md" />
@@ -99,7 +140,7 @@ export default function DropHeroSection({
                 : `From $${product.price}`}
             </p>
 
-            {features.dropHero.discordEarlyAccess && (
+            {drop.discordEarlyAccess && (
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 mb-6">
                 <p className="text-sm text-zinc-300 mb-2">
                   <i className="fa-brands fa-discord text-[#00ff9d] mr-2" />

@@ -23,12 +23,14 @@ import { useSiteContent } from '@/lib/useSiteContent';
 import type { ReviewCardData } from './components/ReviewCard';
 import type { Product } from '@/lib/products';
 import type { PublicTdPost } from '@/lib/tdRewards';
+import type { SiteFeatures } from '@/lib/featureTypes';
 
 interface HomeClientProps {
   initialReviews?: ReviewCardData[];
   initialReviewStats?: { count: number; average: number };
   boardProducts?: Product[];
   dropProduct?: Product | null;
+  dropHero?: SiteFeatures['dropHero'] | null;
   merchProducts?: Product[];
   tdPosts?: PublicTdPost[];
 }
@@ -38,13 +40,15 @@ export default function HomeClient({
   initialReviewStats,
   boardProducts = [],
   dropProduct = null,
+  dropHero = null,
   merchProducts = [],
   tdPosts = [],
 }: HomeClientProps) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { isMerchOnly } = useAgeAccess();
-  const { content } = useSiteContent();
+  const { content, ready } = useSiteContent();
   const { features } = content;
+  const drop = (ready ? features.dropHero : dropHero) ?? features.dropHero;
 
   return (
     <>
@@ -56,8 +60,8 @@ export default function HomeClient({
 
         {!isMerchOnly && <BoardSection products={boardProducts} />}
 
-        {!isMerchOnly && features.dropHero?.enabled && (
-          <DropHeroSection initialProduct={dropProduct} />
+        {!isMerchOnly && drop?.enabled && (
+          <DropHeroSection initialProduct={dropProduct} initialDrop={drop} />
         )}
 
         <Categories merchOnly={isMerchOnly} />

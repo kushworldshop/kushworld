@@ -75,6 +75,7 @@ export default async function Home() {
         initialReviewStats={{ count: stats.count, average: stats.average }}
         boardProducts={boardProducts}
         dropProduct={dropProduct}
+        dropHero={content.features.dropHero}
         merchProducts={merchProducts}
         tdPosts={tdPosts}
       />

@@ -54,6 +54,15 @@ export interface SiteFeatures {
     eyebrow: string;
     headline: string;
     discordEarlyAccess: boolean;
+    /** Show the countdown on the drop block. Independent of the drop section itself. */
+    clockEnabled: boolean;
+    /** When false, remaining time is frozen at clockFrozenMs. */
+    clockRunning: boolean;
+    /** ISO end time used while the clock is running. */
+    clockEndsAt: string;
+    /** Remaining milliseconds captured when the clock is stopped. */
+    clockFrozenMs: number | null;
+    clockLabel: string;
   };
   reviewsSection: FeatureToggle;
   loyaltySection: FeatureToggle;
@@ -144,6 +153,11 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
     eyebrow: 'New Drop',
     headline: 'Now on the menu',
     discordEarlyAccess: true,
+    clockEnabled: false,
+    clockRunning: false,
+    clockEndsAt: '',
+    clockFrozenMs: null,
+    clockLabel: 'Goes live in',
   },
   reviewsSection: { enabled: true },
   loyaltySection: { enabled: true },

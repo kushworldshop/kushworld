@@ -1,10 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import { invalidateSiteContentCache } from '@/lib/useSiteContent';
 import type { SiteContent } from '@/lib/siteContentTypes';
-import type { FeaturePatch, SiteFeatures } from '@/lib/featureTypes';
+import { DEFAULT_SITE_FEATURES, type FeaturePatch, type SiteFeatures } from '@/lib/featureTypes';
+import {
+  applyDropClockDuration,
+  applyDropClockEndAt,
+  applyLiveDropClock,
+  applyStartDropClock,
+  applyStopDropClock,
+  DROP_CLOCK_PRESETS,
+  formatDropClockRemaining,
+  fromDatetimeLocalValue,
+  getDropClockRemainingMs,
+  isDropClockLive,
+  toDatetimeLocalValue,
+  type DropHeroConfig,
+} from '@/lib/dropClock';
 
 type FeatureSection = 'homepage' | 'shop' | 'account' | 'checkout' | 'compliance' | 'comingSoon';
 
@@ -73,6 +87,28 @@ function Field({
   );
 }
 
+function DropClockStatus({ drop }: { drop: DropHeroConfig }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!drop.clockRunning) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [drop.clockRunning, drop.clockEndsAt]);
+
+  const remaining = getDropClockRemainingMs(drop, now);
+  const live = isDropClockLive(drop, now);
+  let status = 'Clock hidden';
+  if (!drop.enabled) status = 'Drop block hidden from the site';
+  else if (!drop.clockEnabled) status = 'Drop is on · clock hidden';
+  else if (live) status = 'Live on site';
+  else if (drop.clockRunning) status = `Running · ${formatDropClockRemaining(remaining)} left`;
+  else if (remaining > 0) status = `Stopped · ${formatDropClockRemaining(remaining)} frozen`;
+  else status = 'Clock on · set an end time to start';
+
+  return <p className="text-sm text-[#00ff9d] font-medium">{status}</p>;
+}
+
 export default function FeaturesTab({
   content,
   onContentChange,
@@ -96,25 +132,33 @@ export default function FeaturesTab({
     onContentChange({ ...content, features: next });
   };
 
-  const save = async () => {
+  const drop: DropHeroConfig = { ...DEFAULT_SITE_FEATURES.dropHero, ...features.dropHero };
+
+  const save = async (nextFeatures = content.features, successMessage = 'Feature settings saved — live on site.') => {
     setSaving(true);
     setMessage('');
     try {
       const res = await adminFetch('/api/admin/site-content', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ features: content.features }),
+        body: JSON.stringify({ features: nextFeatures }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
       onContentChange({ ...content, features: data.content.features });
       invalidateSiteContentCache();
-      setMessage('Feature settings saved — live on site.');
+      setMessage(successMessage);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveDropHero = async (nextDrop: DropHeroConfig, successMessage: string) => {
+    const nextFeatures = { ...features, dropHero: nextDrop };
+    onContentChange({ ...content, features: nextFeatures });
+    await save(nextFeatures, successMessage);
   };
 
   const sections: { key: FeatureSection; label: string }[] = [
@@ -156,6 +200,148 @@ export default function FeaturesTab({
             <p className="text-sm text-zinc-400">
               Edit section titles and copy under Site Content → Homepage Sections.
             </p>
+
+            <div className="border border-[#00ff9d]/30 rounded-3xl p-5 space-y-4 bg-black/40">
+              <div>
+                <h3 className="text-lg font-bold">Drop clock</h3>
+                <p className="text-xs text-zinc-500 mt-1">
+                  Start, stop, and edit the countdown when you drop new items. Hide the clock without
+                  hiding the drop, or hide the whole drop block. Start / stop / hide / presets save
+                  immediately. Copy fields need Save.
+                </p>
+              </div>
+              <DropClockStatus drop={drop} />
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <Toggle
+                  label="Show drop on homepage"
+                  description="The drop block itself. Off hides the product and the clock."
+                  checked={drop.enabled}
+                  onChange={(enabled) =>
+                    void saveDropHero(
+                      { ...drop, enabled },
+                      enabled ? 'Drop is on the site.' : 'Drop hidden from the site.'
+                    )
+                  }
+                />
+                <Toggle
+                  label="Show countdown"
+                  description="Independent of the drop product. Off hides only the timer."
+                  checked={drop.clockEnabled}
+                  onChange={(clockEnabled) =>
+                    void saveDropHero(
+                      {
+                        ...drop,
+                        clockEnabled,
+                        enabled: clockEnabled ? true : drop.enabled,
+                      },
+                      clockEnabled ? 'Countdown showing on the drop.' : 'Countdown hidden.'
+                    )
+                  }
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={saving || drop.clockRunning}
+                  onClick={() => {
+                    const result = applyStartDropClock(drop);
+                    if (result.error) {
+                      setMessage(result.error);
+                      return;
+                    }
+                    void saveDropHero(result.drop, 'Drop clock started — live on site.');
+                  }}
+                  className="px-4 py-2 rounded-xl text-sm font-bold bg-[#00ff9d] text-black disabled:opacity-50"
+                >
+                  Start clock
+                </button>
+                <button
+                  type="button"
+                  disabled={saving || !drop.clockRunning}
+                  onClick={() =>
+                    void saveDropHero(applyStopDropClock(drop), 'Drop clock stopped. Time is frozen.')
+                  }
+                  className="px-4 py-2 rounded-xl text-sm font-bold bg-zinc-800 disabled:opacity-50"
+                >
+                  Stop clock
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() =>
+                    void saveDropHero(applyLiveDropClock(drop), 'Marked live — on the board now.')
+                  }
+                  className="px-4 py-2 rounded-xl text-sm font-bold border border-[#00ff9d]/40 disabled:opacity-50"
+                >
+                  It&apos;s live
+                </button>
+              </div>
+
+              <Field
+                label="End time"
+                type="datetime-local"
+                value={toDatetimeLocalValue(drop.clockEndsAt)}
+                onChange={(v) =>
+                  patchFeatures({
+                    dropHero: applyDropClockEndAt(drop, fromDatetimeLocalValue(v)),
+                  })
+                }
+                hint="Your local time. Start or Save after you change this."
+              />
+
+              <div>
+                <p className="text-sm text-zinc-400 mb-2">Quick duration</p>
+                <div className="flex flex-wrap gap-2">
+                  {DROP_CLOCK_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      disabled={saving}
+                      onClick={() =>
+                        void saveDropHero(
+                          applyDropClockDuration(drop, preset.ms),
+                          `Clock set to ${preset.label}.`
+                        )
+                      }
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Field
+                label="Clock label"
+                value={drop.clockLabel}
+                onChange={(v) => patchFeatures({ dropHero: { clockLabel: v } })}
+                hint='Shown above the timer, e.g. "Goes live in"'
+              />
+              <Field
+                label="Drop product slug"
+                value={drop.productSlug}
+                onChange={(v) => patchFeatures({ dropHero: { productSlug: v } })}
+                hint="Matches the product URL, e.g. custom-dosi-banana"
+              />
+              <Field
+                label="Eyebrow"
+                value={drop.eyebrow}
+                onChange={(v) => patchFeatures({ dropHero: { eyebrow: v } })}
+              />
+              <Field
+                label="Headline"
+                value={drop.headline}
+                onChange={(v) => patchFeatures({ dropHero: { headline: v } })}
+              />
+              <Toggle
+                label="Discord early access note"
+                checked={drop.discordEarlyAccess}
+                onChange={(discordEarlyAccess) => patchFeatures({ dropHero: { discordEarlyAccess } })}
+              />
+            </div>
+
             <Toggle
               label="Best Sellers section"
               description="Shows top products on the homepage."
@@ -324,7 +510,7 @@ export default function FeaturesTab({
         )}
 
         <button
-          onClick={save}
+          onClick={() => void save()}
           disabled={saving}
           className="bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold disabled:opacity-50"
         >
