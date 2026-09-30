@@ -1,6 +1,7 @@
 import type { SiteFeatures } from '@/lib/featureTypes';
+import { isCustomHomepageSectionId } from '@/lib/homepageCopy';
 
-export type HomepageSectionId =
+export type BuiltInHomepageSectionId =
   | 'hero'
   | 'board'
   | 'drop'
@@ -18,8 +19,10 @@ export type HomepageSectionId =
   | 'loyalty'
   | 'faq';
 
+export type HomepageSectionId = BuiltInHomepageSectionId | string;
+
 export interface HomepageSection {
-  id: HomepageSectionId;
+  id: string;
   enabled: boolean;
 }
 
@@ -29,7 +32,7 @@ export interface HomepageSectionMeta {
   hempOnly?: boolean;
 }
 
-export const HOMEPAGE_SECTION_META: Record<HomepageSectionId, HomepageSectionMeta> = {
+export const HOMEPAGE_SECTION_META: Record<BuiltInHomepageSectionId, HomepageSectionMeta> = {
   hero: { label: 'Hero', blurb: 'Big headline and buttons at the top' },
   board: { label: 'The Board', blurb: 'Live product grid', hempOnly: true },
   drop: { label: 'Drop', blurb: 'Featured drop and countdown', hempOnly: true },
@@ -48,10 +51,10 @@ export const HOMEPAGE_SECTION_META: Record<HomepageSectionId, HomepageSectionMet
   faq: { label: 'FAQ', blurb: 'Homepage questions' },
 };
 
-export const HOMEPAGE_SECTION_IDS = Object.keys(HOMEPAGE_SECTION_META) as HomepageSectionId[];
+export const HOMEPAGE_SECTION_IDS = Object.keys(HOMEPAGE_SECTION_META) as BuiltInHomepageSectionId[];
 
 /** Homepage hide/show also patches these flags. FAQ stays off this list so hiding the homepage FAQ does not kill /faq or the menu link. */
-const FEATURE_KEY: Partial<Record<HomepageSectionId, keyof SiteFeatures>> = {
+const FEATURE_KEY: Partial<Record<BuiltInHomepageSectionId, keyof SiteFeatures>> = {
   drop: 'dropHero',
   howItWorks: 'howItWorks',
   merch: 'merchSection',
@@ -64,7 +67,7 @@ const FEATURE_KEY: Partial<Record<HomepageSectionId, keyof SiteFeatures>> = {
 };
 
 /** Matches the live homepage today. Extra blocks start hidden so turning them on is a real choice. */
-export const DEFAULT_HOMEPAGE_SECTIONS: HomepageSection[] = [
+export const DEFAULT_HOMEPAGE_SECTIONS: Array<{ id: BuiltInHomepageSectionId; enabled: boolean }> = [
   { id: 'hero', enabled: true },
   { id: 'board', enabled: true },
   { id: 'drop', enabled: true },
@@ -83,11 +86,11 @@ export const DEFAULT_HOMEPAGE_SECTIONS: HomepageSection[] = [
   { id: 'faq', enabled: false },
 ];
 
-function isHomepageSectionId(value: string): value is HomepageSectionId {
+export function isBuiltInHomepageSectionId(value: string): value is BuiltInHomepageSectionId {
   return value in HOMEPAGE_SECTION_META;
 }
 
-function defaultEnabled(id: HomepageSectionId, features?: SiteFeatures): boolean {
+function defaultEnabled(id: BuiltInHomepageSectionId, features?: SiteFeatures): boolean {
   const fallback = DEFAULT_HOMEPAGE_SECTIONS.find((item) => item.id === id)?.enabled ?? false;
   if (!features) return fallback;
   if (id === 'bestSellers' || id === 'newArrivals' || id === 'onSale' || id === 'faq') {
@@ -101,44 +104,59 @@ function defaultEnabled(id: HomepageSectionId, features?: SiteFeatures): boolean
 
 export function mergeHomepageLayout(
   stored: HomepageSection[] | undefined,
-  features?: SiteFeatures
+  features?: SiteFeatures,
+  customIds: string[] = []
 ): HomepageSection[] {
-  const seen = new Set<HomepageSectionId>();
+  const seen = new Set<string>();
   const next: HomepageSection[] = [];
 
   for (const item of stored ?? []) {
-    if (!item || !isHomepageSectionId(item.id) || seen.has(item.id)) continue;
-    seen.add(item.id);
-    next.push({ id: item.id, enabled: Boolean(item.enabled) });
+    if (!item?.id || seen.has(item.id)) continue;
+    if (isBuiltInHomepageSectionId(item.id) || isCustomHomepageSectionId(item.id)) {
+      seen.add(item.id);
+      next.push({ id: item.id, enabled: Boolean(item.enabled) });
+    }
   }
 
-  if (next.length === 0) {
-    return DEFAULT_HOMEPAGE_SECTIONS.map((item) => ({
+  if (next.filter((item) => isBuiltInHomepageSectionId(item.id)).length === 0) {
+    const builtins = DEFAULT_HOMEPAGE_SECTIONS.map((item) => ({
       id: item.id,
       enabled: defaultEnabled(item.id, features),
     }));
+    const customs = next.filter((item) => isCustomHomepageSectionId(item.id));
+    next.length = 0;
+    next.push(...builtins, ...customs);
+    for (const item of next) seen.add(item.id);
   }
 
   for (const item of DEFAULT_HOMEPAGE_SECTIONS) {
     if (seen.has(item.id)) continue;
     next.push({ id: item.id, enabled: defaultEnabled(item.id, features) });
+    seen.add(item.id);
+  }
+
+  for (const id of customIds) {
+    if (!isCustomHomepageSectionId(id) || seen.has(id)) continue;
+    next.push({ id, enabled: true });
+    seen.add(id);
   }
 
   return next;
 }
 
-export function isHempHomepageSection(id: HomepageSectionId): boolean {
+export function isHempHomepageSection(id: string): boolean {
+  if (!isBuiltInHomepageSectionId(id)) return false;
   return HOMEPAGE_SECTION_META[id].hempOnly === true;
 }
 
 export function applyHomepageSectionEnabled<
   T extends { homepageLayout?: { sections: HomepageSection[] }; features: SiteFeatures },
->(content: T, id: HomepageSectionId, enabled: boolean): T {
+>(content: T, id: string, enabled: boolean): T {
   const sections = mergeHomepageLayout(content.homepageLayout?.sections, content.features).map((item) =>
     item.id === id ? { ...item, enabled } : item
   );
   const features = { ...content.features };
-  const key = FEATURE_KEY[id];
+  const key = isBuiltInHomepageSectionId(id) ? FEATURE_KEY[id] : undefined;
   if (key) {
     (features as unknown as Record<string, unknown>)[key] = {
       ...features[key],
@@ -159,4 +177,9 @@ export function applyHomepageSectionOrder<
     ...content,
     homepageLayout: { sections: mergeHomepageLayout(sections, content.features) },
   };
+}
+
+export function getHomepageSectionMeta(id: string): HomepageSectionMeta {
+  if (isBuiltInHomepageSectionId(id)) return HOMEPAGE_SECTION_META[id];
+  return { label: 'Custom block', blurb: 'Your own text, image, or video' };
 }

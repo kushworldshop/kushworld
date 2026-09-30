@@ -19,6 +19,7 @@ import HowItWorksSection from './components/HowItWorksSection';
 import CommunitySection from './components/CommunitySection';
 import ProductCollectionSection from './components/ProductCollectionSection';
 import SeoFaq from './components/SeoFaq';
+import HomepageCustomBlock from './components/HomepageCustomBlock';
 import WishlistSync from './components/WishlistSync';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
@@ -121,8 +122,10 @@ export default function HomeClient({
         return <LoyaltySection />;
       case 'faq':
         return <SeoFaq />;
-      default:
-        return null;
+      default: {
+        const block = content.homepageBlocks.find((item) => item.id === id);
+        return block ? <HomepageCustomBlock block={block} /> : null;
+      }
     }
   };
 

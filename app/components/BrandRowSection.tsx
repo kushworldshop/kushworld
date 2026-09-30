@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Product } from '@/lib/products';
 import { getActiveShopBrands, type ShopBrand } from '@/lib/productBrands';
+import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function BrandRowSection() {
+  const { content } = useSiteContent();
+  const copy = content.homepageCopy.brands;
   const [brands, setBrands] = useState<ShopBrand[]>([]);
 
   useEffect(() => {
@@ -23,10 +26,14 @@ export default function BrandRowSection() {
   return (
     <section className="py-16 px-6 border-y border-zinc-900 bg-zinc-950">
       <div className="max-w-7xl mx-auto">
-        <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-3 text-center">
-          In the shop
-        </p>
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">Names we keep stocked</h2>
+        {copy.eyebrow && (
+          <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-3 text-center">
+            {copy.eyebrow}
+          </p>
+        )}
+        {copy.title && (
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">{copy.title}</h2>
+        )}
         <div className="flex flex-wrap justify-center gap-3">
           {brands.map((brand) => (
             <Link

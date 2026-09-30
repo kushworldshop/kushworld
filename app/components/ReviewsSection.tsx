@@ -68,7 +68,7 @@ export default function ReviewsSection({ initialReviews, initialStats }: Reviews
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
-              href="/reviews"
+              href={content.reviewsSection.ctaHref || '/reviews'}
               className="px-8 py-4 bg-[#00ff9d] text-black rounded-2xl font-bold text-center"
             >
               {content.reviewsSection.ctaLabel}

@@ -3,7 +3,9 @@ export interface HeroVariant {
   headline: string;
   subtitle: string;
   primaryCtaLabel: string;
+  primaryCtaHref?: string;
   secondaryCtaLabel?: string;
+  secondaryCtaHref?: string;
   badges: string[];
 }
 
@@ -26,8 +28,14 @@ export interface PolicyPage {
 export type { ShopNavigation, ShopCategory, ShopSubsection } from '@/lib/shopNavigation';
 export type { SiteFeatures, HowItWorksStep } from '@/lib/featureTypes';
 export type { HomepageSection, HomepageSectionId } from '@/lib/homepageLayout';
+export type { CustomHomepageBlock, HomepageCopy } from '@/lib/homepageCopy';
 import { DEFAULT_SITE_FEATURES, type SiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_HOMEPAGE_SECTIONS, type HomepageSection } from '@/lib/homepageLayout';
+import {
+  DEFAULT_HOMEPAGE_COPY,
+  type CustomHomepageBlock,
+  type HomepageCopy,
+} from '@/lib/homepageCopy';
 
 export interface SiteContent {
   updatedAt: string;
@@ -75,6 +83,7 @@ export interface SiteContent {
     title: string;
     subtitle: string;
     ctaLabel: string;
+    ctaHref?: string;
     studioLinkLabel: string;
   };
   loyaltySection: {
@@ -82,11 +91,13 @@ export interface SiteContent {
     subtitle: string;
     cards: LoyaltyCard[];
     ctaLabel: string;
+    ctaHref?: string;
   };
   reviewsSection: {
     eyebrow: string;
     title: string;
     ctaLabel: string;
+    ctaHref?: string;
     socialCtaLabel: string;
   };
   faq: {
@@ -116,6 +127,8 @@ export interface SiteContent {
   homepageLayout: {
     sections: HomepageSection[];
   };
+  homepageCopy: HomepageCopy;
+  homepageBlocks: CustomHomepageBlock[];
 }
 
 import { DEFAULT_SHOP_NAVIGATION } from '@/lib/shopNavigation';
@@ -142,7 +155,9 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       subtitle:
         'Indoor, smalls, exotics, vapes, concentrates, and official Kush World Studio merch. Discreet shipping nationwide.',
       primaryCtaLabel: 'Shop Flower',
+      primaryCtaHref: '/shop/flower',
       secondaryCtaLabel: 'Full Catalog',
+      secondaryCtaHref: '/shop',
       badges: ['Free 8th first order', 'Free Shipping $150+', '21+ Only'],
     },
     merchOnly: {
@@ -150,6 +165,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       headline: 'Official\nStudio Merch',
       subtitle: 'Custom apparel and accessories from Kush World Studio.',
       primaryCtaLabel: 'Shop Merch',
+      primaryCtaHref: '/shop/merch',
       badges: ['Custom Made', 'Studio Quality', 'Made to Order'],
     },
   },
@@ -182,6 +198,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     title: 'Official Merch',
     subtitle: 'A curated pick from our studio line — hoodies, tees, hats, and more.',
     ctaLabel: 'View All Merch',
+    ctaHref: '/shop/merch',
     studioLinkLabel: 'Visit kushworldstudio.co →',
   },
   loyaltySection: {
@@ -206,11 +223,13 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       },
     ],
     ctaLabel: 'GET YOUR REFERRAL LINK',
+    ctaHref: '/referral',
   },
   reviewsSection: {
     eyebrow: 'Verified Trusted Source',
     title: 'What People Are Saying',
     ctaLabel: 'See All Reviews',
+    ctaHref: '/reviews',
     socialCtaLabel: 'Follow @kushworld',
   },
   faq: {
@@ -312,6 +331,8 @@ Questions? Email kushworldshop@gmail.com`,
   homepageLayout: {
     sections: DEFAULT_HOMEPAGE_SECTIONS,
   },
+  homepageCopy: DEFAULT_HOMEPAGE_COPY,
+  homepageBlocks: [],
 };
 
 export function splitHeadline(headline: string): string[] {

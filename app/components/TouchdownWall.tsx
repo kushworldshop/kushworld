@@ -2,43 +2,51 @@
 
 import Link from 'next/link';
 import type { PublicTdPost } from '@/lib/tdRewards';
+import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function TouchdownWall({ posts }: { posts: PublicTdPost[] }) {
+  const { content } = useSiteContent();
+  const copy = content.homepageCopy.touchdowns;
   return (
     <section className="py-16 md:py-20 px-6 bg-zinc-950 border-y border-zinc-900">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
           <div>
-            <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-2">
-              Touchdowns
-            </p>
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Pack landings, paid</h2>
-            <p className="text-zinc-400 mt-2 max-w-xl">
-              Post the TD with #KushWorldTD, paste the link on your account, get 500 loyalty points. Real posts —
-              not a fake review count.
-            </p>
+            {copy.eyebrow && (
+              <p className="text-[#00ff9d] text-xs font-semibold uppercase tracking-[0.3em] mb-2">
+                {copy.eyebrow}
+              </p>
+            )}
+            {copy.title && (
+              <h2 className="text-4xl md:text-5xl font-bold tracking-tight">{copy.title}</h2>
+            )}
+            {copy.subtitle && <p className="text-zinc-400 mt-2 max-w-xl">{copy.subtitle}</p>}
           </div>
-          <Link
-            href="/account"
-            className="inline-flex items-center gap-2 text-[#00ff9d] hover:underline font-medium shrink-0"
-          >
-            Submit your TD
-            <i className="fa-solid fa-arrow-right text-sm" />
-          </Link>
+          {copy.ctaLabel && (
+            <Link
+              href={copy.ctaHref || '/account'}
+              className="inline-flex items-center gap-2 text-[#00ff9d] hover:underline font-medium shrink-0"
+            >
+              {copy.ctaLabel}
+              <i className="fa-solid fa-arrow-right text-sm" />
+            </Link>
+          )}
         </div>
 
         {posts.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-zinc-700 bg-black/40 p-8 md:p-12 text-center">
-            <p className="text-lg font-semibold mb-2">Board&apos;s waiting on the next landing</p>
-            <p className="text-sm text-zinc-400 max-w-md mx-auto mb-6">
-              Save your X username, drop #KushWorldTD on the post, then paste the URL under Account → TouchDown.
-            </p>
-            <Link
-              href="/account"
-              className="inline-block bg-[#00ff9d] text-black px-6 py-3 rounded-2xl font-bold"
-            >
-              Get 500 points
-            </Link>
+            {copy.emptyTitle && <p className="text-lg font-semibold mb-2">{copy.emptyTitle}</p>}
+            {copy.emptyBody && (
+              <p className="text-sm text-zinc-400 max-w-md mx-auto mb-6">{copy.emptyBody}</p>
+            )}
+            {copy.emptyCtaLabel && (
+              <Link
+                href={copy.ctaHref || '/account'}
+                className="inline-block bg-[#00ff9d] text-black px-6 py-3 rounded-2xl font-bold"
+              >
+                {copy.emptyCtaLabel}
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

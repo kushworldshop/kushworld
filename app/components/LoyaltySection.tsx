@@ -40,7 +40,7 @@ export default function LoyaltySection() {
         </div>
 
         <Link
-          href="/referral"
+          href={content.loyaltySection.ctaHref || '/referral'}
           className="inline-block mt-16 px-12 py-6 bg-[#00ff9d] text-black text-2xl font-semibold rounded-3xl hover:scale-105 transition"
         >
           {content.loyaltySection.ctaLabel}

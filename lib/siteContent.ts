@@ -3,6 +3,7 @@ import path from 'path';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { mergeHomepageLayout } from '@/lib/homepageLayout';
+import { mergeHomepageBlocks, mergeHomepageCopy } from '@/lib/homepageCopy';
 import { mergeShopNavigation } from '@/lib/shopNavigation';
 import { normalizeDiscordInviteUrl } from '@/lib/discordInvite';
 
@@ -53,8 +54,14 @@ export async function getSiteContent(): Promise<SiteContent> {
     },
     features: mergeSiteFeatures(parsed.features),
     shopNavigation: mergeShopNavigation(parsed.shopNavigation),
+    homepageCopy: mergeHomepageCopy(parsed.homepageCopy),
+    homepageBlocks: mergeHomepageBlocks(parsed.homepageBlocks),
     homepageLayout: {
-      sections: mergeHomepageLayout(parsed.homepageLayout?.sections, mergeSiteFeatures(parsed.features)),
+      sections: mergeHomepageLayout(
+        parsed.homepageLayout?.sections,
+        mergeSiteFeatures(parsed.features),
+        mergeHomepageBlocks(parsed.homepageBlocks).map((block) => block.id)
+      ),
     },
   };
 }

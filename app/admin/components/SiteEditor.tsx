@@ -39,7 +39,7 @@ const GROUPS: Array<{ label: string; items: SiteItem[] }> = [
       {
         id: 'home-layout',
         label: 'Homepage',
-        blurb: 'Hide, show, and drag sections like Shopify. Saves immediately.',
+        blurb: 'Click a section to edit words and images. Drag, hide, or add your own blocks.',
         homepageCustomizer: true,
       },
       { id: 'drop', label: 'Drop clock', blurb: 'Start, stop, or hide a drop', feature: 'drop' },
@@ -189,7 +189,7 @@ export default function SiteEditor({
         </aside>
 
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="p-4 lg:p-6 max-w-4xl">
+          <div className={panel?.homepageCustomizer ? 'p-3 lg:p-4 max-w-none' : 'p-4 lg:p-6 max-w-4xl'}>
             {!panel && (
               <div className="space-y-8">
                 {GROUPS.map((group) => (
@@ -261,7 +261,7 @@ export default function SiteEditor({
         </button>
         <p className="text-xs text-zinc-500">
           {panel?.homepageCustomizer
-            ? 'Homepage hide, show, and reorder saves immediately. Copy still uses Save site.'
+            ? 'Homepage edits save as you type. Open a section on the right to change words and images.'
             : 'Drop clock start/stop saves on its own. Everything else uses this Save.'}
         </p>
         {message && (

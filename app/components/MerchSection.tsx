@@ -77,7 +77,7 @@ export default function MerchSection({
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-12">
           <Link
-            href="/shop/merch"
+            href={content.merchSection.ctaHref || '/shop/merch'}
             className="px-8 py-4 bg-[#00ff9d] text-black font-bold rounded-2xl hover:bg-[#00ff9d]/90 transition"
           >
             {content.merchSection.ctaLabel}
