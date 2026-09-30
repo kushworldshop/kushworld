@@ -1,5 +1,6 @@
 import type { Product } from '@/lib/products';
 import { getVibeLabel, getProductEffects } from '@/lib/productVibes';
+import { getDisplaySubcategoryLabel, getDisplayTier, tierBadgeClass } from '@/lib/productBadges';
 
 export default function ProductMetaBadges({
   product,
@@ -35,11 +36,21 @@ export default function ProductMetaBadges({
     });
   }
 
-  if (product.tier) {
+  const tier = getDisplayTier(product);
+  if (tier) {
     badges.push({
       key: 'tier',
-      label: product.tier,
-      className: 'bg-amber-500/15 text-amber-300 border border-amber-500/30',
+      label: tier,
+      className: tierBadgeClass(tier),
+    });
+  }
+
+  const subcategoryLabel = getDisplaySubcategoryLabel(product);
+  if (subcategoryLabel) {
+    badges.push({
+      key: 'subcategory',
+      label: subcategoryLabel,
+      className: 'bg-zinc-800 text-zinc-200 border border-zinc-700',
     });
   }
 

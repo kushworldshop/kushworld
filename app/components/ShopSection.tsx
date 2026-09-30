@@ -31,9 +31,11 @@ const sortOptions = [
 export default function ShopSection({
   merchOnly = false,
   initialCategory,
+  initialProducts,
 }: {
   merchOnly?: boolean;
   initialCategory?: string;
+  initialProducts?: Product[];
 }) {
   const { content } = useSiteContent();
   const nav = content.shopNavigation;
@@ -56,8 +58,8 @@ export default function ShopSection({
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('name-asc');
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [products, setProducts] = useState<Product[]>(initialProducts ?? []);
+  const [loadingProducts, setLoadingProducts] = useState(!initialProducts);
   const [activeVibe, setActiveVibe] = useState<string | null>(searchParams.get('vibe'));
 
   const shopCategories = useMemo(

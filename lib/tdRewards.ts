@@ -75,6 +75,15 @@ export interface TdUnmatchedPost {
   reason: string;
 }
 
+export interface PublicTdPost {
+  id: string;
+  postUrl: string;
+  platform: string;
+  handle: string;
+  pointsAwarded: number;
+  createdAt: string;
+}
+
 interface TdRewardsFile {
   submissions: TdRewardSubmission[];
   unmatched?: TdUnmatchedPost[];
@@ -279,6 +288,22 @@ export async function listTdSubmissionsForUser(userId: string): Promise<TdReward
   return file.submissions
     .filter((row) => row.userId === userId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function listPublicTdPosts(limit = 8): Promise<PublicTdPost[]> {
+  const file = await readFile();
+  return file.submissions
+    .filter((row) => row.status === 'credited' || row.status === 'used' || row.status === 'traded')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, limit)
+    .map((row) => ({
+      id: row.id,
+      postUrl: row.postUrl,
+      platform: row.platform,
+      handle: row.xHandle ? `@${row.xHandle}` : 'KW member',
+      pointsAwarded: row.pointsAwarded || 0,
+      createdAt: row.createdAt,
+    }));
 }
 
 export async function listAllTdSubmissions(limit = 200): Promise<{

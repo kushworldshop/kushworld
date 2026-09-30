@@ -1,5 +1,37 @@
-import type { Product } from '@/lib/products';
+import { getProductSlug, type Product } from '@/lib/products';
 import type { SiteFeatures } from '@/lib/featureTypes';
+
+const BOARD_CATEGORY_ORDER = ['flower', 'vapes', 'concentrates', 'edibles', 'moonrocks', 'snowcaps'];
+
+export function getBoardProducts(products: Product[], limit = 12): Product[] {
+  const hemp = products.filter((product) => !product.hidden && product.category !== 'merch');
+  const rank = (category: string) => {
+    const index = BOARD_CATEGORY_ORDER.indexOf(category);
+    return index === -1 ? 99 : index;
+  };
+
+  return [...hemp]
+    .sort((a, b) => {
+      const byCategory = rank(a.category) - rank(b.category);
+      if (byCategory !== 0) return byCategory;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, limit);
+}
+
+export function getDropProduct(products: Product[], slug?: string): Product | null {
+  const hemp = products.filter((product) => !product.hidden && product.category !== 'merch');
+  if (slug) {
+    const match = hemp.find((product) => getProductSlug(product) === slug);
+    if (match) return match;
+  }
+  return (
+    hemp.find((product) => product.isNew && product.category === 'flower') ||
+    hemp.find((product) => product.category === 'flower') ||
+    hemp[0] ||
+    null
+  );
+}
 
 export function isOnSale(product: Product): boolean {
   return (

@@ -8,10 +8,14 @@ import { getFlowerWeightPrice, isFlowerProductCategory } from '@/lib/flowerWeigh
 import { useSiteContent } from '@/lib/useSiteContent';
 import ProductMetaBadges from './ProductMetaBadges';
 
-export default function DropHeroSection() {
+export default function DropHeroSection({
+  initialProduct = null,
+}: {
+  initialProduct?: Product | null;
+}) {
   const { content } = useSiteContent();
   const { features } = content;
-  const [product, setProduct] = useState<Product | null>(null);
+  const [product, setProduct] = useState<Product | null>(initialProduct);
 
   useEffect(() => {
     if (!features.dropHero?.enabled) return;

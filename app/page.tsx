@@ -7,6 +7,13 @@ import {
   websiteJsonLd,
 } from '@/lib/seo';
 import { getFeaturedAndRecent, getReviewStats } from '@/lib/reviews';
+import { getProducts } from '@/lib/productCatalog';
+import { getBoardProducts, getDropProduct } from '@/lib/productCollections';
+import { getHomepageMerchFromProducts } from '@/lib/merch';
+import { getSiteContent } from '@/lib/siteContent';
+import { listPublicTdPosts } from '@/lib/tdRewards';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata = {
   ...buildPageMetadata({
@@ -28,9 +35,17 @@ export const metadata = {
 };
 
 export default async function Home() {
-  const allReviews = await getFeaturedAndRecent(50);
+  const [allReviews, products, content, tdPosts] = await Promise.all([
+    getFeaturedAndRecent(50),
+    getProducts(),
+    getSiteContent(),
+    listPublicTdPosts(8),
+  ]);
   const featuredReviews = allReviews.filter((r) => r.featured || r.source === 'x').slice(0, 3);
   const stats = getReviewStats(allReviews);
+  const boardProducts = getBoardProducts(products, 12);
+  const dropProduct = getDropProduct(products, content.features.dropHero?.productSlug);
+  const merchProducts = getHomepageMerchFromProducts(products, 4);
 
   const initialReviews = featuredReviews.map((review) => ({
     id: review.id,
@@ -58,6 +73,10 @@ export default async function Home() {
       <HomeClient
         initialReviews={initialReviews}
         initialReviewStats={{ count: stats.count, average: stats.average }}
+        boardProducts={boardProducts}
+        dropProduct={dropProduct}
+        merchProducts={merchProducts}
+        tdPosts={tdPosts}
       />
     </>
   );

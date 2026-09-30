@@ -11,6 +11,9 @@ import {
   MERCH_SHOP_ID,
   normalizeShopCategoryId,
 } from '@/lib/shopNavigation';
+import { getProducts } from '@/lib/productCatalog';
+
+export const dynamic = 'force-dynamic';
 
 interface Props {
   params: Promise<{ category: string }>;
@@ -63,6 +66,7 @@ export default async function CategoryShopPage({ params }: Props) {
   const label = isMerchShopCategory(normalized)
     ? 'Studio Merch'
     : getShopCategoryById(nav, normalized)!.label;
+  const products = await getProducts();
 
   return (
     <>
@@ -76,6 +80,7 @@ export default async function CategoryShopPage({ params }: Props) {
       <ShopPageClient
         initialCategory={normalized}
         merchOnly={isMerchShopCategory(normalized)}
+        initialProducts={products}
       />
     </>
   );

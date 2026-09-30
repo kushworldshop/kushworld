@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import AgeModal from './AgeModal';
+import HitTheShop from './HitTheShop';
 import { AGE_ACCESS_EVENT, shouldShowAgeModal } from '@/lib/ageAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
 
@@ -36,6 +37,7 @@ export default function AgeGateProvider({ children }: { children: React.ReactNod
         />
       )}
       {children}
+      <HitTheShop />
     </>
   );
 }

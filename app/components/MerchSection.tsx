@@ -8,9 +8,15 @@ import { useSiteContent } from '@/lib/useSiteContent';
 import { getProductSlug, type Product } from '@/lib/products';
 import { productHasOptions } from '@/lib/productOptions';
 
-export default function MerchSection() {
+export default function MerchSection({
+  initialProducts,
+}: {
+  initialProducts?: Product[];
+}) {
   const { content } = useSiteContent();
-  const [featured, setFeatured] = useState<Product[]>([]);
+  const [featured, setFeatured] = useState<Product[]>(() =>
+    initialProducts?.length ? getHomepageMerchFromProducts(initialProducts, 4) : []
+  );
 
   useEffect(() => {
     fetch('/api/products')

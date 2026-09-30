@@ -10,23 +10,37 @@ import DropHeroSection from './components/DropHeroSection';
 import Categories from './components/Categories';
 import BrandRowSection from './components/BrandRowSection';
 import HomeVibeStrip from './components/HomeVibeStrip';
+import BoardSection from './components/BoardSection';
+import TouchdownWall from './components/TouchdownWall';
 
 import CartDrawer from './components/CartDrawer';
 import Footer from './components/Footer';
-import ProductCollectionSection from './components/ProductCollectionSection';
 import HowItWorksSection from './components/HowItWorksSection';
 import CommunitySection from './components/CommunitySection';
 import WishlistSync from './components/WishlistSync';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
 import type { ReviewCardData } from './components/ReviewCard';
+import type { Product } from '@/lib/products';
+import type { PublicTdPost } from '@/lib/tdRewards';
 
 interface HomeClientProps {
   initialReviews?: ReviewCardData[];
   initialReviewStats?: { count: number; average: number };
+  boardProducts?: Product[];
+  dropProduct?: Product | null;
+  merchProducts?: Product[];
+  tdPosts?: PublicTdPost[];
 }
 
-export default function HomeClient({ initialReviews, initialReviewStats }: HomeClientProps) {
+export default function HomeClient({
+  initialReviews,
+  initialReviewStats,
+  boardProducts = [],
+  dropProduct = null,
+  merchProducts = [],
+  tdPosts = [],
+}: HomeClientProps) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { isMerchOnly } = useAgeAccess();
   const { content } = useSiteContent();
@@ -40,44 +54,17 @@ export default function HomeClient({ initialReviews, initialReviewStats }: HomeC
       <main>
         <Hero merchOnly={isMerchOnly} />
 
-        {!isMerchOnly && features.dropHero?.enabled && <DropHeroSection />}
+        {!isMerchOnly && <BoardSection products={boardProducts} />}
+
+        {!isMerchOnly && features.dropHero?.enabled && (
+          <DropHeroSection initialProduct={dropProduct} />
+        )}
 
         <Categories merchOnly={isMerchOnly} />
 
         {!isMerchOnly && <HomeVibeStrip />}
 
-        {!isMerchOnly && features.newArrivals.enabled && (
-          <ProductCollectionSection
-            type="new-arrivals"
-            title={features.newArrivals.title}
-            subtitle={features.newArrivals.subtitle}
-            ctaHref="/shop"
-            ctaLabel="Shop New Arrivals"
-            hempOnly
-          />
-        )}
-
-        {!isMerchOnly && features.onSale.enabled && (
-          <ProductCollectionSection
-            type="on-sale"
-            title={features.onSale.title}
-            subtitle={features.onSale.subtitle}
-            ctaHref="/shop"
-            ctaLabel="Shop Deals"
-            hempOnly
-          />
-        )}
-
-        {!isMerchOnly && features.bestSellers.enabled && (
-          <ProductCollectionSection
-            type="best-sellers"
-            title={features.bestSellers.title}
-            subtitle={features.bestSellers.subtitle}
-            ctaHref="/shop"
-            ctaLabel="Shop Best Sellers"
-            hempOnly
-          />
-        )}
+        {!isMerchOnly && <TouchdownWall posts={tdPosts} />}
 
         {!isMerchOnly && <BrandRowSection />}
 
@@ -85,7 +72,7 @@ export default function HomeClient({ initialReviews, initialReviewStats }: HomeC
           <HowItWorksSection title={features.howItWorks.title} steps={features.howItWorks.steps} />
         )}
 
-        {features.merchSection.enabled && <MerchSection />}
+        {features.merchSection.enabled && <MerchSection initialProducts={merchProducts} />}
 
         {features.reviewsSection.enabled && (
           <ReviewsSection initialReviews={initialReviews} initialStats={initialReviewStats} />

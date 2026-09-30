@@ -41,7 +41,9 @@ export function getFeaturedMerch(limit = 8): MerchProduct[] {
 
 const HOMEPAGE_SUBCATEGORIES = ['hoodies', 'tees', 'headwear', 'accessories'] as const;
 
-export function getHomepageMerchFromProducts<T extends MerchProduct>(products: T[], limit = 4): T[] {
+export function getHomepageMerchFromProducts<
+  T extends { id: string; category: string; merchSubcategory?: string; featured?: boolean },
+>(products: T[], limit = 4): T[] {
   const merchOnly = products.filter((product) => product.category === 'merch');
   const picked: T[] = [];
 
