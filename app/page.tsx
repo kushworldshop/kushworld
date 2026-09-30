@@ -76,6 +76,7 @@ export default async function Home() {
         boardProducts={boardProducts}
         dropProduct={dropProduct}
         dropHero={content.features.dropHero}
+        homepageLayout={content.homepageLayout}
         merchProducts={merchProducts}
         tdPosts={tdPosts}
       />

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import { mergeSiteFeatures } from '@/lib/featureTypes';
+import { mergeHomepageLayout } from '@/lib/homepageLayout';
 
 let cachedContent: SiteContent | null = null;
 let fetchPromise: Promise<SiteContent> | null = null;
@@ -30,6 +31,12 @@ async function loadSiteContent(): Promise<SiteContent> {
                 : DEFAULT_SITE_CONTENT.shopNavigation.categories,
           },
           features: mergeSiteFeatures(patch.features),
+          homepageLayout: {
+            sections: mergeHomepageLayout(
+              patch.homepageLayout?.sections,
+              mergeSiteFeatures(patch.features)
+            ),
+          },
         };
         cachedContent = merged;
         return merged;

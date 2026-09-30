@@ -6,8 +6,9 @@ import { invalidateSiteContentCache } from '@/lib/useSiteContent';
 import type { SiteContent } from '@/lib/siteContentTypes';
 import FeaturesTab from '@/app/admin/components/FeaturesTab';
 import SiteContentTab from '@/app/admin/components/SiteContentTab';
+import HomepageCustomizer from '@/app/admin/components/HomepageCustomizer';
 
-type FeatureKey = 'drop' | 'homepage' | 'shop' | 'account' | 'compliance' | 'grok' | 'comingSoon';
+type FeatureKey = 'drop' | 'shop' | 'account' | 'compliance' | 'grok' | 'comingSoon';
 type ContentKey =
   | 'brand'
   | 'announcement'
@@ -28,20 +29,26 @@ type SiteItem = {
   blurb: string;
   feature?: FeatureKey;
   content?: ContentKey;
+  homepageCustomizer?: boolean;
 };
 
 const GROUPS: Array<{ label: string; items: SiteItem[] }> = [
   {
     label: 'Home',
     items: [
+      {
+        id: 'home-layout',
+        label: 'Homepage',
+        blurb: 'Hide, show, and drag sections like Shopify. Saves immediately.',
+        homepageCustomizer: true,
+      },
       { id: 'drop', label: 'Drop clock', blurb: 'Start, stop, or hide a drop', feature: 'drop' },
       { id: 'banner', label: 'Top banner', blurb: 'Announcement bar across the site', content: 'announcement' },
       { id: 'hero', label: 'Hero', blurb: 'Big headline at the top of the homepage', content: 'hero' },
       {
-        id: 'home-blocks',
-        label: 'Homepage blocks',
-        blurb: 'On/off plus titles for best sellers, how it works, community',
-        feature: 'homepage',
+        id: 'home-titles',
+        label: 'Section titles',
+        blurb: 'Headlines for best sellers, how it works, community',
         content: 'homepage-sections',
       },
       {
@@ -218,6 +225,9 @@ export default function SiteEditor({
                   <h2 className="text-xl font-bold mt-1">{panel.label}</h2>
                   <p className="text-sm text-zinc-500 mt-1">{panel.blurb}</p>
                 </div>
+                {panel.homepageCustomizer && (
+                  <HomepageCustomizer content={content} onContentChange={onContentChange} />
+                )}
                 {panel.feature && (
                   <FeaturesTab
                     content={content}
@@ -250,7 +260,9 @@ export default function SiteEditor({
           {saving ? 'Saving...' : 'Save site'}
         </button>
         <p className="text-xs text-zinc-500">
-          Drop clock start/stop saves on its own. Everything else uses this Save.
+          {panel?.homepageCustomizer
+            ? 'Homepage hide, show, and reorder saves immediately. Copy still uses Save site.'
+            : 'Drop clock start/stop saves on its own. Everything else uses this Save.'}
         </p>
         {message && (
           <p className={`text-xs ${/fail|error/i.test(message) ? 'text-red-300' : 'text-[#00ff9d]'}`}>

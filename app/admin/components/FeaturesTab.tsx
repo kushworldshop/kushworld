@@ -19,6 +19,7 @@ import {
   toDatetimeLocalValue,
   type DropHeroConfig,
 } from '@/lib/dropClock';
+import { applyHomepageSectionEnabled } from '@/lib/homepageLayout';
 
 type FeatureSection = 'drop' | 'homepage' | 'shop' | 'account' | 'checkout' | 'compliance' | 'grok' | 'comingSoon';
 
@@ -139,18 +140,28 @@ export default function FeaturesTab({
 
   const drop: DropHeroConfig = { ...DEFAULT_SITE_FEATURES.dropHero, ...features.dropHero };
 
-  const save = async (nextFeatures = content.features, successMessage = 'Feature settings saved — live on site.') => {
+  const save = async (
+    nextContent: SiteContent = content,
+    successMessage = 'Feature settings saved — live on site.'
+  ) => {
     setSaving(true);
     setMessage('');
     try {
       const res = await adminFetch('/api/admin/site-content', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ features: nextFeatures }),
+        body: JSON.stringify({
+          features: nextContent.features,
+          homepageLayout: nextContent.homepageLayout,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
-      onContentChange({ ...content, features: data.content.features });
+      onContentChange({
+        ...content,
+        features: data.content.features,
+        homepageLayout: data.content.homepageLayout,
+      });
       invalidateSiteContentCache();
       setMessage(successMessage);
     } catch (error) {
@@ -161,9 +172,10 @@ export default function FeaturesTab({
   };
 
   const saveDropHero = async (nextDrop: DropHeroConfig, successMessage: string) => {
-    const nextFeatures = { ...features, dropHero: nextDrop };
-    onContentChange({ ...content, features: nextFeatures });
-    await save(nextFeatures, successMessage);
+    const withDrop = { ...content, features: { ...features, dropHero: nextDrop } };
+    const next = applyHomepageSectionEnabled(withDrop, 'drop', Boolean(nextDrop.enabled));
+    onContentChange(next);
+    await save(next, successMessage);
   };
 
   const sections: { key: FeatureSection; label: string }[] = [
@@ -327,55 +339,43 @@ export default function FeaturesTab({
         {activeSection === 'homepage' && (
           <>
             <p className="text-sm text-zinc-400">
-              Turn homepage blocks on or off here. Titles and body copy are under Home → Homepage blocks.
+              Hide, show, and reorder homepage blocks in Home → Homepage. That list saves immediately.
+              Limits below still need Save.
             </p>
 
-            <Toggle
-              label="Best Sellers section"
-              description="Shows top products on the homepage."
-              checked={features.bestSellers.enabled}
-              onChange={(enabled) => patchFeatures({ bestSellers: { enabled } })}
+            <Field
+              label="Best sellers max products"
+              value={features.bestSellers.limit}
+              type="number"
+              onChange={(v) => patchFeatures({ bestSellers: { limit: Number(v) || 8 } })}
             />
-            {features.bestSellers.enabled && (
-              <div className="space-y-4 pl-2 border-l border-zinc-800">
-                <Field
-                  label="Max products"
-                  value={features.bestSellers.limit}
-                  type="number"
-                  onChange={(v) => patchFeatures({ bestSellers: { limit: Number(v) || 8 } })}
-                />
-                <Field
-                  label="Pinned product IDs (comma separated)"
-                  value={features.bestSellers.pinnedProductIds.join(', ')}
-                  onChange={(v) =>
-                    patchFeatures({
-                      bestSellers: {
-                        pinnedProductIds: v
-                          .split(',')
-                          .map((s) => s.trim())
-                          .filter(Boolean),
-                      },
-                    })
-                  }
-                  hint="Optional. These show first in order."
-                />
-              </div>
-            )}
-
-            <Toggle
-              label="How It Works section"
-              checked={features.howItWorks.enabled}
-              onChange={(enabled) => patchFeatures({ howItWorks: { enabled } })}
+            <Field
+              label="Best sellers pinned product IDs (comma separated)"
+              value={features.bestSellers.pinnedProductIds.join(', ')}
+              onChange={(v) =>
+                patchFeatures({
+                  bestSellers: {
+                    pinnedProductIds: v
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  },
+                })
+              }
+              hint="Optional. These show first in order when Best sellers is on."
             />
-            <Toggle
-              label="Community links block"
-              checked={features.communityBlock.enabled}
-              onChange={(enabled) => patchFeatures({ communityBlock: { enabled } })}
+            <Field
+              label="New arrivals max products"
+              value={features.newArrivals.limit}
+              type="number"
+              onChange={(v) => patchFeatures({ newArrivals: { limit: Number(v) || 8 } })}
             />
-            <Toggle label="Merch section" checked={features.merchSection.enabled} onChange={(enabled) => patchFeatures({ merchSection: { enabled } })} />
-            <Toggle label="Reviews section" checked={features.reviewsSection.enabled} onChange={(enabled) => patchFeatures({ reviewsSection: { enabled } })} />
-            <Toggle label="Loyalty section" checked={features.loyaltySection.enabled} onChange={(enabled) => patchFeatures({ loyaltySection: { enabled } })} />
-            <Toggle label="FAQ section" checked={features.faqSection.enabled} onChange={(enabled) => patchFeatures({ faqSection: { enabled } })} />
+            <Field
+              label="On sale max products"
+              value={features.onSale.limit}
+              type="number"
+              onChange={(v) => patchFeatures({ onSale: { limit: Number(v) || 8 } })}
+            />
           </>
         )}
 

@@ -357,8 +357,8 @@ export default function SiteContentTab({
         {activeSection === 'homepage-sections' && (
           <>
             <p className="text-sm text-zinc-400">
-              Titles and body copy for homepage product sections. Turn each block on or off in Home → Homepage
-              blocks.
+              Titles and body copy for homepage product sections. Hide, show, and reorder the blocks in Home →
+              Homepage.
             </p>
 
             <h3 className="font-bold text-[#00ff9d]">Best Sellers</h3>
@@ -372,6 +372,62 @@ export default function SiteContentTab({
               value={features.bestSellers.subtitle}
               onChange={(v) => patchFeatures({ bestSellers: { subtitle: v } })}
               multiline
+            />
+            <Field
+              label="Max products"
+              value={features.bestSellers.limit}
+              onChange={(v) => patchFeatures({ bestSellers: { limit: Number(v) || 8 } })}
+            />
+            <Field
+              label="Pinned product IDs (comma separated)"
+              value={features.bestSellers.pinnedProductIds.join(', ')}
+              onChange={(v) =>
+                patchFeatures({
+                  bestSellers: {
+                    pinnedProductIds: v
+                      .split(',')
+                      .map((item) => item.trim())
+                      .filter(Boolean),
+                  },
+                })
+              }
+              hint="Optional. These show first in order when Best sellers is on."
+            />
+
+            <h3 className="font-bold text-[#00ff9d] pt-2">New Arrivals</h3>
+            <Field
+              label="Section title"
+              value={features.newArrivals.title}
+              onChange={(v) => patchFeatures({ newArrivals: { title: v } })}
+            />
+            <Field
+              label="Subtitle"
+              value={features.newArrivals.subtitle}
+              onChange={(v) => patchFeatures({ newArrivals: { subtitle: v } })}
+              multiline
+            />
+            <Field
+              label="Max products"
+              value={features.newArrivals.limit}
+              onChange={(v) => patchFeatures({ newArrivals: { limit: Number(v) || 8 } })}
+            />
+
+            <h3 className="font-bold text-[#00ff9d] pt-2">On Sale</h3>
+            <Field
+              label="Section title"
+              value={features.onSale.title}
+              onChange={(v) => patchFeatures({ onSale: { title: v } })}
+            />
+            <Field
+              label="Subtitle"
+              value={features.onSale.subtitle}
+              onChange={(v) => patchFeatures({ onSale: { subtitle: v } })}
+              multiline
+            />
+            <Field
+              label="Max products"
+              value={features.onSale.limit}
+              onChange={(v) => patchFeatures({ onSale: { limit: Number(v) || 8 } })}
             />
 
             <h3 className="font-bold text-[#00ff9d] pt-2">How It Works</h3>

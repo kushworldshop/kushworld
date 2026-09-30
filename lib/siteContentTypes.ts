@@ -25,7 +25,9 @@ export interface PolicyPage {
 
 export type { ShopNavigation, ShopCategory, ShopSubsection } from '@/lib/shopNavigation';
 export type { SiteFeatures, HowItWorksStep } from '@/lib/featureTypes';
+export type { HomepageSection, HomepageSectionId } from '@/lib/homepageLayout';
 import { DEFAULT_SITE_FEATURES, type SiteFeatures } from '@/lib/featureTypes';
+import { DEFAULT_HOMEPAGE_SECTIONS, type HomepageSection } from '@/lib/homepageLayout';
 
 export interface SiteContent {
   updatedAt: string;
@@ -111,6 +113,9 @@ export interface SiteContent {
   };
   shopNavigation: import('@/lib/shopNavigation').ShopNavigation;
   features: SiteFeatures;
+  homepageLayout: {
+    sections: HomepageSection[];
+  };
 }
 
 import { DEFAULT_SHOP_NAVIGATION } from '@/lib/shopNavigation';
@@ -304,6 +309,9 @@ Questions? Email kushworldshop@gmail.com`,
   },
   shopNavigation: DEFAULT_SHOP_NAVIGATION,
   features: DEFAULT_SITE_FEATURES,
+  homepageLayout: {
+    sections: DEFAULT_HOMEPAGE_SECTIONS,
+  },
 };
 
 export function splitHeadline(headline: string): string[] {
