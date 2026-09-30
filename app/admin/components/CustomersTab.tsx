@@ -624,28 +624,23 @@ export default function CustomersTab({ canManageStaff = false }: { canManageStaf
   };
 
   return (
-    <div className="mb-10">
-      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
-        <h2 className="text-2xl font-bold mb-2">Site Members</h2>
-        <p className="text-zinc-400 text-sm">
-          View every registered member, review ID and Discord verification, edit profiles and social
-          links, and manage loyalty points and commission settings per person.
-          {canManageStaff
-            ? ' Check Mod or Admin on a profile to let them sign in at /admin with their account email and password.'
-            : ''}
-        </p>
-      </div>
-
-      <div className="grid lg:grid-cols-[320px_1fr] gap-6 min-h-[640px]">
-        <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 flex flex-col">
-          <div className="flex gap-2 mb-3">
+    <div className="h-full min-h-0 flex flex-col lg:flex-row">
+      <aside className="shrink-0 border-b lg:border-b-0 lg:border-r border-zinc-800 bg-zinc-950 flex flex-col h-56 lg:h-full w-full lg:w-80">
+        <div className="shrink-0 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Members</h2>
+            <p className="text-[11px] text-zinc-500">
+              {loading ? 'Loading...' : `${displayUsers.length}`}
+            </p>
+          </div>
+          <div className="flex gap-2">
             <div className="relative flex-1">
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && loadUsers(search)}
                 placeholder="Search name, email, Discord, promo..."
-                className="w-full bg-black border border-zinc-700 rounded-xl px-4 py-3 pr-9 text-sm"
+                className="w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 pr-8 text-sm"
               />
               {search && (
                 <button
@@ -661,34 +656,30 @@ export default function CustomersTab({ canManageStaff = false }: { canManageStaf
             </div>
             <button
               onClick={() => loadUsers(search)}
-              className="shrink-0 px-4 py-3 bg-[#00ff9d] text-black rounded-xl text-sm font-medium hover:bg-[#00ff9d]/90 transition whitespace-nowrap"
+              className="shrink-0 px-3 py-2 bg-[#00ff9d] text-black rounded-lg text-sm font-medium hover:bg-[#00ff9d]/90 transition whitespace-nowrap"
             >
               Search
             </button>
           </div>
-          <label className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
+          <label className="flex items-center gap-2 text-xs text-zinc-400">
             <input
               type="checkbox"
               checked={showFree8thOnly}
               onChange={(e) => setShowFree8thOnly(e.target.checked)}
               className="accent-[#00ff9d]"
             />
-            Only free 1/8th recipients
+            Free 1/8th only
           </label>
-          <p className="text-xs text-zinc-500 mb-3 px-1">
-            {loading ? 'Loading...' : `${displayUsers.length} member${displayUsers.length === 1 ? '' : 's'}`}
-            {search ? ` matching “${search}”` : ''}
-            {showFree8thOnly ? ' (free 1/8th)' : ''}
-          </p>
+        </div>
 
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-1 px-2 pb-3">
             {displayUsers.map((user) => {
               const active = user.id === selectedId;
               return (
                 <button
                   key={user.id}
                   onClick={() => setSelectedId(user.id)}
-                  className={`w-full text-left rounded-2xl px-4 py-3 border transition ${
+                  className={`w-full text-left rounded-xl px-3 py-2.5 border transition ${
                     active
                       ? user.blocked
                         ? 'border-red-500 bg-red-500/10'
@@ -739,11 +730,11 @@ export default function CustomersTab({ canManageStaff = false }: { canManageStaf
               </div>
             )}
           </div>
-        </div>
+        </aside>
 
-        <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 lg:p-8">
+        <section className="flex-1 min-h-0 h-full bg-black">
           {!selectedUser ? (
-            <div className="h-full flex items-center justify-center text-zinc-500">
+            <div className="h-full flex items-center justify-center text-zinc-500 text-sm">
               Select a member to view their profile
             </div>
           ) : (
@@ -787,8 +778,7 @@ export default function CustomersTab({ canManageStaff = false }: { canManageStaf
               deleteOrderForUser={deleteOrderForUser}
             />
           )}
-        </div>
-      </div>
+        </section>
     </div>
   );
 }
@@ -877,6 +867,17 @@ function MemberProfilePanel({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [pane, setPane] = useState<'profile' | 'verify' | 'orders' | 'loyalty'>('profile');
+
+  useEffect(() => {
+    const nextIdStatus = user.idVerification?.status ?? (user.idVerified ? 'verified' : 'none');
+    setPane(nextIdStatus === 'uploaded' ? 'verify' : 'profile');
+    setRejectReason('');
+    setPartialUnlock('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError('');
+  }, [user.id, user.idVerification?.status, user.idVerified]);
 
   const handleResetPassword = () => {
     setPasswordError('');
@@ -897,17 +898,25 @@ function MemberProfilePanel({
     setConfirmPassword('');
   };
 
+  const panes: Array<{ id: typeof pane; label: string; alert?: boolean }> = [
+    { id: 'profile', label: 'Profile' },
+    { id: 'verify', label: 'Verify', alert: idStatus === 'uploaded' },
+    { id: 'orders', label: `Orders (${user.orderCount})` },
+    { id: 'loyalty', label: 'Loyalty' },
+  ];
+
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap justify-between gap-4 items-start">
-        <div>
-          <h3 className="text-2xl font-bold">{user.name}</h3>
-          <p className="text-zinc-400">{user.email}</p>
-          <p className="text-sm text-zinc-500 mt-1">
+    <div className="h-full min-h-0 flex flex-col">
+      <div className="shrink-0 border-b border-zinc-800 bg-zinc-950 px-4 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-lg font-bold truncate">{user.name}</h3>
+          <p className="text-sm text-zinc-400 truncate">{user.email}</p>
+          <p className="text-xs text-zinc-500 mt-1">
             Joined {new Date(user.createdAt).toLocaleDateString()} · {user.orderCount} order
             {user.orderCount === 1 ? '' : 's'}
           </p>
-          <div className="flex flex-wrap gap-2 mt-3 text-xs">
+          <div className="flex flex-wrap gap-2 mt-2 text-xs">
             {user.authProvider && user.authProvider !== 'email' && (
               <Badge
                 label={user.authProvider === 'both' ? 'Email + Discord login' : 'Discord login'}
@@ -939,30 +948,49 @@ function MemberProfilePanel({
             {draft.blocked && <Badge label="Blocked" tone="red" />}
           </div>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={onSave}
             disabled={saving || deleting}
-            className="bg-[#00ff9d] text-black px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+            className="bg-[#00ff9d] text-black px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save Profile'}
+            {saving ? 'Saving...' : 'Save'}
           </button>
           <button
             onClick={onDelete}
             disabled={saving || deleting}
-            className="bg-red-950 border border-red-800 text-red-300 px-6 py-3 rounded-xl font-bold disabled:opacity-50 hover:bg-red-900"
+            className="bg-red-950 border border-red-800 text-red-300 px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50 hover:bg-red-900"
           >
-            {deleting ? 'Deleting...' : 'Delete Member'}
+            {deleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
+        </div>
+        {message && (
+          <p className={`text-xs mt-2 ${message.toLowerCase().includes('fail') || message.toLowerCase().includes('error') ? 'text-red-400' : 'text-[#00ff9d]'}`}>
+            {message}
+          </p>
+        )}
       </div>
 
-      {message && (
-        <p className={`text-sm ${message.toLowerCase().includes('fail') || message.toLowerCase().includes('error') ? 'text-red-400' : 'text-[#00ff9d]'}`}>
-          {message}
-        </p>
-      )}
+      <div className="shrink-0 flex gap-1 overflow-x-auto px-3 py-2 border-b border-zinc-800 bg-zinc-950">
+        {panes.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setPane(item.id)}
+            className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium ${
+              pane === item.id ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+            }`}
+          >
+            {item.label}
+            {item.alert ? ' •' : ''}
+          </button>
+        ))}
+      </div>
 
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-5">
+      {pane === 'profile' && (
+      <>
       <section className="bg-zinc-950/60 border border-[#00ff9d]/20 rounded-2xl p-5">
         <SectionTitle>Staff roles</SectionTitle>
         {canManageStaff ? (
@@ -1031,7 +1059,11 @@ function MemberProfilePanel({
           </p>
         )}
       </section>
+      </>
+      )}
 
+      {pane === 'verify' && (
+      <>
       <section className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5">
         <SectionTitle>ID Verification</SectionTitle>
         <p className="text-sm text-zinc-500 mb-4">
@@ -1162,7 +1194,11 @@ function MemberProfilePanel({
           {saving ? 'Resetting...' : 'Reset Password'}
         </button>
       </section>
+      </>
+      )}
 
+      {pane === 'orders' && (
+      <>
       <section className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5">
         <SectionTitle>Orders & Tracking for this Client</SectionTitle>
         <p className="text-sm text-zinc-500 mb-4">View orders linked to this account. Add new manual orders (will notify client and appear in their Kush Tracker). Edit tracking numbers directly here for accuracy in the tracker.</p>
@@ -1273,7 +1309,11 @@ function MemberProfilePanel({
           )}
         </div>
       </section>
+      </>
+      )}
 
+      {pane === 'profile' && (
+      <>
       <section className="bg-red-950/20 border border-red-900/50 rounded-2xl p-5">
         <SectionTitle>Access Control</SectionTitle>
         <p className="text-sm text-zinc-500 mb-4">
@@ -1336,7 +1376,11 @@ function MemberProfilePanel({
           />
         </div>
       </section>
+      </>
+      )}
 
+      {pane === 'verify' && (
+      <>
       <section className="bg-zinc-950/60 border border-zinc-800 rounded-2xl p-5">
         <SectionTitle>Discord Community</SectionTitle>
         <p className="text-sm text-zinc-500 mb-4">
@@ -1386,7 +1430,11 @@ function MemberProfilePanel({
           </p>
         )}
       </section>
+      </>
+      )}
 
+      {pane === 'profile' && (
+      <>
       <section>
         <SectionTitle>Social Links</SectionTitle>
         <p className="text-sm text-zinc-500 mb-4">
@@ -1428,7 +1476,11 @@ function MemberProfilePanel({
           </div>
         </div>
       </section>
+      </>
+      )}
 
+      {pane === 'loyalty' && (
+      <>
       <section className="bg-black/40 border border-zinc-800 rounded-2xl p-5">
         <SectionTitle>Loyalty Points</SectionTitle>
         <div className="grid sm:grid-cols-3 gap-4 mb-4">
@@ -1631,6 +1683,9 @@ function MemberProfilePanel({
           </p>
         )}
       </section>
+      </>
+      )}
+      </div>
     </div>
   );
 }

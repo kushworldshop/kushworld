@@ -18,7 +18,30 @@ import StaffTab from '@/app/admin/components/StaffTab';
 import type { StaffPermission, StaffRole } from '@/lib/adminPermissions';
 
 
-type AdminTab = 'orders' | 'members' | 'products' | 'wheel' | 'wishlist' | 'carts' | 'social' | 'subscriptions' | 'settings' | 'staff';
+type AdminTab =
+  | 'orders'
+  | 'members'
+  | 'products'
+  | 'wheel'
+  | 'wishlist'
+  | 'carts'
+  | 'social'
+  | 'subscriptions'
+  | 'settings'
+  | 'staff';
+
+const ADMIN_TABS: Array<{ id: AdminTab; label: string; permission?: StaffPermission; ownerOnly?: boolean }> = [
+  { id: 'orders', label: 'Orders', permission: 'orders' },
+  { id: 'members', label: 'Members', permission: 'members' },
+  { id: 'products', label: 'Products', permission: 'products' },
+  { id: 'carts', label: 'Carts', permission: 'carts' },
+  { id: 'wishlist', label: 'Wishlist', permission: 'wishlist' },
+  { id: 'social', label: 'X / TD', permission: 'social' },
+  { id: 'wheel', label: 'Wheel', permission: 'wheel' },
+  { id: 'subscriptions', label: 'Subs', permission: 'subscriptions' },
+  { id: 'settings', label: 'Settings', permission: 'settings' },
+  { id: 'staff', label: 'Staff', ownerOnly: true },
+];
 
 export default function AdminOrders() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -169,142 +192,111 @@ export default function AdminOrders() {
     );
   }
 
-  // Admin Dashboard
+  const roleLabel = role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : 'Mod';
+  const visibleTabs = ADMIN_TABS.filter((item) =>
+    item.ownerOnly ? role === 'owner' : !item.permission || can(item.permission)
+  );
+
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8 gap-4 flex-wrap">
-          <div>
-            <h1 className="text-5xl font-bold">KushWorld Admin</h1>
-            <p className="text-sm text-zinc-500 mt-2">
-              Signed in as {staffName} · {role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : 'Mod'}
+    <div className="h-dvh bg-black text-white flex flex-col overflow-hidden">
+      <header className="shrink-0 border-b border-zinc-800 bg-zinc-950">
+        <div className="flex items-center justify-between gap-3 px-3 sm:px-4 py-2">
+          <div className="min-w-0">
+            <p className="text-sm font-bold tracking-tight">
+              KushWorld <span className="text-[#00ff9d]">Admin</span>
+            </p>
+            <p className="text-[11px] text-zinc-500 truncate">
+              {staffName} · {roleLabel}
             </p>
           </div>
-          <button 
+          <button
             onClick={logout}
-            className="px-8 py-4 bg-red-600 hover:bg-red-700 rounded-2xl font-medium transition"
+            className="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg bg-zinc-800 hover:bg-red-700 transition"
           >
             Logout
           </button>
         </div>
+        <nav className="flex gap-1 overflow-x-auto px-2 sm:px-3 pb-2">
+          {visibleTabs.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setTab(item.id);
+                if (item.id === 'settings') loadSiteContent();
+              }}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                tab === item.id ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900 text-zinc-300 hover:bg-zinc-800'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </header>
 
-        <div className="flex flex-wrap gap-3 mb-10">
-          {can('orders') && (
-          <button
-            onClick={() => setTab('orders')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'orders' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Orders
-          </button>
-          )}
-          {can('members') && (
-          <button
-            onClick={() => setTab('members')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'members' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Members
-          </button>
-          )}
-          {can('products') && (
-          <button
-            onClick={() => setTab('products')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'products' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Products
-          </button>
-          )}
-          {can('wheel') && (
-          <button
-            onClick={() => setTab('wheel')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'wheel' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Wheel Wins
-          </button>
-          )}
-          {can('wishlist') && (
-          <button
-            onClick={() => setTab('wishlist')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'wishlist' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Wishlist
-          </button>
-          )}
-          {can('carts') && (
-          <button
-            onClick={() => setTab('carts')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'carts' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Live Carts
-          </button>
-          )}
-          {can('social') && (
-          <button
-            onClick={() => setTab('social')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'social' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            X Rewards
-          </button>
-          )}
-          {can('subscriptions') && (
-          <button
-            onClick={() => setTab('subscriptions')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'subscriptions' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Subscriptions
-          </button>
-          )}
-          {can('settings') && (
-          <button
-            onClick={() => { setTab('settings'); loadSiteContent(); }}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'settings' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Site Settings
-          </button>
-          )}
-          {role === 'owner' && (
-          <button
-            onClick={() => setTab('staff')}
-            className={`px-6 py-3 rounded-xl font-medium ${tab === 'staff' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'}`}
-          >
-            Staff
-          </button>
-          )}
-        </div>
-
+      <main className={`flex-1 min-h-0 ${tab === 'members' ? 'overflow-hidden' : 'overflow-y-auto p-4 lg:p-6'}`}>
         {tab === 'settings' && can('settings') && (
-          <div className="space-y-16">
+          <div className="max-w-7xl mx-auto space-y-12">
             <div>
-              <p className="text-xs uppercase tracking-widest text-zinc-500 mb-6">Step 1 — Feature toggles</p>
+              <p className="text-xs uppercase tracking-widest text-zinc-500 mb-4">Step 1 — Feature toggles</p>
               <FeaturesTab content={siteContent} onContentChange={setSiteContent} />
             </div>
-            <div className="border-t border-zinc-800 pt-12">
-              <p className="text-xs uppercase tracking-widest text-zinc-500 mb-6">Step 2 — Copy &amp; content</p>
+            <div className="border-t border-zinc-800 pt-10">
+              <p className="text-xs uppercase tracking-widest text-zinc-500 mb-4">Step 2 — Copy &amp; content</p>
               <SiteContentTab content={siteContent} onContentChange={setSiteContent} />
             </div>
           </div>
         )}
 
         {tab === 'subscriptions' && can('subscriptions') && (
-          <SubscriptionsTab featureEnabled={siteContent.features.subscriptions?.enabled ?? false} />
+          <div className="max-w-7xl mx-auto">
+            <SubscriptionsTab featureEnabled={siteContent.features.subscriptions?.enabled ?? false} />
+          </div>
         )}
 
         {tab === 'members' && can('members') && <CustomersTab canManageStaff={role === 'owner'} />}
 
         {tab === 'products' && can('products') && (
-          <ProductsTab canDeleteProducts={can('productsDelete')} />
+          <div className="max-w-7xl mx-auto">
+            <ProductsTab canDeleteProducts={can('productsDelete')} />
+          </div>
         )}
-        {tab === 'staff' && role === 'owner' && <StaffTab />}
+        {tab === 'staff' && role === 'owner' && (
+          <div className="max-w-7xl mx-auto">
+            <StaffTab />
+          </div>
+        )}
 
-        {tab === 'wheel' && can('wheel') && <SpinWheelTab />}
+        {tab === 'wheel' && can('wheel') && (
+          <div className="max-w-7xl mx-auto">
+            <SpinWheelTab />
+          </div>
+        )}
 
-        {tab === 'wishlist' && can('wishlist') && <WishlistTab />}
+        {tab === 'wishlist' && can('wishlist') && (
+          <div className="max-w-7xl mx-auto">
+            <WishlistTab />
+          </div>
+        )}
 
-        {tab === 'carts' && can('carts') && <CartsTab />}
+        {tab === 'carts' && can('carts') && (
+          <div className="max-w-7xl mx-auto">
+            <CartsTab />
+          </div>
+        )}
 
-        {tab === 'social' && can('social') && <SocialRewardsTab />}
+        {tab === 'social' && can('social') && (
+          <div className="max-w-7xl mx-auto">
+            <SocialRewardsTab />
+          </div>
+        )}
 
-        {tab === 'orders' && can('orders') && <OrdersTab />}
-      </div>
+        {tab === 'orders' && can('orders') && (
+          <div className="max-w-7xl mx-auto">
+            <OrdersTab />
+          </div>
+        )}
+      </main>
     </div>
   );
 }
