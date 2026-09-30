@@ -9,7 +9,7 @@ import {
   type DragEvent,
   type SetStateAction,
 } from 'react';
-import { adminFetch } from '@/lib/adminClient';
+import { adminFetch, adminJson } from '@/lib/adminClient';
 import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import AdminNumberInput from '@/app/admin/components/AdminNumberInput';
@@ -52,6 +52,7 @@ import {
 import {
   getProductCoverUrl,
   getProductMedia,
+  isVideoMediaUrl,
   normalizeProductMedia,
   removeProductMedia,
   reorderProductMedia,
@@ -1104,7 +1105,12 @@ export default function ProductsTab({ canDeleteProducts = true }: { canDeletePro
           method: 'POST',
           body: formData,
         });
-        const data = await res.json();
+        const data = await adminJson<{
+          success?: boolean;
+          error?: string;
+          product?: AdminProduct;
+          media?: AdminProduct['media'];
+        }>(res);
 
         if (data.success) {
           uploaded += 1;
@@ -1194,7 +1200,7 @@ export default function ProductsTab({ canDeleteProducts = true }: { canDeletePro
         method: 'POST',
         body: formData,
       });
-      const data = await res.json();
+      const data = await adminJson<{ success?: boolean; image?: string }>(res);
       return data.success ? (data.image as string) : null;
     } catch {
       return null;
@@ -1914,7 +1920,7 @@ function ProductDetailPanel({
       <div className="flex-shrink-0 px-4 py-3 border-b border-zinc-800 bg-zinc-900/95">
         <div className="flex flex-wrap items-center gap-3">
           <div className="image-hover-zoom image-hover-zoom-sm w-12 h-12 rounded-lg border border-zinc-700 bg-black flex-shrink-0 overflow-hidden">
-            {draft.media.some((item) => item.url === coverUrl && item.type === 'video') ? (
+            {isVideoMediaUrl(coverUrl) ? (
               <video src={coverUrl} className="w-full h-full object-cover" muted playsInline preload="metadata" />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
@@ -2095,9 +2101,9 @@ function ProductDetailPanel({
         {editorTab === 'media' && (
           <div className="max-w-2xl">
             <p className="text-[11px] text-zinc-500 mb-3">
-              Drag or use the arrows to set the order. The <span className="text-[#00ff9d]">Shop</span> image is
-              the thumbnail on the board and shop. The rest show in this order on the product page. Saves as you
-              move them.
+              Drag or use the arrows to set the order. The <span className="text-[#00ff9d]">Shop</span> slot is
+              the thumbnail on the board and shop — photo or video. The rest show in this order on the product
+              page. Saves as you move them.
             </p>
             <ProductMediaSorter
               media={draft.media}

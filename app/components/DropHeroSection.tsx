@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { getProductSlug, type Product } from '@/lib/products';
 import { getFlowerWeightPrice, isFlowerProductCategory } from '@/lib/flowerWeights';
 import { isDropClockVisible, type DropHeroConfig } from '@/lib/dropClock';
 import { useSiteContent } from '@/lib/useSiteContent';
 import DropClock from './DropClock';
+import ProductMediaPreview from './ProductMediaPreview';
 import ProductMetaBadges from './ProductMetaBadges';
 
 export default function DropHeroSection({
@@ -84,12 +84,14 @@ export default function DropHeroSection({
       <div className="max-w-6xl mx-auto px-6">
         <div className="grid md:grid-cols-2 gap-10 items-center">
           <div className="relative aspect-square rounded-3xl overflow-hidden border border-zinc-800 bg-zinc-900">
-            <Image
-              src={product.image}
+            <ProductMediaPreview
+              url={product.image}
               alt={product.name}
               fill
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
+              autoPlay
+              loop
               priority
             />
             <div className="absolute top-4 left-4 bg-[#00ff9d] text-black text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">

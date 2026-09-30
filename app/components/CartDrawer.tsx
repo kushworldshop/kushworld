@@ -1,10 +1,10 @@
 'use client';
-import Image from 'next/image';
 import { useCartStore } from '@/lib/cartStore';
 import { formatCartItemOptions } from '@/lib/productOptions';
 import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useRef } from 'react';
 import FreeShippingProgress from './FreeShippingProgress';
+import ProductMediaPreview from './ProductMediaPreview';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -91,11 +91,11 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               >
                 {/* Product Image */}
                 <div className="w-24 h-24 relative flex-shrink-0 rounded-2xl overflow-hidden">
-                  <Image 
-                    src={item.image} 
-                    alt={item.name} 
-                    fill 
-                    className="object-cover" 
+                  <ProductMediaPreview
+                    url={item.image}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
                   />
                 </div>
 

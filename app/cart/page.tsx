@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import SiteLayout from '@/app/components/SiteLayout';
 import { useCartStore } from '@/lib/cartStore';
@@ -11,6 +10,7 @@ import { isFirstOrderBonusLineItem } from '@/lib/firstOrderBonus';
 import { orderRequiresIdVerification } from '@/lib/products';
 import { formatCartItemOptions } from '@/lib/productOptions';
 import { useAgeAccess } from '@/lib/useAgeAccess';
+import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal } = useCartStore();
@@ -44,7 +44,7 @@ export default function CartPage() {
               {items.map((item, index) => (
                 <div key={index} className="flex gap-4 bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
                   <div className="relative w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
-                    <Image src={item.image} alt={item.name} fill className="object-cover" />
+                    <ProductMediaPreview url={item.image} alt={item.name} fill className="object-cover" />
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold">{item.name}</p>

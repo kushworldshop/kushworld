@@ -18,6 +18,7 @@ import {
   getPublicProductImagePath,
   isAllowedProductMediaType,
   PRODUCT_IMAGE_DIR,
+  resolveProductUploadMime,
 } from '@/lib/productImages';
 
 export const runtime = 'nodejs';
@@ -60,16 +61,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Media file required' }, { status: 400 });
     }
 
-    if (!isAllowedProductMediaType(file.type)) {
+    const mimeType = resolveProductUploadMime(file);
+    if (!isAllowedProductMediaType(mimeType)) {
       return NextResponse.json(
         { success: false, error: 'Upload a JPG, PNG, WEBP, GIF, MP4, WEBM, or MOV file' },
         { status: 400 }
       );
     }
 
-    const maxBytes = getMaxProductMediaBytes(file.type);
+    const maxBytes = getMaxProductMediaBytes(mimeType);
     if (file.size > maxBytes) {
-      const limitLabel = file.type.startsWith('video/') ? '50MB' : '5MB';
+      const limitLabel = mimeType.startsWith('video/') ? '50MB' : '5MB';
       return NextResponse.json(
         { success: false, error: `File must be under ${limitLabel}` },
         { status: 400 }
@@ -78,13 +80,13 @@ export async function POST(request: NextRequest) {
 
     await ensureProductImageDir();
 
-    const filename = buildProductImageFilename(productId, file.type);
+    const filename = buildProductImageFilename(productId, mimeType);
     const storagePath = path.join(PRODUCT_IMAGE_DIR, filename);
     const buffer = Buffer.from(await file.arrayBuffer());
     await fs.writeFile(storagePath, buffer);
 
     const url = getPublicProductImagePath(filename);
-    const mediaItem = { type: inferMediaTypeFromMime(file.type), url };
+    const mediaItem = { type: inferMediaTypeFromMime(mimeType), url };
 
     if (saveToProduct) {
       const products = await getAllProducts();

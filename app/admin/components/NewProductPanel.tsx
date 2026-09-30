@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type DragEvent } from 'react';
-import { adminFetch } from '@/lib/adminClient';
+import { adminFetch, adminJson } from '@/lib/adminClient';
 import AdminNumberInput from '@/app/admin/components/AdminNumberInput';
 import CostMarkupControls from '@/app/admin/components/CostMarkupControls';
 import { type PriceMarkup } from '@/lib/customerPricing';
@@ -159,13 +159,22 @@ export default function NewProductPanel({
         method: 'POST',
         body: formData,
       });
-      const data = await res.json();
+      const data = await adminJson<{
+        success?: boolean;
+        error?: string;
+        product?: { image?: string; images?: string[]; media?: ProductMediaItem[] };
+        media?: ProductMediaItem[];
+      }>(res);
       if (!data.success) {
-        throw new Error(data.error || 'Image upload failed');
+        throw new Error(data.error || 'Media upload failed');
       }
       uploaded += 1;
       if (data.product) {
-        workingMedia = getProductMedia(data.product);
+        workingMedia = getProductMedia({
+          image: data.product.image || '',
+          images: data.product.images,
+          media: data.product.media,
+        });
       } else if (Array.isArray(data.media)) {
         workingMedia = data.media;
       }
@@ -308,7 +317,7 @@ export default function NewProductPanel({
                 : 'border-zinc-700 bg-black/40 hover:border-zinc-500'
             } ${creating ? 'opacity-60 pointer-events-none' : ''}`}
           >
-            <p className="text-sm text-zinc-300 mb-1">Drop images here or browse</p>
+            <p className="text-sm text-zinc-300 mb-1">Drop photos or video here or browse</p>
             <p className="text-xs text-zinc-500 mb-3">
               Move them below to pick shop thumbnail and product-page order
             </p>
@@ -335,7 +344,7 @@ export default function NewProductPanel({
               <ProductMediaSorter
                 media={pendingMedia}
                 disabled={creating}
-                emptyLabel="No photos yet"
+                emptyLabel="No photos or videos yet"
                 onReorder={reorderPendingFiles}
                 onSetCover={(index) => reorderPendingFiles(index, 0)}
                 onRemove={removePendingFile}

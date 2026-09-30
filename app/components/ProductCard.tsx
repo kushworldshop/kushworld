@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/lib/cartStore';
@@ -24,6 +23,7 @@ import ProductRatingBadge from './ProductRatingBadge';
 import { useSiteContent } from '@/lib/useSiteContent';
 import { isOnSale } from '@/lib/productCollections';
 import { getProductCoverUrl, isVideoMediaUrl } from '@/lib/productMedia';
+import ProductMediaPreview from './ProductMediaPreview';
 import ProductMetaBadges from './ProductMetaBadges';
 
 export default function ProductCard({ product }: { product: Product }) {
@@ -150,21 +150,20 @@ export default function ProductCard({ product }: { product: Product }) {
         href={`/products/${getProductSlug(product)}`}
         className={`group/image relative aspect-square block overflow-hidden cursor-zoom-in ${isMerch ? 'bg-white/5' : ''}`}
       >
-        {coverIsVideo ? (
-          <video
-            src={coverUrl}
-            className={`w-full h-full ${isMerch ? 'object-contain p-4' : 'object-cover'} transition-transform duration-300 ease-out group-hover/image:scale-[1.2]`}
-            muted
-            playsInline
-            preload="metadata"
-          />
-        ) : (
-          <Image
-            src={coverUrl}
-            alt={`${product.name} — ${isMerch ? 'Kush World Studio merch' : 'lab-tested ' + product.category + ' with COA'} | Kush World`}
-            fill
-            className={`${isMerch ? 'object-contain p-4' : 'object-cover'} transition-transform duration-300 ease-out group-hover/image:scale-[1.2]`}
-          />
+        <ProductMediaPreview
+          url={coverUrl}
+          alt={`${product.name} — ${isMerch ? 'Kush World Studio merch' : 'lab-tested ' + product.category + ' with COA'} | Kush World`}
+          fill
+          className={`${isMerch ? 'object-contain p-4' : 'object-cover'} ${
+            coverIsVideo ? '' : 'transition-transform duration-300 ease-out group-hover/image:scale-[1.2]'
+          }`}
+          autoPlay={coverIsVideo}
+          loop={coverIsVideo}
+        />
+        {coverIsVideo && (
+          <span className="absolute bottom-3 left-3 z-10 text-[10px] font-bold px-2 py-1 rounded-full bg-black/70 text-white">
+            Video
+          </span>
         )}
       </Link>
 

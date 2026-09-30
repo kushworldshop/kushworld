@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { getHomepageMerchFromProducts, getMerchSubcategoryLabel } from '@/lib/merch';
 import { useSiteContent } from '@/lib/useSiteContent';
 import { getProductSlug, type Product } from '@/lib/products';
 import { productHasOptions } from '@/lib/productOptions';
+import ProductMediaPreview from './ProductMediaPreview';
 
 export default function MerchSection({
   initialProducts,
@@ -50,12 +50,14 @@ export default function MerchSection({
               className="group bg-zinc-900/60 rounded-2xl overflow-hidden border border-zinc-800/80 hover:border-[#00ff9d]/30 transition"
             >
               <div className="relative aspect-square bg-white/5 overflow-hidden cursor-zoom-in">
-                <Image
-                  src={product.image}
+                <ProductMediaPreview
+                  url={product.image}
                   alt={`${product.name} — official Kush World Studio merch | Kush World`}
                   fill
                   className="object-contain p-4 transition-transform duration-300 ease-out group-hover:scale-[1.2]"
                   sizes="(max-width: 768px) 50vw, 25vw"
+                  autoPlay
+                  loop
                 />
               </div>
               <div className="p-4">

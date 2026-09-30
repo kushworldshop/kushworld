@@ -3,9 +3,9 @@ const nextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: {
-      bodySizeLimit: '50mb',
+      bodySizeLimit: '64mb',
     },
-    proxyClientMaxBodySize: '50mb',
+    proxyClientMaxBodySize: '64mb',
   },
   images: {
     remotePatterns: [

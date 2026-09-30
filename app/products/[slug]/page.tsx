@@ -12,6 +12,7 @@ import {
 } from '@/lib/seo';
 import { getProductSlug, type Product } from '@/lib/products';
 import { getProductBySlug } from '@/lib/productCatalog';
+import { getProductOgImageUrl } from '@/lib/productMedia';
 import { formatProductPriceDisplay } from '@/lib/productOptions';
 import { getSiteContent } from '@/lib/siteContent';
 import { getShopCategoryLabel, getShopPathForProduct } from '@/lib/shopNavigation';
@@ -36,7 +37,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getProductBySlug(slug);
   if (!product) return { title: 'Product Not Found' };
 
-  const image = product.image.startsWith('http') ? product.image : absoluteUrl(product.image);
+  const ogImage = getProductOgImageUrl(product);
+  const image = ogImage
+    ? ogImage.startsWith('http')
+      ? ogImage
+      : absoluteUrl(ogImage)
+    : undefined;
 
   const priceLabel = formatProductPriceDisplay(product, {});
   const priceTitle = priceLabel.prefix

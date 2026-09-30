@@ -8,9 +8,22 @@ export interface ProductMediaItem {
 }
 
 const VIDEO_URL_PATTERN = /\.(mp4|webm|mov|m4v)(\?|#|$)/i;
+const IMAGE_URL_PATTERN = /\.(jpe?g|png|webp|gif|avif)(\?|#|$)/i;
 
 export function isVideoMediaUrl(url: string): boolean {
   return VIDEO_URL_PATTERN.test(url);
+}
+
+export function isImageMediaUrl(url: string): boolean {
+  return IMAGE_URL_PATTERN.test(url);
+}
+
+export function isProductMediaVideo(
+  item: Pick<ProductMediaItem, 'type' | 'url'> | string | null | undefined
+): boolean {
+  if (!item) return false;
+  if (typeof item === 'string') return isVideoMediaUrl(item);
+  return item.type === 'video' || isVideoMediaUrl(item.url);
 }
 
 export function inferMediaType(url: string): ProductMediaType {
@@ -39,21 +52,30 @@ export function getProductMedia(product: Pick<Product, 'image' | 'images' | 'med
 
 export function getProductCoverUrl(product: Pick<Product, 'image' | 'images' | 'media'>): string {
   const media = getProductMedia(product);
-  if (media.length > 0) {
-    const firstImage = media.find((item) => item.type === 'image');
-    return firstImage?.url ?? media[0].url;
-  }
+  if (media.length > 0) return media[0].url;
   return product.image ?? '';
+}
+
+export function getProductOgImageUrl(product: Pick<Product, 'image' | 'images' | 'media'>): string {
+  const media = getProductMedia(product);
+  const firstImage = media.find((item) => item.type === 'image');
+  if (firstImage) return firstImage.url;
+  if (product.image && !isVideoMediaUrl(product.image)) return product.image;
+  return '';
 }
 
 export function normalizeProductMedia(media: ProductMediaItem[]): ProductMediaItem[] {
   const seen = new Set<string>();
-  return media.filter((item) => {
+  const next: ProductMediaItem[] = [];
+  for (const item of media) {
     const url = item.url?.trim();
-    if (!url || seen.has(url)) return false;
+    if (!url || seen.has(url)) continue;
     seen.add(url);
-    return true;
-  });
+    const type: ProductMediaType =
+      isVideoMediaUrl(url) || (item.type === 'video' && !isImageMediaUrl(url)) ? 'video' : 'image';
+    next.push({ type, url });
+  }
+  return next;
 }
 
 export function syncProductMediaFields(media: ProductMediaItem[]): {

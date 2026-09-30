@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import SiteLayout from '@/app/components/SiteLayout';
 import JsonLd from '@/app/components/JsonLd';
 import { faqJsonLd } from '@/lib/seo';
 import { getCoaPdfPath, getProductSlug, type Product } from '@/lib/products';
 import { useAgeAccess } from '@/lib/useAgeAccess';
+import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 
 const COA_FAQS = [
   {
@@ -78,7 +78,12 @@ export default function CoaPageClient({ products }: { products: Product[] }) {
             return (
               <div key={product.id} className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 flex gap-4">
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                  <Image src={product.image} alt={`${product.name} — ${product.category}`} fill className="object-cover" />
+                  <ProductMediaPreview
+                    url={product.image}
+                    alt={`${product.name} — ${product.category}`}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
                 <div className="flex-1 min-w-0">
                   <Link href={`/products/${getProductSlug(product)}`} className="font-semibold hover:text-[#00ff9d] transition">

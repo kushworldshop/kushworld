@@ -44,11 +44,12 @@ if $LOCK_ORIGIN; then
   fi
 fi
 
-echo "==> Ensuring nginx site allows large uploads (admin images)"
+echo "==> Ensuring nginx site allows large uploads (admin photos and product video)"
 SITE_CONF="/etc/nginx/sites-enabled/kushworld"
 if [[ -f "$SITE_CONF" ]]; then
+  sed -i 's/client_max_body_size 10M;/client_max_body_size 64M;/g' "$SITE_CONF"
   if ! grep -q 'client_max_body_size' "$SITE_CONF"; then
-    sed -i '/server_name kushworld.shop/a \    client_max_body_size 10M;' "$SITE_CONF"
+    sed -i '/server_name kushworld.shop/a \    client_max_body_size 64M;' "$SITE_CONF"
   fi
 fi
 

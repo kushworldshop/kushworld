@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { Product } from '@/lib/products';
 import { getProductSlug, getProductDescription } from '@/lib/products';
+import { getProductOgImageUrl } from '@/lib/productMedia';
 import type { Review } from '@/lib/reviews';
 import { DISCORD_INVITE_URL } from '@/lib/discordInvite';
 
@@ -220,16 +221,20 @@ export function productJsonLd(
 ) {
   const slug = getProductSlug(product);
   const url = absoluteUrl(`/products/${slug}`);
-  const image = product.image.startsWith('http') ? product.image : absoluteUrl(product.image);
+  const ogImage = getProductOgImageUrl(product) || DEFAULT_OG_IMAGE;
+  const image = ogImage.startsWith('http') ? ogImage : absoluteUrl(ogImage);
   const categoryName =
     CATEGORY_SEO[product.category]?.title.split('—')[0].trim() || product.category;
+  const jsonLdImages = product.images
+    ?.filter((img) => img && !img.match(/\.(mp4|webm|mov|m4v)(\?|#|$)/i))
+    .map((img) => (img.startsWith('http') ? img : absoluteUrl(img)));
 
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
     description: getSeoDescription(product),
-    image: product.images?.map((img) => (img.startsWith('http') ? img : absoluteUrl(img))) ?? [image],
+    image: jsonLdImages?.length ? jsonLdImages : [image],
     url,
     sku: product.id,
     brand: { '@type': 'Brand', name: product.category === 'merch' ? 'Kush World Studio' : SITE_NAME },

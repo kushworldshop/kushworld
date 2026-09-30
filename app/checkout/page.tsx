@@ -4,7 +4,7 @@ import { useLoyaltyStore } from '@/lib/loyaltyStore';
 import { useReferralStore } from '@/lib/referralStore';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 import CreditCardForm, { tokenizeCard } from '@/app/components/CreditCardForm';
 import BtcPaymentScreen from '@/app/components/BtcPaymentScreen';
 import XrpPaymentScreen from '@/app/components/XrpPaymentScreen';
@@ -1033,7 +1033,11 @@ export default function Checkout() {
             <h2 className="text-2xl mb-6">Your Order</h2>
             {items.map((item, index) => (
               <div key={index} className="flex gap-4 mb-6 border-b border-zinc-800 pb-6">
-                <Image src={item.image} alt={item.name} width={80} height={80} className="rounded-xl object-cover" />
+                <ProductMediaPreview
+                  url={item.image}
+                  alt={item.name}
+                  className="w-20 h-20 rounded-xl object-cover flex-shrink-0"
+                />
                 <div className="flex-1">
                   <p className="font-semibold">{item.name}</p>
                   {isFirstOrderBonusLineItem(item) && (

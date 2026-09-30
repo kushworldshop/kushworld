@@ -1,12 +1,12 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWishlistStore } from '@/lib/wishlistStore';
 import { useCartStore } from '@/lib/cartStore';
 import SiteLayout from '@/app/components/SiteLayout';
+import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 
 export default function Wishlist() {
   const router = useRouter();
@@ -110,7 +110,7 @@ export default function Wishlist() {
           {items.map((item) => (
             <div key={item.id} className="bg-zinc-900 rounded-3xl overflow-hidden border border-zinc-800">
               <div className="relative aspect-square">
-                <Image src={item.image} alt={item.name} fill className="object-cover" />
+                <ProductMediaPreview url={item.image} alt={item.name} fill className="object-cover" autoPlay loop />
               </div>
               <div className="p-6">
                 <h3 className="font-semibold text-xl mb-2">{item.name}</h3>

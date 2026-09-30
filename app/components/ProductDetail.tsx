@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useCartStore } from '@/lib/cartStore';
 import {
@@ -32,7 +31,7 @@ import ProductReviews from './ProductReviews';
 import { useAgeAccess } from '@/lib/useAgeAccess';
 import { useSiteContent } from '@/lib/useSiteContent';
 import { getShopCategoryLabel, getShopPathForProduct } from '@/lib/shopNavigation';
-import { getProductMedia, type ProductMediaItem } from '@/lib/productMedia';
+import { getProductMedia, isProductMediaVideo, type ProductMediaItem } from '@/lib/productMedia';
 import ProductMediaPreview from '@/app/components/ProductMediaPreview';
 import ProductMetaBadges from './ProductMetaBadges';
 
@@ -51,6 +50,8 @@ export default function ProductDetail({ product }: { product: Product }) {
     const optionMedia: ProductMediaItem = { type: 'image', url: optionImage };
     return [optionMedia, ...baseGallery.filter((item) => item.url !== optionImage)];
   }, [product, selectedOptions, baseGallery]);
+  const activeMedia = displayGallery[activeImage] ?? { type: 'image' as const, url: product.image };
+  const activeIsVideo = isProductMediaVideo(activeMedia);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const addToCart = useCartStore((s) => s.addToCart);
@@ -149,25 +150,22 @@ export default function ProductDetail({ product }: { product: Product }) {
         <div className="grid md:grid-cols-2 gap-12">
           <div>
             <div
-              className={`group/image relative aspect-square rounded-3xl overflow-hidden mb-4 cursor-zoom-in ${isMerch ? 'bg-white/5 border border-zinc-800' : 'bg-zinc-900'}`}
+              className={`group/image relative aspect-square rounded-3xl overflow-hidden mb-4 ${
+                activeIsVideo ? '' : 'cursor-zoom-in'
+              } ${isMerch ? 'bg-white/5 border border-zinc-800' : 'bg-zinc-900'}`}
             >
-              {displayGallery[activeImage]?.type === 'video' ? (
-                <video
-                  src={displayGallery[activeImage].url}
-                  className={`w-full h-full ${isMerch ? 'object-contain p-6' : 'object-cover'}`}
-                  controls
-                  playsInline
-                  preload="metadata"
-                />
-              ) : (
-                <Image
-                  src={displayGallery[activeImage]?.url ?? product.image}
-                  alt={`${product.name} — ${isMerch ? 'official Kush World Studio apparel' : 'premium lab-tested ' + product.category + ' with COA'} | Kush World`}
-                  fill
-                  className={`${isMerch ? 'object-contain p-6' : 'object-cover'} transition-transform duration-300 ease-out group-hover/image:scale-[1.2]`}
-                  priority
-                />
-              )}
+              <ProductMediaPreview
+                item={activeMedia}
+                alt={`${product.name} — ${isMerch ? 'official Kush World Studio apparel' : 'premium lab-tested ' + product.category + ' with COA'} | Kush World`}
+                fill
+                className={`${isMerch ? 'object-contain p-6' : 'object-cover'} ${
+                  activeIsVideo ? '' : 'transition-transform duration-300 ease-out group-hover/image:scale-[1.2]'
+                }`}
+                autoPlay={activeIsVideo}
+                loop={activeIsVideo}
+                controls={activeIsVideo}
+                priority
+              />
             </div>
             {displayGallery.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
@@ -186,7 +184,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                       className="object-contain p-1 bg-white/5"
                       videoClassName="w-full h-full object-cover"
                     />
-                    {item.type === 'video' && (
+                    {isProductMediaVideo(item) && (
                       <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white text-xs font-bold">
                         ▶
                       </span>

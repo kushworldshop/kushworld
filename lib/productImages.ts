@@ -16,6 +16,7 @@ export const ALLOWED_PRODUCT_VIDEO_TYPES = [
   'video/mp4',
   'video/webm',
   'video/quicktime',
+  'video/x-m4v',
 ] as const;
 
 export const ALLOWED_PRODUCT_MEDIA_TYPES = [
@@ -31,7 +32,26 @@ const EXT_BY_TYPE: Record<string, string> = {
   'video/mp4': '.mp4',
   'video/webm': '.webm',
   'video/quicktime': '.mov',
+  'video/x-m4v': '.m4v',
 };
+
+const MIME_BY_FILENAME: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+};
+
+export function resolveProductUploadMime(file: { type?: string; name?: string }): string {
+  if (file.type && isAllowedProductMediaType(file.type)) return file.type;
+  const ext = path.extname(file.name || '').toLowerCase();
+  return MIME_BY_FILENAME[ext] || file.type || '';
+}
 
 export async function ensureProductImageDir(): Promise<void> {
   await fs.mkdir(PRODUCT_IMAGE_DIR, { recursive: true });

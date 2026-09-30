@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import ProductMediaPreview from '@/app/components/ProductMediaPreview';
-import { getProductCoverUrl, type ProductMediaItem } from '@/lib/productMedia';
+import { getProductCoverUrl, isProductMediaVideo, type ProductMediaItem } from '@/lib/productMedia';
 
 function Preview({ item, alt }: { item: ProductMediaItem; alt: string }) {
   const isLocal = item.url.startsWith('blob:') || item.url.startsWith('data:');
-  if (item.type === 'video') {
+  if (isProductMediaVideo(item)) {
     return (
       <video
         src={item.url}
@@ -14,6 +14,11 @@ function Preview({ item, alt }: { item: ProductMediaItem; alt: string }) {
         muted
         playsInline
         preload="metadata"
+        onLoadedMetadata={(event) => {
+          if (event.currentTarget.currentTime === 0) {
+            event.currentTarget.currentTime = 0.05;
+          }
+        }}
       />
     );
   }
@@ -38,7 +43,7 @@ export default function ProductMediaSorter({
   onRemove,
   onSetCover,
   disabled = false,
-  emptyLabel = 'No photos yet',
+  emptyLabel = 'No photos or videos yet',
 }: {
   media: ProductMediaItem[];
   onReorder: (fromIndex: number, toIndex: number) => void;
@@ -135,7 +140,7 @@ export default function ProductMediaSorter({
               <Preview item={item} alt={`Media ${index + 1}`} />
             </div>
             <div className="flex gap-1 p-1.5">
-              {onSetCover && !isCover && item.type === 'image' && (
+              {onSetCover && !isCover && (
                 <button
                   type="button"
                   draggable={false}
