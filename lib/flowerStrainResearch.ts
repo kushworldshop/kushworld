@@ -284,7 +284,7 @@ export async function researchFlowerStrainProfile(input: {
     }),
     tools: [{ type: 'web_search' }, { type: 'x_search' }],
     max_output_tokens: 2400,
-    timeoutMs: 120_000,
+    timeoutMs: 40_000,
   });
 
   if (agentResult) {

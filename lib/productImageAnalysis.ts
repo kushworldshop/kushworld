@@ -340,7 +340,7 @@ export async function analyzeProductCatalogImages(input: {
 }): Promise<ProductCatalogImageAnalysis | null> {
   if (!isXaiConfigured()) return null;
 
-  const images = await loadProductImageSet(input.imageUrls, 8);
+  const images = await loadProductImageSet(input.imageUrls, 4);
   if (images.length === 0) return null;
 
   const contextLine = [
@@ -384,11 +384,18 @@ export async function analyzeProductCatalogImages(input: {
     textBlocksRead: uniqueLabels(note.textBlocksRead ?? []),
   }));
 
-  // Deep per-image pass — analyze every uploaded photo (brand cases, charts, hero shots)
+  // Overview already reads every photo together. Only do extra single-image
+  // passes when the overview missed flavor/menu text — sequential vision was
+  // blowing past the 60s nginx timeout and 504ing admin Grok writes.
   const perImageAnalysis: SingleImageAnalysis[] = [];
-  for (let index = 0; index < images.length; index += 1) {
-    const single = await analyzeSingleProductImage(images[index], index + 1);
-    if (single) perImageAnalysis.push(single);
+  const overviewFlavorCount = uniqueLabels(overview.flavorOrVariantLabels ?? []).length;
+  if (overviewFlavorCount < 2) {
+    const extra = await Promise.all(
+      images.slice(0, 2).map((image, index) => analyzeSingleProductImage(image, index + 1))
+    );
+    for (const single of extra) {
+      if (single) perImageAnalysis.push(single);
+    }
   }
 
   const photoFlavorLabels = collectPhotoFlavors(

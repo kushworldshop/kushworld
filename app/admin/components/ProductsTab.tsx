@@ -925,8 +925,29 @@ export default function ProductsTab({ canDeleteProducts = true }: { canDeletePro
         tone,
       }),
     });
-    const data = await res.json();
-    if (!data.success) {
+    let data: {
+      success?: boolean;
+      error?: string;
+      description?: string;
+      suggestedName?: string;
+      suggestedOptionGroups?: ProductOptionGroup[];
+      suggestedFlowerMetadata?: FlowerProductMetadata;
+      insights?: string;
+      product?: AdminProduct;
+      autoSaved?: boolean;
+    };
+    try {
+      data = await res.json();
+    } catch {
+      if (res.status === 504 || res.status === 524) {
+        return {
+          success: false,
+          error: 'Grok timed out while reading photos. Wait a few seconds and try again.',
+        };
+      }
+      return { success: false, error: `Grok request failed (${res.status || 'network'}). Try again.` };
+    }
+    if (!data.success || !data.description) {
       return { success: false, error: data.error || 'Failed to generate description' };
     }
     return {
@@ -2132,7 +2153,7 @@ function ProductDetailPanel({
                   className="bg-[#00ff9d]/15 text-[#00ff9d] border border-[#00ff9d]/40 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-40"
                 >
                   {generatingDescription
-                    ? 'Analyzing photos...'
+                    ? 'Analyzing photos — about a minute...'
                     : '✦ Grok analyze photos & write'}
                 </button>
               </div>
@@ -2145,7 +2166,19 @@ function ProductDetailPanel({
                 Upload case + menu photos first, then review name, variants, and description before saving.
               </p>
             )}
-            {descriptionMessage && <p className="text-xs text-[#00ff9d]">{descriptionMessage}</p>}
+            {descriptionMessage && (
+              <p
+                className={`text-xs ${
+                  /fail|error|timeout|timed out|Enable Grok|not configured|too short|Try again/i.test(
+                    descriptionMessage
+                  )
+                    ? 'text-red-300'
+                    : 'text-[#00ff9d]'
+                }`}
+              >
+                {descriptionMessage}
+              </p>
+            )}
             {!grokEnabled && (
               <p className="text-xs text-zinc-500">Enable Grok in Features for AI descriptions.</p>
             )}

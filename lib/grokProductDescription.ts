@@ -227,12 +227,13 @@ ${imageAnalysis?.detectedProductName ? `Prefer the detected product name "${imag
     ],
     temperature: 0.35,
     max_tokens: 900,
+    timeoutMs: 40_000,
   });
 
   if (!reply) {
     return {
       error:
-        'Grok could not generate a description. Check XAI_API_KEY and API credits at console.x.ai.',
+        'Grok could not generate a description. Try again in a moment — if this keeps happening, check API credits at console.x.ai.',
     };
   }
 

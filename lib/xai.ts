@@ -109,43 +109,52 @@ export async function xaiChatCompletion(options: {
   model?: string;
   temperature?: number;
   max_tokens?: number;
+  timeoutMs?: number;
 }): Promise<string | null> {
   const apiKey = process.env.XAI_API_KEY?.trim();
   if (!apiKey) return null;
 
-  const res = await fetch(`${XAI_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: options.model ?? getXaiChatModel(),
-      temperature: options.temperature ?? 0,
-      max_tokens: options.max_tokens ?? 500,
-      stream: false,
-      messages: options.messages,
-    }),
-  });
+  const timeoutMs = options.timeoutMs ?? 45_000;
 
-  if (!res.ok) {
-    const errBody = await res.text();
-    console.error('xAI chat error:', errBody);
-    try {
-      const errJson = JSON.parse(errBody) as { error?: string; code?: string };
-      if (errJson.code === 'permission-denied' || errJson.error?.includes('credits')) {
-        console.error('[xAI] Team has no API credits — add billing at https://console.x.ai');
+  try {
+    const res = await fetch(`${XAI_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: options.model ?? getXaiChatModel(),
+        temperature: options.temperature ?? 0,
+        max_tokens: options.max_tokens ?? 500,
+        stream: false,
+        messages: options.messages,
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error('xAI chat error:', errBody);
+      try {
+        const errJson = JSON.parse(errBody) as { error?: string; code?: string };
+        if (errJson.code === 'permission-denied' || errJson.error?.includes('credits')) {
+          console.error('[xAI] Team has no API credits — add billing at https://console.x.ai');
+        }
+      } catch {
+        // ignore parse errors
       }
-    } catch {
-      // ignore parse errors
+      return null;
     }
+
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    return data.choices?.[0]?.message?.content ?? null;
+  } catch (error) {
+    console.error('xAI chat request failed:', error);
     return null;
   }
-
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  return data.choices?.[0]?.message?.content ?? null;
 }
 
 /** Grok vision only accepts JPEG/PNG — returns null for other types. */
@@ -184,6 +193,7 @@ export async function xaiVisionJson<T>(options: {
   const content = await xaiChatCompletion({
     model: options.model ?? getXaiVisionModel(),
     max_tokens: options.max_tokens ?? 200,
+    timeoutMs: 45_000,
     messages: [
       {
         role: 'user',
@@ -234,6 +244,7 @@ export async function xaiVisionJsonMulti<T>(options: {
   const content = await xaiChatCompletion({
     model: options.model ?? getXaiVisionModel(),
     max_tokens: options.max_tokens ?? 2000,
+    timeoutMs: 55_000,
     messages: [{ role: 'user', content: parts }],
   });
 
