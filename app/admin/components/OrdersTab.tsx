@@ -9,14 +9,19 @@ import {
   groupOrdersByBucket,
   type AdminOrderBucket,
 } from '@/lib/adminOrderBuckets';
+import type { AdminOrderQueue } from '@/lib/adminToday';
 import { formatCartItemOptions } from '@/lib/productOptions';
 import { orderNeedsPaymentConfirmation } from '@/lib/paymentMethods';
 import { getSuggestedNextStatus, getSuggestedNextLabel } from '@/lib/orderTracker';
 
-export default function OrdersTab() {
+export default function OrdersTab({
+  initialQueue = null,
+}: {
+  initialQueue?: AdminOrderQueue | null;
+}) {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bucket, setBucket] = useState<AdminOrderBucket>('new');
+  const [queue, setQueue] = useState<AdminOrderQueue>(initialQueue || 'new');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
@@ -56,11 +61,41 @@ export default function OrdersTab() {
     loadOrders();
   }, []);
 
+  useEffect(() => {
+    if (initialQueue) setQueue(initialQueue);
+  }, [initialQueue]);
+
   const grouped = useMemo(() => groupOrdersByBucket(orders), [orders]);
+  const unpaidOrders = useMemo(
+    () =>
+      orders.filter(
+        (order) =>
+          orderNeedsPaymentConfirmation(order) &&
+          getAdminOrderBucket(order) !== 'completed' &&
+          getAdminOrderBucket(order) !== 'refunded'
+      ),
+    [orders]
+  );
+  const idReviewOrders = useMemo(
+    () =>
+      orders.filter(
+        (order) =>
+          order.idVerification?.status === 'uploaded' &&
+          getAdminOrderBucket(order) !== 'completed' &&
+          getAdminOrderBucket(order) !== 'refunded'
+      ),
+    [orders]
+  );
+
+  const queueOrders = useMemo(() => {
+    if (queue === 'unpaid') return unpaidOrders;
+    if (queue === 'id-review') return idReviewOrders;
+    return grouped[queue as AdminOrderBucket];
+  }, [queue, unpaidOrders, idReviewOrders, grouped]);
 
   const filteredInBucket = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return grouped[bucket].filter((order) => {
+    return queueOrders.filter((order) => {
       if (!q) return true;
       return (
         String(order.id).toLowerCase().includes(q) ||
@@ -68,7 +103,7 @@ export default function OrdersTab() {
         String(order.customer?.name || order.name || '').toLowerCase().includes(q)
       );
     });
-  }, [grouped, bucket, search]);
+  }, [queueOrders, search]);
 
   useEffect(() => {
     if (filteredInBucket.length === 0) {
@@ -282,7 +317,19 @@ export default function OrdersTab() {
     }
   };
 
-  const activeBucket = ADMIN_ORDER_BUCKETS.find((item) => item.id === bucket);
+  const activeBucket = ADMIN_ORDER_BUCKETS.find((item) => item.id === queue);
+  const queueLabel =
+    queue === 'unpaid'
+      ? 'Unpaid'
+      : queue === 'id-review'
+        ? 'ID review'
+        : activeBucket?.label || 'New';
+  const queueDescription =
+    queue === 'unpaid'
+      ? 'Waiting on Zelle, Cash App, BTC, XRP, or another manual payment'
+      : queue === 'id-review'
+        ? 'ID uploaded on the order, not approved yet'
+        : activeBucket?.description;
 
   return (
     <>
@@ -315,13 +362,13 @@ export default function OrdersTab() {
         <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-4 mb-6">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {ADMIN_ORDER_BUCKETS.map((item) => {
-              const active = bucket === item.id;
+              const active = queue === item.id;
               const count = grouped[item.id].length;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setBucket(item.id)}
+                  onClick={() => setQueue(item.id)}
                   className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition ${
                     active ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
                   }`}
@@ -333,9 +380,33 @@ export default function OrdersTab() {
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={() => setQueue('unpaid')}
+              className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition ${
+                queue === 'unpaid' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
+              }`}
+            >
+              Unpaid
+              <span className={`ml-2 text-xs ${queue === 'unpaid' ? 'text-black/70' : 'text-zinc-500'}`}>
+                {unpaidOrders.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setQueue('id-review')}
+              className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition ${
+                queue === 'id-review' ? 'bg-[#00ff9d] text-black' : 'bg-zinc-800 hover:bg-zinc-700'
+              }`}
+            >
+              ID
+              <span className={`ml-2 text-xs ${queue === 'id-review' ? 'text-black/70' : 'text-zinc-500'}`}>
+                {idReviewOrders.length}
+              </span>
+            </button>
           </div>
-          {activeBucket && (
-            <p className="text-xs text-zinc-500 mt-3 px-1">{activeBucket.description}</p>
+          {queueDescription && (
+            <p className="text-xs text-zinc-500 mt-3 px-1">{queueDescription}</p>
           )}
         </div>
 
@@ -345,7 +416,7 @@ export default function OrdersTab() {
           <p className="text-center py-20 text-xl text-zinc-400">No orders placed yet.</p>
         ) : filteredInBucket.length === 0 ? (
           <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-12 text-center">
-            <p className="text-xl text-zinc-400 mb-2">No {activeBucket?.label.toLowerCase()} orders</p>
+            <p className="text-xl text-zinc-400 mb-2">No {queueLabel.toLowerCase()} orders</p>
             <p className="text-sm text-zinc-500">Try another category or clear your search.</p>
           </div>
         ) : (

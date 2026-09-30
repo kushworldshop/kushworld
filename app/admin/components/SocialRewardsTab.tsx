@@ -20,7 +20,7 @@ interface SocialRewardSubmission {
   submitIp?: string;
 }
 
-export default function SocialRewardsTab() {
+export default function SocialRewardsTab({ pendingOnly = false }: { pendingOnly?: boolean }) {
   const [submissions, setSubmissions] = useState<SocialRewardSubmission[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [approvedCount, setApprovedCount] = useState(0);
@@ -50,6 +50,10 @@ export default function SocialRewardsTab() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (pendingOnly) setFilter('pending');
+  }, [pendingOnly]);
 
   useEffect(() => {
     load(filter);
@@ -370,7 +374,7 @@ function TdPostsAdmin() {
   };
 
   return (
-    <div className="mt-12">
+    <div id="td-unmatched" className="mt-12">
       <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>

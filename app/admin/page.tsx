@@ -15,7 +15,10 @@ import WishlistTab from '@/app/admin/components/WishlistTab';
 import CartsTab from '@/app/admin/components/CartsTab';
 import SocialRewardsTab from '@/app/admin/components/SocialRewardsTab';
 import StaffTab from '@/app/admin/components/StaffTab';
+import AdminTodayStrip from '@/app/admin/components/AdminTodayStrip';
 import type { StaffPermission, StaffRole } from '@/lib/adminPermissions';
+import type { AdminTodayItemId } from '@/lib/adminToday';
+import { todayFocusToOrderQueue } from '@/lib/adminToday';
 
 
 type AdminTab =
@@ -50,6 +53,7 @@ export default function AdminOrders() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<AdminTab>('orders');
+  const [todayFocus, setTodayFocus] = useState<AdminTodayItemId | null>(null);
   const [role, setRole] = useState<StaffRole>('owner');
   const [staffName, setStaffName] = useState('Owner');
   const [permissions, setPermissions] = useState<StaffPermission[]>([]);
@@ -221,6 +225,7 @@ export default function AdminOrders() {
             <button
               key={item.id}
               onClick={() => {
+                setTodayFocus(null);
                 setTab(item.id);
                 if (item.id === 'settings') loadSiteContent();
               }}
@@ -232,6 +237,13 @@ export default function AdminOrders() {
             </button>
           ))}
         </nav>
+        <AdminTodayStrip
+          activeFocus={todayFocus}
+          onSelect={(item) => {
+            setTodayFocus(item.id);
+            setTab(item.tab);
+          }}
+        />
       </header>
 
       <main className={`flex-1 min-h-0 ${tab === 'members' ? 'overflow-hidden' : 'overflow-y-auto p-4 lg:p-6'}`}>
@@ -254,7 +266,9 @@ export default function AdminOrders() {
           </div>
         )}
 
-        {tab === 'members' && can('members') && <CustomersTab canManageStaff={role === 'owner'} />}
+        {tab === 'members' && can('members') && (
+          <CustomersTab canManageStaff={role === 'owner'} idPendingOnly={todayFocus === 'id-review'} />
+        )}
 
         {tab === 'products' && can('products') && (
           <div className="max-w-7xl mx-auto">
@@ -281,19 +295,19 @@ export default function AdminOrders() {
 
         {tab === 'carts' && can('carts') && (
           <div className="max-w-7xl mx-auto">
-            <CartsTab />
+            <CartsTab abandonedOnly={todayFocus === 'carts'} />
           </div>
         )}
 
         {tab === 'social' && can('social') && (
           <div className="max-w-7xl mx-auto">
-            <SocialRewardsTab />
+            <SocialRewardsTab pendingOnly={todayFocus === 'tds'} />
           </div>
         )}
 
         {tab === 'orders' && can('orders') && (
           <div className="max-w-7xl mx-auto">
-            <OrdersTab />
+            <OrdersTab initialQueue={todayFocusToOrderQueue(todayFocus)} />
           </div>
         )}
       </main>

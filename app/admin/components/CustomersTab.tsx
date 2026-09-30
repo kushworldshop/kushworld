@@ -109,10 +109,17 @@ const emptySocials: UserSocials = {
   website: '',
 };
 
-export default function CustomersTab({ canManageStaff = false }: { canManageStaff?: boolean }) {
+export default function CustomersTab({
+  canManageStaff = false,
+  idPendingOnly = false,
+}: {
+  canManageStaff?: boolean;
+  idPendingOnly?: boolean;
+}) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [search, setSearch] = useState('');
   const [showFree8thOnly, setShowFree8thOnly] = useState(false);
+  const [showIdPendingOnly, setShowIdPendingOnly] = useState(idPendingOnly);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -131,7 +138,21 @@ export default function CustomersTab({ canManageStaff = false }: { canManageStaf
   const [addOrderFreeEighth, setAddOrderFreeEighth] = useState(false);
   const [addingOrder, setAddingOrder] = useState(false);
 
-  const displayUsers = showFree8thOnly ? users.filter((u) => !!u.freeEighthReceivedAt) : users;
+  useEffect(() => {
+    setShowIdPendingOnly(idPendingOnly);
+  }, [idPendingOnly]);
+
+  useEffect(() => {
+    if (!showIdPendingOnly) return;
+    const first = users.find((user) => user.idVerification?.status === 'uploaded');
+    if (first) setSelectedId(first.id);
+  }, [showIdPendingOnly, users]);
+
+  const displayUsers = users.filter((user) => {
+    if (showFree8thOnly && !user.freeEighthReceivedAt) return false;
+    if (showIdPendingOnly && user.idVerification?.status !== 'uploaded') return false;
+    return true;
+  });
 
   const loadUsers = async (query = search) => {
     setLoading(true);
@@ -669,6 +690,15 @@ export default function CustomersTab({ canManageStaff = false }: { canManageStaf
               className="accent-[#00ff9d]"
             />
             Free 1/8th only
+          </label>
+          <label className="flex items-center gap-2 text-xs text-zinc-400">
+            <input
+              type="checkbox"
+              checked={showIdPendingOnly}
+              onChange={(e) => setShowIdPendingOnly(e.target.checked)}
+              className="accent-[#00ff9d]"
+            />
+            ID pending only
           </label>
         </div>
 

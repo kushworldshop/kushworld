@@ -67,8 +67,9 @@ function hoursSince(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60);
 }
 
-export default function CartsTab() {
+export default function CartsTab({ abandonedOnly = false }: { abandonedOnly?: boolean }) {
   const [carts, setCarts] = useState<CartSnapshot[]>([]);
+  const [showAbandonedOnly, setShowAbandonedOnly] = useState(abandonedOnly);
   const [meta, setMeta] = useState<CartMeta>({
     totalCarts: 0,
     totalItems: 0,
@@ -150,7 +151,17 @@ export default function CartsTab() {
     loadCartStats();
   }, []);
 
+  useEffect(() => {
+    setShowAbandonedOnly(abandonedOnly);
+  }, [abandonedOnly]);
+
   const abandonedHours = abandoned?.settings.abandonedHours ?? 1;
+  const visibleCarts = showAbandonedOnly
+    ? carts.filter((cart) => {
+        if (cart.isGuest || !cart.userEmail || cart.items.length === 0) return false;
+        return hoursSince(cart.updatedAt) >= abandonedHours;
+      })
+    : carts;
 
   return (
     <div className="mb-10">
@@ -195,7 +206,7 @@ export default function CartsTab() {
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
+      <div id="abandoned-carts" className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6 mb-6">
           <div>
             <h3 className="text-xl font-bold mb-2">Abandoned Cart Reminders</h3>
@@ -261,18 +272,32 @@ export default function CartsTab() {
         </p>
       </div>
 
+      <label className="flex items-center gap-2 text-sm text-zinc-400 mb-4">
+        <input
+          type="checkbox"
+          checked={showAbandonedOnly}
+          onChange={(e) => setShowAbandonedOnly(e.target.checked)}
+          className="accent-[#00ff9d]"
+        />
+        Abandoned only
+      </label>
+
       {loading ? (
         <p className="text-center py-20 text-zinc-400">Loading live carts...</p>
-      ) : carts.length === 0 ? (
+      ) : visibleCarts.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-12 text-center">
-          <p className="text-xl text-zinc-400 mb-2">No active carts yet</p>
+          <p className="text-xl text-zinc-400 mb-2">
+            {showAbandonedOnly ? 'No abandoned carts' : 'No active carts yet'}
+          </p>
           <p className="text-sm text-zinc-500">
-            Carts appear when visitors add items on the shop. Data syncs automatically within a few seconds of cart changes.
+            {showAbandonedOnly
+              ? 'Logged-in carts go abandoned after the idle window.'
+              : 'Carts appear when visitors add items on the shop. Data syncs automatically within a few seconds of cart changes.'}
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {carts.map((cart) => {
+          {visibleCarts.map((cart) => {
             const expanded = expandedKey === cart.ownerKey;
             const label = cart.isGuest
               ? 'Guest visitor'
