@@ -20,7 +20,7 @@ import {
   type DropHeroConfig,
 } from '@/lib/dropClock';
 
-type FeatureSection = 'homepage' | 'shop' | 'account' | 'checkout' | 'compliance' | 'comingSoon';
+type FeatureSection = 'drop' | 'homepage' | 'shop' | 'account' | 'checkout' | 'compliance' | 'grok' | 'comingSoon';
 
 function Toggle({
   label,
@@ -112,14 +112,19 @@ function DropClockStatus({ drop }: { drop: DropHeroConfig }) {
 export default function FeaturesTab({
   content,
   onContentChange,
+  forcedSection,
+  hideShell = false,
 }: {
   content: SiteContent;
   onContentChange: (content: SiteContent) => void;
+  forcedSection?: FeatureSection;
+  hideShell?: boolean;
 }) {
-  const [section, setSection] = useState<FeatureSection>('homepage');
+  const [section, setSection] = useState<FeatureSection>(forcedSection ?? 'drop');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const features = content.features;
+  const activeSection = forcedSection ?? section;
 
   const patchFeatures = (patch: FeaturePatch) => {
     const next = { ...features } as SiteFeatures;
@@ -162,45 +167,20 @@ export default function FeaturesTab({
   };
 
   const sections: { key: FeatureSection; label: string }[] = [
+    { key: 'drop', label: 'Drop clock' },
     { key: 'homepage', label: 'Homepage' },
     { key: 'shop', label: 'Shop' },
     { key: 'account', label: 'Account & Loyalty' },
     { key: 'checkout', label: 'Payments' },
-    { key: 'compliance', label: 'Compliance' },
+    { key: 'compliance', label: 'Age & ID' },
+    { key: 'grok', label: 'Grok' },
     { key: 'comingSoon', label: 'Coming Soon' },
   ];
 
-  return (
-    <div className="mb-10">
-      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
-        <h2 className="text-2xl font-bold mb-2">Feature Controls</h2>
-        <p className="text-zinc-400 text-sm">
-          Turn site features on or off and customize how they appear. Changes apply immediately after
-          saving.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        {sections.map((item) => (
-          <button
-            key={item.key}
-            onClick={() => setSection(item.key)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium ${
-              section === item.key ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl max-w-4xl space-y-6">
-        {section === 'homepage' && (
+  const body = (
+      <div className={hideShell ? 'space-y-6' : 'bg-zinc-900 border border-zinc-700 p-8 rounded-3xl max-w-4xl space-y-6'}>
+        {activeSection === 'drop' && (
           <>
-            <p className="text-sm text-zinc-400">
-              Edit section titles and copy under Site Content → Homepage Sections.
-            </p>
-
             <div className="border border-[#00ff9d]/30 rounded-3xl p-5 space-y-4 bg-black/40">
               <div>
                 <h3 className="text-lg font-bold">Drop clock</h3>
@@ -341,6 +321,14 @@ export default function FeaturesTab({
                 onChange={(discordEarlyAccess) => patchFeatures({ dropHero: { discordEarlyAccess } })}
               />
             </div>
+          </>
+        )}
+
+        {activeSection === 'homepage' && (
+          <>
+            <p className="text-sm text-zinc-400">
+              Turn homepage blocks on or off here. Titles and body copy are under Home → Homepage blocks.
+            </p>
 
             <Toggle
               label="Best Sellers section"
@@ -391,7 +379,7 @@ export default function FeaturesTab({
           </>
         )}
 
-        {section === 'shop' && (
+        {activeSection === 'shop' && (
           <>
             <Toggle label="Wishlist hearts" checked={features.wishlist.enabled} onChange={(enabled) => patchFeatures({ wishlist: { enabled } })} />
             <Toggle label="COA links on products" checked={features.coaLinks.enabled} onChange={(enabled) => patchFeatures({ coaLinks: { enabled } })} />
@@ -405,7 +393,7 @@ export default function FeaturesTab({
           </>
         )}
 
-        {section === 'account' && (
+        {activeSection === 'account' && (
           <>
             <Toggle label="Loyalty points program" checked={features.loyaltyProgram.enabled} onChange={(enabled) => patchFeatures({ loyaltyProgram: { enabled } })} />
             <Toggle label="Spin wheel" checked={features.spinWheel.enabled} onChange={(enabled) => patchFeatures({ spinWheel: { enabled } })} />
@@ -441,14 +429,14 @@ export default function FeaturesTab({
           </>
         )}
 
-        {section === 'checkout' && (
+        {activeSection === 'checkout' && (
           <p className="text-sm text-zinc-400">
             Payment method toggles and checkout copy (labels, pay-to info, Bitcoin guide) are edited under{' '}
             <strong className="text-zinc-200">Site Content → Checkout Payments</strong>.
           </p>
         )}
 
-        {section === 'compliance' && (
+        {activeSection === 'compliance' && (
           <>
             <Toggle label="21+ age gate modal" checked={features.ageGate.enabled} onChange={(enabled) => patchFeatures({ ageGate: { enabled } })} />
             <Toggle
@@ -457,16 +445,19 @@ export default function FeaturesTab({
               checked={features.idVerification.enabled}
               onChange={(enabled) => patchFeatures({ idVerification: { enabled } })}
             />
-            <Toggle
-              label="Grok AI assistant"
-              description="Support chat on Contact, product Q&A, admin tools, and content drafting. Requires XAI_API_KEY on server."
-              checked={features.grokAssistant.enabled}
-              onChange={(enabled) => patchFeatures({ grokAssistant: { enabled } })}
-            />
           </>
         )}
 
-        {section === 'comingSoon' && (
+        {activeSection === 'grok' && (
+          <Toggle
+            label="Grok AI assistant"
+            description="Support chat on Contact, product Q&A, admin tools, and product descriptions. Requires XAI_API_KEY on the server."
+            checked={features.grokAssistant.enabled}
+            onChange={(enabled) => patchFeatures({ grokAssistant: { enabled } })}
+          />
+        )}
+
+        {activeSection === 'comingSoon' && (
           <>
             <p className="text-sm text-zinc-400">
               These are BLifted-style features you can flag on now. Full functionality can be built when you are ready.
@@ -509,15 +500,46 @@ export default function FeaturesTab({
           </>
         )}
 
-        <button
-          onClick={() => void save()}
-          disabled={saving}
-          className="bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : 'Save Feature Settings'}
-        </button>
+        {!hideShell && (
+          <button
+            onClick={() => void save()}
+            disabled={saving}
+            className="bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save Feature Settings'}
+          </button>
+        )}
         {message && <p className="text-sm text-[#00ff9d]">{message}</p>}
       </div>
+  );
+
+  if (hideShell) return body;
+
+  return (
+    <div className="mb-10">
+      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
+        <h2 className="text-2xl font-bold mb-2">Feature Controls</h2>
+        <p className="text-zinc-400 text-sm">
+          Turn site features on or off and customize how they appear. Changes apply immediately after
+          saving.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {sections.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => setSection(item.key)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium ${
+              activeSection === item.key ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {body}
     </div>
   );
 }

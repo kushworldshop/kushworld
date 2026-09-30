@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { adminFetch } from '@/lib/adminClient';
 import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
-import SiteContentTab from '@/app/admin/components/SiteContentTab';
-import FeaturesTab from '@/app/admin/components/FeaturesTab';
+import SiteEditor from '@/app/admin/components/SiteEditor';
 import CustomersTab from '@/app/admin/components/CustomersTab';
 import OrdersTab from '@/app/admin/components/OrdersTab';
 import ProductsTab from '@/app/admin/components/ProductsTab';
@@ -42,7 +41,7 @@ const ADMIN_TABS: Array<{ id: AdminTab; label: string; permission?: StaffPermiss
   { id: 'social', label: 'X / TD', permission: 'social' },
   { id: 'wheel', label: 'Wheel', permission: 'wheel' },
   { id: 'subscriptions', label: 'Subs', permission: 'subscriptions' },
-  { id: 'settings', label: 'Settings', permission: 'settings' },
+  { id: 'settings', label: 'Site', permission: 'settings' },
   { id: 'staff', label: 'Staff', ownerOnly: true },
 ];
 
@@ -246,18 +245,9 @@ export default function AdminOrders() {
         />
       </header>
 
-      <main className={`flex-1 min-h-0 ${tab === 'members' ? 'overflow-hidden' : 'overflow-y-auto p-4 lg:p-6'}`}>
+      <main className={`flex-1 min-h-0 ${tab === 'members' || tab === 'settings' ? 'overflow-hidden' : 'overflow-y-auto p-4 lg:p-6'}`}>
         {tab === 'settings' && can('settings') && (
-          <div className="max-w-7xl mx-auto space-y-12">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-zinc-500 mb-4">Step 1 — Feature toggles</p>
-              <FeaturesTab content={siteContent} onContentChange={setSiteContent} />
-            </div>
-            <div className="border-t border-zinc-800 pt-10">
-              <p className="text-xs uppercase tracking-widest text-zinc-500 mb-4">Step 2 — Copy &amp; content</p>
-              <SiteContentTab content={siteContent} onContentChange={setSiteContent} />
-            </div>
-          </div>
+          <SiteEditor content={siteContent} onContentChange={setSiteContent} />
         )}
 
         {tab === 'subscriptions' && can('subscriptions') && (

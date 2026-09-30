@@ -27,7 +27,7 @@ export const STAFF_PERMISSION_LABELS: Record<StaffPermission, string> = {
   carts: 'Live carts',
   social: 'X rewards',
   subscriptions: 'Subscriptions',
-  settings: 'Site settings',
+  settings: 'Edit the site',
 };
 
 export function isStaffPermission(value: unknown): value is StaffPermission {

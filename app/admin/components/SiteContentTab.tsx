@@ -175,15 +175,20 @@ function Field({
 export default function SiteContentTab({
   content,
   onContentChange,
+  forcedSection,
+  hideShell = false,
 }: {
   content: SiteContent;
   onContentChange: (content: SiteContent) => void;
+  forcedSection?: SectionKey;
+  hideShell?: boolean;
 }) {
-  const [section, setSection] = useState<SectionKey>('brand');
+  const [section, setSection] = useState<SectionKey>(forcedSection ?? 'brand');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const features = content.features;
+  const activeSection = forcedSection ?? section;
 
   const patchFeatures = (patch: FeaturePatch) => {
     const next = { ...features } as SiteFeatures;
@@ -267,32 +272,9 @@ export default function SiteContentTab({
     { key: 'shop', label: 'Shop Navigation' },
   ];
 
-  return (
-    <div className="mb-10">
-      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
-        <h2 className="text-2xl font-bold mb-2">Site Content</h2>
-        <p className="text-zinc-400 text-sm max-w-3xl">
-          All customer-facing copy lives here — hero text, homepage sections, policies, contact info, and shop
-          navigation. Turn sections on or off under the Features tab.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        {sections.map((item) => (
-          <button
-            key={item.key}
-            onClick={() => setSection(item.key)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium ${
-              section === item.key ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl max-w-4xl space-y-6">
-        {section === 'brand' && (
+  const body = (
+      <div className={hideShell ? 'space-y-6' : 'bg-zinc-900 border border-zinc-700 p-8 rounded-3xl max-w-4xl space-y-6'}>
+        {activeSection === 'brand' && (
           <>
             <Field label="Brand name" value={content.brand.name} onChange={(v) => onContentChange({ ...content, brand: { ...content.brand, name: v } })} />
             <Field label="Tagline" value={content.brand.tagline} onChange={(v) => onContentChange({ ...content, brand: { ...content.brand, tagline: v } })} />
@@ -311,7 +293,7 @@ export default function SiteContentTab({
           </>
         )}
 
-        {section === 'announcement' && (
+        {activeSection === 'announcement' && (
           <>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -327,7 +309,7 @@ export default function SiteContentTab({
           </>
         )}
 
-        {section === 'hero' && (
+        {activeSection === 'hero' && (
           <>
             <h3 className="text-lg font-bold text-[#00ff9d]">Full catalog hero</h3>
             <Field label="Eyebrow" value={content.hero.fullAccess.eyebrow} onChange={(v) => onContentChange({ ...content, hero: { ...content.hero, fullAccess: { ...content.hero.fullAccess, eyebrow: v } } })} />
@@ -345,14 +327,14 @@ export default function SiteContentTab({
           </>
         )}
 
-        {section === 'footer' && (
+        {activeSection === 'footer' && (
           <>
             <Field label="Footer tagline" value={content.footer.tagline} onChange={(v) => onContentChange({ ...content, footer: { ...content.footer, tagline: v } })} multiline />
             <Field label="Copyright line" value={content.footer.copyright} onChange={(v) => onContentChange({ ...content, footer: { ...content.footer, copyright: v } })} />
           </>
         )}
 
-        {section === 'contact' && (
+        {activeSection === 'contact' && (
           <>
             <Field label="Support email" value={content.contact.email} onChange={(v) => onContentChange({ ...content, contact: { ...content.contact, email: v } })} />
             <Field label="Response time" value={content.contact.responseTime} onChange={(v) => onContentChange({ ...content, contact: { ...content.contact, responseTime: v } })} />
@@ -372,10 +354,11 @@ export default function SiteContentTab({
           </>
         )}
 
-        {section === 'homepage-sections' && (
+        {activeSection === 'homepage-sections' && (
           <>
             <p className="text-sm text-zinc-400">
-              Titles and body copy for homepage product sections. Enable or disable each block in Features.
+              Titles and body copy for homepage product sections. Turn each block on or off in Home → Homepage
+              blocks.
             </p>
 
             <h3 className="font-bold text-[#00ff9d]">Best Sellers</h3>
@@ -465,7 +448,7 @@ export default function SiteContentTab({
           </>
         )}
 
-        {section === 'payments' && (
+        {activeSection === 'payments' && (
           <>
             <p className="text-sm text-zinc-400">
               Turn payment methods on or off and edit checkout copy. Manual methods show a confirmation code after
@@ -533,7 +516,7 @@ export default function SiteContentTab({
           </>
         )}
 
-        {section === 'homepage' && (
+        {activeSection === 'homepage' && (
           <>
             <h3 className="font-bold">Merch section</h3>
             <Field label="Eyebrow" value={content.merchSection.eyebrow} onChange={(v) => onContentChange({ ...content, merchSection: { ...content.merchSection, eyebrow: v } })} />
@@ -567,7 +550,7 @@ export default function SiteContentTab({
           </>
         )}
 
-        {section === 'ageGate' && (
+        {activeSection === 'ageGate' && (
           <>
             <Field label="Title" value={content.ageGate.title} onChange={(v) => onContentChange({ ...content, ageGate: { ...content.ageGate, title: v } })} />
             <Field label="Body" value={content.ageGate.body} onChange={(v) => onContentChange({ ...content, ageGate: { ...content.ageGate, body: v } })} multiline />
@@ -576,21 +559,21 @@ export default function SiteContentTab({
           </>
         )}
 
-        {section === 'shipping' && (
+        {activeSection === 'shipping' && (
           <>
             <Field label="Free shipping threshold — hemp ($)" value={content.shipping.freeShippingThresholdHemp} onChange={(v) => onContentChange({ ...content, shipping: { ...content.shipping, freeShippingThresholdHemp: Number(v) || 0 } })} />
             <Field label="Free shipping threshold — merch ($)" value={content.shipping.freeShippingThresholdMerch} onChange={(v) => onContentChange({ ...content, shipping: { ...content.shipping, freeShippingThresholdMerch: Number(v) || 0 } })} hint="Also updates merch section free shipping mention." />
           </>
         )}
 
-        {section === 'shop' && (
+        {activeSection === 'shop' && (
           <ShopNavigationEditor
             value={content.shopNavigation}
             onChange={(shopNavigation) => onContentChange({ ...content, shopNavigation })}
           />
         )}
 
-        {section === 'policies' && (
+        {activeSection === 'policies' && (
           <>
             {(['privacy', 'terms', 'shipping', 'returns'] as const).map((key) => (
               <div key={key} className="space-y-3 border border-zinc-800 rounded-2xl p-4">
@@ -616,21 +599,21 @@ export default function SiteContentTab({
           <GrokChat
             useAdminAuth
             mode="content"
-            contentType={section}
+            contentType={activeSection}
             existingText={
-              section === 'policies'
+              activeSection === 'policies'
                 ? content.policies.privacy.body
-                : section === 'contact'
+                : activeSection === 'contact'
                   ? `${content.contact.pageTitle}\n${content.contact.pageSubtitle}`
-                  : section === 'homepage'
+                  : activeSection === 'homepage'
                     ? content.faq.items.map((item) => `${item.question}\n${item.answer}`).join('\n\n')
-                    : section === 'homepage-sections'
+                    : activeSection === 'homepage-sections'
                       ? [
                           features.bestSellers.title,
                           features.howItWorks.title,
                           features.communityBlock.body,
                         ].join('\n')
-                    : section === 'brand'
+                    : activeSection === 'brand'
                       ? `${content.brand.name}\n${content.brand.tagline}`
                       : ''
             }
@@ -645,11 +628,42 @@ export default function SiteContentTab({
           />
         )}
 
-        <button onClick={save} disabled={saving} className="bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold disabled:opacity-50">
-          {saving ? 'Saving...' : 'Save Site Content'}
-        </button>
+        {!hideShell && (
+          <button onClick={save} disabled={saving} className="bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold disabled:opacity-50">
+            {saving ? 'Saving...' : 'Save Site Content'}
+          </button>
+        )}
         {message && <p className="text-sm text-[#00ff9d]">{message}</p>}
       </div>
+  );
+
+  if (hideShell) return body;
+
+  return (
+    <div className="mb-10">
+      <div className="bg-zinc-900 border border-zinc-700 p-8 rounded-3xl mb-6">
+        <h2 className="text-2xl font-bold mb-2">Site Content</h2>
+        <p className="text-zinc-400 text-sm max-w-3xl">
+          All customer-facing copy lives here — hero text, homepage sections, policies, contact info, and shop
+          navigation.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {sections.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => setSection(item.key)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium ${
+              activeSection === item.key ? 'bg-[#00ff9d] text-black' : 'bg-zinc-900'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {body}
     </div>
   );
 }
