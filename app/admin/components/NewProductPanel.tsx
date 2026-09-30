@@ -20,7 +20,12 @@ import {
   isFlowerProductCategory,
   mergeFlowerWeightOptionGroups,
 } from '@/lib/flowerWeights';
-import { getProductMedia, syncProductMediaFields } from '@/lib/productMedia';
+import {
+  getProductMedia,
+  syncProductMediaFields,
+  type ProductMediaItem,
+} from '@/lib/productMedia';
+import ProductMediaSorter from '@/app/admin/components/ProductMediaSorter';
 
 const fieldClass = 'w-full bg-black border border-zinc-700 rounded-lg px-3 py-2 text-sm';
 const labelClass = 'text-[11px] text-zinc-500 block mb-1';
@@ -114,6 +119,29 @@ export default function NewProductPanel({
 
   const removePendingFile = (index: number) => {
     setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const pendingMedia: ProductMediaItem[] = previewUrls.map((preview) => ({
+    type: preview.file.type.startsWith('video/') ? 'video' : 'image',
+    url: preview.url,
+  }));
+
+  const reorderPendingFiles = (fromIndex: number, toIndex: number) => {
+    setPendingFiles((prev) => {
+      const next = [...prev];
+      if (
+        fromIndex === toIndex ||
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= next.length ||
+        toIndex >= next.length
+      ) {
+        return prev;
+      }
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
   };
 
   const uploadGalleryMedia = async (productId: string, files: File[]) => {
@@ -281,7 +309,9 @@ export default function NewProductPanel({
             } ${creating ? 'opacity-60 pointer-events-none' : ''}`}
           >
             <p className="text-sm text-zinc-300 mb-1">Drop images here or browse</p>
-            <p className="text-xs text-zinc-500 mb-3">First image becomes the shop thumbnail</p>
+            <p className="text-xs text-zinc-500 mb-3">
+              Move them below to pick shop thumbnail and product-page order
+            </p>
             <label className="inline-flex bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer">
               Choose files
               <input
@@ -300,31 +330,16 @@ export default function NewProductPanel({
             </label>
           </div>
 
-          {previewUrls.length > 0 && (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
-              {previewUrls.map((preview, index) => (
-                <div key={`${preview.file.name}-${index}`} className="relative rounded-lg overflow-hidden border border-zinc-700">
-                  {preview.file.type.startsWith('video/') ? (
-                    <video src={preview.url} className="aspect-square w-full object-cover bg-black" muted playsInline />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={preview.url} alt="" className="aspect-square w-full object-cover bg-black" />
-                  )}
-                  {index === 0 && (
-                    <span className="absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded bg-[#00ff9d] text-black font-medium">
-                      Cover
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    disabled={creating}
-                    onClick={() => removePendingFile(index)}
-                    className="absolute top-1 right-1 text-[9px] px-1.5 py-0.5 rounded bg-red-500/80 text-white disabled:opacity-40"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
+          {pendingMedia.length > 0 && (
+            <div className="mt-3">
+              <ProductMediaSorter
+                media={pendingMedia}
+                disabled={creating}
+                emptyLabel="No photos yet"
+                onReorder={reorderPendingFiles}
+                onSetCover={(index) => reorderPendingFiles(index, 0)}
+                onRemove={removePendingFile}
+              />
             </div>
           )}
         </div>

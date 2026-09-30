@@ -59,7 +59,7 @@ import {
   syncProductMediaFields,
   type ProductMediaItem,
 } from '@/lib/productMedia';
-import ProductMediaPreview from '@/app/components/ProductMediaPreview';
+import ProductMediaSorter from '@/app/admin/components/ProductMediaSorter';
 import NewProductPanel from '@/app/admin/components/NewProductPanel';
 import CostMarkupControls from '@/app/admin/components/CostMarkupControls';
 import { type PriceMarkup } from '@/lib/customerPricing';
@@ -1746,8 +1746,6 @@ function ProductDetailPanel({
   const [creatingSubsection, setCreatingSubsection] = useState(false);
   const [newSubsectionName, setNewSubsectionName] = useState('');
   const [showNewSubsection, setShowNewSubsection] = useState(false);
-  const [draggingMediaIndex, setDraggingMediaIndex] = useState<number | null>(null);
-  const [dragOverMediaIndex, setDragOverMediaIndex] = useState<number | null>(null);
   const sizePricing = getSizeUnitAndBoxPricing({
     price: draft.price,
     category: draft.category,
@@ -1766,8 +1764,6 @@ function ProductDetailPanel({
     setEditorTab('basics');
     setShowNewSubsection(false);
     setNewSubsectionName('');
-    setDraggingMediaIndex(null);
-    setDragOverMediaIndex(null);
   }, [product.id]);
 
   const handleMediaReorder = (fromIndex: number, toIndex: number) => {
@@ -2078,101 +2074,26 @@ function ProductDetailPanel({
         {editorTab === 'media' && (
           <div className="max-w-2xl">
             <p className="text-[11px] text-zinc-500 mb-3">
-              Drag photos to reorder. First image = shop thumbnail. Gallery changes save immediately.
+              Drag or use the arrows to set the order. The <span className="text-[#00ff9d]">Shop</span> image is
+              the thumbnail on the board and shop. The rest show in this order on the product page. Saves as you
+              move them.
             </p>
-            {draft.media.length > 0 && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-3">
-                {draft.media.map((item, index) => {
-                  const isCover = item.url === coverUrl;
-                  const isDragging = draggingMediaIndex === index;
-                  const isDragOver = dragOverMediaIndex === index && draggingMediaIndex !== index;
-                  const mediaLocked = saving || uploadingImage;
-                  return (
-                    <div
-                      key={item.url}
-                      draggable={!mediaLocked && draft.media.length > 1}
-                      onDragStart={(event) => {
-                        if (mediaLocked || draft.media.length <= 1) return;
-                        setDraggingMediaIndex(index);
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', String(index));
-                      }}
-                      onDragOver={(event) => {
-                        if (draggingMediaIndex === null || mediaLocked) return;
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = 'move';
-                        setDragOverMediaIndex(index);
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        const fromIndex =
-                          draggingMediaIndex ?? Number(event.dataTransfer.getData('text/plain'));
-                        handleMediaReorder(fromIndex, index);
-                        setDraggingMediaIndex(null);
-                        setDragOverMediaIndex(null);
-                      }}
-                      onDragEnd={() => {
-                        setDraggingMediaIndex(null);
-                        setDragOverMediaIndex(null);
-                      }}
-                      className={`rounded-lg overflow-hidden border transition-all ${
-                        isCover ? 'border-[#00ff9d]' : 'border-zinc-700'
-                      } ${isDragging ? 'opacity-40 scale-95' : ''} ${
-                        isDragOver ? 'ring-2 ring-[#00ff9d] ring-offset-2 ring-offset-zinc-950' : ''
-                      } ${!mediaLocked && draft.media.length > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                    >
-                      {!mediaLocked && draft.media.length > 1 && (
-                        <div
-                          className="flex items-center justify-center gap-0.5 py-1 bg-zinc-900 border-b border-zinc-800 text-zinc-500"
-                          aria-hidden="true"
-                        >
-                          <span className="w-1 h-1 rounded-full bg-current" />
-                          <span className="w-1 h-1 rounded-full bg-current" />
-                          <span className="w-1 h-1 rounded-full bg-current" />
-                        </div>
-                      )}
-                      <div className="image-hover-zoom relative aspect-square bg-black pointer-events-none">
-                        <ProductMediaPreview
-                          item={item}
-                          alt={`${draft.name} ${index + 1}`}
-                          fill
-                          className="object-cover"
-                          videoClassName="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex gap-1 p-1.5 bg-zinc-950">
-                        {!isCover && (
-                          <button
-                            type="button"
-                            draggable={false}
-                            disabled={mediaLocked}
-                            onClick={() =>
-                              onMediaChange(
-                                setProductCoverMedia({ image: draft.image, media: draft.media }, item.url).media
-                              )
-                            }
-                            className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 disabled:opacity-40"
-                          >
-                            Cover
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          draggable={false}
-                          disabled={mediaLocked}
-                          onClick={() =>
-                            onMediaChange(removeProductMedia({ image: draft.image, media: draft.media }, item.url).media)
-                          }
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/10 text-red-300 ml-auto disabled:opacity-40"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <ProductMediaSorter
+              media={draft.media}
+              disabled={saving || uploadingImage}
+              onReorder={handleMediaReorder}
+              onSetCover={(index) =>
+                onMediaChange(
+                  setProductCoverMedia({ image: draft.image, media: draft.media }, draft.media[index].url)
+                    .media
+                )
+              }
+              onRemove={(index) =>
+                onMediaChange(
+                  removeProductMedia({ image: draft.image, media: draft.media }, draft.media[index].url).media
+                )
+              }
+            />
             <label className="inline-flex bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer">
               {uploadingImage ? 'Uploading...' : '+ Add photos or video'}
               <input
