@@ -3,7 +3,7 @@
  * VPS cron helper — scans X for #KushWorldTD and credits matching member profiles.
  *
  * Crontab example (every 15 minutes):
- *   */15 * * * * cd /var/www/kushworld && /usr/bin/node scripts/run-td-hashtag-cron.mjs >> /var/log/kushworld-td-hashtag.log 2>&1
+ *   0,15,30,45 * * * * cd /var/www/kushworld && /usr/bin/node scripts/run-td-hashtag-cron.mjs >> /var/log/kushworld-td-hashtag.log 2>&1
  *
  * Requires CRON_SECRET and X_BEARER_TOKEN in /var/www/kushworld/.env
  */
