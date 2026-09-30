@@ -17,7 +17,7 @@ export interface ProductOptionGroup {
   values: ProductOptionValue[];
 }
 
-export const MAX_PRODUCT_OPTION_VALUES_PER_GROUP = 20;
+export const MAX_PRODUCT_OPTION_VALUES_PER_GROUP = 50;
 export const MAX_PRODUCT_OPTION_GROUPS = 6;
 /** Use a dropdown on the shop when a group has more than this many choices */
 export const PRODUCT_OPTION_DROPDOWN_THRESHOLD = 8;

@@ -70,6 +70,7 @@ export function applyFlowerProductOptions<
   T extends Pick<Product, 'category' | 'price' | 'optionGroups' | 'hideBulkPricing'>,
 >(product: T): T {
   if (!isFlowerProductCategory(product.category)) return product;
+  if (!hasFlowerWeightOptionGroup(product.optionGroups)) return product;
   return {
     ...product,
     optionGroups: mergeFlowerWeightOptionGroups(product.optionGroups, product.price),

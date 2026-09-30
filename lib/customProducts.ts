@@ -5,8 +5,10 @@ import { getProductSlug } from '@/lib/products';
 import {
   applyFlowerProductOptions,
   isFlowerProductCategory,
+  mergeFlowerWeightOptionGroups,
   stripFlowerWeightOptionGroups,
 } from '@/lib/flowerWeights';
+import { clampProductOptionGroups } from '@/lib/productOptions';
 import { sanitizeTierPricing } from '@/lib/tierPricing';
 
 const CUSTOM_PRODUCTS_FILE = path.join(process.cwd(), 'data', 'custom-products.json');
@@ -103,12 +105,20 @@ export async function createCustomProduct(input: Omit<Product, 'id'> & { id?: st
     await writeDeletedProductIds(deleted.filter((value) => value !== id));
   }
 
-  const product: Product = applyFlowerProductOptions({
+  const created: Product = {
     ...input,
     id,
     slug: input.slug || slugifyProductName(input.name),
     isNew: input.isNew ?? true,
-  });
+  };
+  const product: Product =
+    isFlowerProductCategory(created.category) && !created.optionGroups?.length
+      ? {
+          ...created,
+          optionGroups: mergeFlowerWeightOptionGroups([], created.price),
+          hideBulkPricing: true,
+        }
+      : applyFlowerProductOptions(created);
 
   products.push(product);
   await writeCustomProducts(products);
@@ -186,7 +196,8 @@ export async function updateCustomProduct(
     else delete next.description;
   }
   if (updates.optionGroups !== undefined) {
-    if (updates.optionGroups.length > 0) next.optionGroups = updates.optionGroups;
+    const cleanedGroups = clampProductOptionGroups(updates.optionGroups);
+    if (cleanedGroups.length > 0) next.optionGroups = cleanedGroups;
     else delete next.optionGroups;
   }
   if (updates.hidden !== undefined) {
@@ -258,10 +269,7 @@ export async function updateCustomProduct(
 
   if (isFlowerProductCategory(next.category)) {
     Object.assign(next, applyFlowerProductOptions(next));
-  } else if (
-    updates.category !== undefined &&
-    !isFlowerProductCategory(next.category)
-  ) {
+  } else {
     const stripped = stripFlowerWeightOptionGroups(next.optionGroups);
     if (stripped) next.optionGroups = stripped;
     else delete next.optionGroups;

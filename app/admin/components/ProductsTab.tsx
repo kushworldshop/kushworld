@@ -40,8 +40,10 @@ import {
 import {
   applyFlowerProductOptions,
   describeFlowerSellPrice,
+  hasFlowerWeightOptionGroup,
   isFlowerProductCategory,
   mergeFlowerWeightOptionGroups,
+  stripFlowerWeightOptionGroups,
 } from '@/lib/flowerWeights';
 import { getSizeUnitAndBoxPricing } from '@/lib/productOptions';
 import {
@@ -638,19 +640,28 @@ export default function ProductsTab({ canDeleteProducts = true }: { canDeletePro
           patch.merchSubcategory = '';
         }
       }
-      if (currentDraft && field === 'price' && isFlowerProductCategory(currentDraft.category)) {
+      if (
+        currentDraft &&
+        field === 'price' &&
+        isFlowerProductCategory(currentDraft.category) &&
+        hasFlowerWeightOptionGroup(currentDraft.optionGroups)
+      ) {
         patch.optionGroups = mergeFlowerWeightOptionGroups(
           currentDraft.optionGroups,
           Number(value)
         );
         patch.hideBulkPricing = true;
       }
-      if (field === 'category' && isFlowerProductCategory(String(value)) && currentDraft) {
-        patch.optionGroups = mergeFlowerWeightOptionGroups(
-          currentDraft.optionGroups,
-          currentDraft.price
-        );
-        patch.hideBulkPricing = true;
+      if (field === 'category' && currentDraft) {
+        if (isFlowerProductCategory(String(value))) {
+          patch.optionGroups = mergeFlowerWeightOptionGroups(
+            currentDraft.optionGroups,
+            currentDraft.price
+          );
+          patch.hideBulkPricing = true;
+        } else if (isFlowerProductCategory(currentDraft.category)) {
+          patch.optionGroups = stripFlowerWeightOptionGroups(currentDraft.optionGroups) ?? [];
+        }
       }
       return { ...prev, [id]: patch };
     });

@@ -19,6 +19,7 @@ import {
   describeFlowerSellPrice,
   isFlowerProductCategory,
   mergeFlowerWeightOptionGroups,
+  stripFlowerWeightOptionGroups,
 } from '@/lib/flowerWeights';
 import {
   getProductMedia,
@@ -377,6 +378,8 @@ export default function NewProductPanel({
                 else setMerchSubcategory('');
                 if (isFlowerProductCategory(next)) {
                   setOptionGroups(mergeFlowerWeightOptionGroups(optionGroups, nextPrice));
+                } else if (isFlowerProductCategory(category)) {
+                  setOptionGroups(stripFlowerWeightOptionGroups(optionGroups) ?? []);
                 }
               }}
               className={fieldClass}
