@@ -11,14 +11,19 @@ interface Submission {
   status: 'credited' | 'used' | 'traded' | 'revoked';
   createdAt: string;
   revokeReason?: string;
+  rewardType?: 'coupon' | 'points';
+  pointsAwarded?: number;
+  xHandle?: string;
 }
 
 interface Settings {
   creditDollars: number;
+  creditPoints: number;
   expiryDays: number;
   tradePoints: number;
   tradeSpins: number;
   spinCost: number;
+  hashtag?: string;
 }
 
 export default function TouchdownRewards({
@@ -76,7 +81,7 @@ export default function TouchdownRewards({
       setSubmissions(data.submissions || []);
       setActiveCredit(data.activeCredit || data.coupon || null);
       setMessage(data.message || '$5 TD credit added.');
-      onUpdated?.();
+      onUpdated?.({ remainingPoints: data.remainingPoints });
     } catch {
       setError('Could not submit post. Try again.');
     } finally {
@@ -113,24 +118,27 @@ export default function TouchdownRewards({
   const dollars = settings?.creditDollars ?? 5;
   const spins = settings?.tradeSpins ?? 3;
   const days = settings?.expiryDays ?? 30;
+  const points = settings?.creditPoints ?? 500;
+  const hashtag = settings?.hashtag || 'KushWorldTD';
 
   return (
     <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
       <h2 className="text-2xl font-bold mb-2">TouchDown / TD Posts</h2>
       <p className="text-zinc-400 text-sm mb-6 max-w-2xl">
-        Drop a public post of your pack landing — X, Instagram, TikTok, YouTube, and more. We automatically add a{' '}
-        <strong className="text-[#00ff9d]">${dollars} coupon credit</strong> to your account. One unused credit at a
-        time (they don&apos;t stack). Use it at checkout or trade it for{' '}
-        <strong className="text-[#00ff9d]">{spins} wheel spin{spins === 1 ? '' : 's'}</strong>.
+        Post your pack landing on X with <strong className="text-[#00ff9d]">#{hashtag}</strong>. Save the same X
+        username on your profile and we match it automatically for{' '}
+        <strong className="text-[#00ff9d]">{points.toLocaleString()} loyalty points</strong> (${dollars} value). You can
+        also paste the post URL below. Other platforms still get a ${dollars} coupon — one unused coupon at a time, no
+        stacking.
       </p>
 
       <div className="bg-black/40 border border-zinc-800 rounded-2xl p-4 mb-6 text-sm text-zinc-400 space-y-1">
         <p className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Rules</p>
-        <p>• Full post URL only — no short links or profile pages</p>
-        <p>• One ${dollars} credit per TD post · coupons do not stack</p>
-        <p>• Use the credit on your next order, or trade it for wheel spins</p>
-        <p>• Must have at least one completed order and a verified email or phone</p>
-        <p>• Each post can only be claimed once</p>
+        <p>• Put #{hashtag} in the X post</p>
+        <p>• X username on your profile must match the post</p>
+        <p>• {points.toLocaleString()} loyalty points per matched X post · each post once</p>
+        <p>• Instagram / TikTok / YouTube URLs still get a ${dollars} coupon (no stacking)</p>
+        <p>• Must have at least one completed order</p>
       </div>
 
       {activeCredit && (
@@ -180,17 +188,16 @@ export default function TouchdownRewards({
           type="url"
           value={postUrl}
           onChange={(e) => setPostUrl(e.target.value)}
-          placeholder="https://x.com/you/status/… or Instagram / TikTok post"
+          placeholder="https://x.com/you/status/… with #KushWorldTD"
           className="flex-1 bg-black border border-zinc-700 rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-[#00ff9d]"
-          disabled={Boolean(activeCredit)}
         />
         <button
           type="button"
           onClick={() => void submit()}
-          disabled={submitting || !postUrl.trim() || Boolean(activeCredit)}
+          disabled={submitting || !postUrl.trim()}
           className="bg-[#00ff9d] text-black px-8 py-4 rounded-2xl font-bold disabled:opacity-50 shrink-0"
         >
-          {submitting ? 'Adding…' : `Submit for $${dollars}`}
+          {submitting ? 'Adding…' : 'Submit post'}
         </button>
       </div>
       {activeCredit && (
@@ -241,7 +248,11 @@ export default function TouchdownRewards({
                           : 'text-red-400'
                   }`}
                 >
-                  {row.status === 'credited' ? `$${dollars} ready` : row.status}
+                  {row.rewardType === 'points' && (row.pointsAwarded || 0) > 0
+                    ? `+${row.pointsAwarded} pts`
+                    : row.status === 'credited'
+                      ? `$${dollars} ready`
+                      : row.status}
                 </span>
               </div>
             ))}

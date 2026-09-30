@@ -50,7 +50,8 @@ export function permissionForRequest(request: NextRequest): StaffPermission | 'o
   if (
     path.startsWith('/api/admin/session') ||
     path.startsWith('/api/admin/login') ||
-    path.startsWith('/api/admin/logout')
+    path.startsWith('/api/admin/logout') ||
+    path.startsWith('/api/cron/')
   ) {
     return 'any';
   }

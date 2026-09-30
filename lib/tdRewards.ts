@@ -12,8 +12,10 @@ import {
   type SpinPrize,
 } from '@/lib/spinWheelTypes';
 import {
+  addLoyaltyPoints,
   getRedeemableLoyaltyPoints,
   getUserById,
+  isUserBlocked,
   readUsers,
   removeSavedSpinCoupon,
   resolveSavedSpinCoupons,
@@ -21,6 +23,13 @@ import {
   writeUsers,
   type UserProfile,
 } from '@/lib/users';
+import {
+  findMembersByXHandle,
+  KUSH_WORLD_TD_HASHTAG,
+  postHasKushWorldTdHashtag,
+  profileXHandle,
+} from '@/lib/xHandle';
+import { isXTdScanConfigured, lookupXTdPost, searchKushWorldTdPosts, type XTdPost } from '@/lib/xTdHashtag';
 
 const ENTRIES_FILE = path.join(process.cwd(), 'data', 'td-rewards.json');
 
@@ -31,6 +40,8 @@ export const TD_EXPIRY_DAYS = 30;
 export const TD_COOLDOWN_MS = 60 * 60 * 1000;
 
 export type TdRewardStatus = 'credited' | 'used' | 'traded' | 'revoked';
+export type TdRewardType = 'coupon' | 'points';
+export type TdRewardSource = 'url' | 'hashtag-scan';
 
 export interface TdRewardSubmission {
   id: string;
@@ -49,15 +60,32 @@ export interface TdRewardSubmission {
   usedAt?: string;
   revokedAt?: string;
   revokeReason?: string;
+  rewardType?: TdRewardType;
+  pointsAwarded?: number;
+  xHandle?: string;
+  source?: TdRewardSource;
+  hashtag?: string;
+}
+
+export interface TdUnmatchedPost {
+  postId: string;
+  username: string;
+  postUrl: string;
+  seenAt: string;
+  reason: string;
 }
 
 interface TdRewardsFile {
   submissions: TdRewardSubmission[];
+  unmatched?: TdUnmatchedPost[];
+  lastHashtagScanAt?: string;
+  lastHashtagSinceId?: string;
   updatedAt: string;
 }
 
 const EMPTY_FILE: TdRewardsFile = {
   submissions: [],
+  unmatched: [],
   updatedAt: new Date().toISOString(),
 };
 
@@ -98,6 +126,9 @@ async function readFile(): Promise<TdRewardsFile> {
   const parsed = JSON.parse(data) as Partial<TdRewardsFile>;
   return {
     submissions: Array.isArray(parsed.submissions) ? parsed.submissions : [],
+    unmatched: Array.isArray(parsed.unmatched) ? parsed.unmatched : [],
+    lastHashtagScanAt: parsed.lastHashtagScanAt,
+    lastHashtagSinceId: parsed.lastHashtagSinceId,
     updatedAt: parsed.updatedAt ?? new Date().toISOString(),
   };
 }
@@ -252,19 +283,29 @@ export async function listTdSubmissionsForUser(userId: string): Promise<TdReward
 
 export async function listAllTdSubmissions(limit = 200): Promise<{
   submissions: TdRewardSubmission[];
+  unmatched: TdUnmatchedPost[];
   creditedCount: number;
   usedCount: number;
   tradedCount: number;
   revokedCount: number;
+  pointsAwarded: number;
+  lastHashtagScanAt?: string;
+  scanConfigured: boolean;
+  hashtag: string;
 }> {
   const file = await readFile();
   const sorted = file.submissions.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return {
     submissions: sorted.slice(0, limit),
+    unmatched: (file.unmatched || []).slice(0, 50),
     creditedCount: file.submissions.filter((row) => row.status === 'credited').length,
     usedCount: file.submissions.filter((row) => row.status === 'used').length,
     tradedCount: file.submissions.filter((row) => row.status === 'traded').length,
     revokedCount: file.submissions.filter((row) => row.status === 'revoked').length,
+    pointsAwarded: file.submissions.reduce((sum, row) => sum + (row.pointsAwarded || 0), 0),
+    lastHashtagScanAt: file.lastHashtagScanAt,
+    scanConfigured: isXTdScanConfigured(),
+    hashtag: KUSH_WORLD_TD_HASHTAG,
   };
 }
 
@@ -278,13 +319,205 @@ export async function getTdSpinTradeValue(): Promise<{ points: number; spins: nu
   };
 }
 
+function rememberUnmatched(file: TdRewardsFile, post: XTdPost, reason: string): void {
+  const next: TdUnmatchedPost = {
+    postId: post.postId,
+    username: post.username,
+    postUrl: post.url,
+    seenAt: new Date().toISOString(),
+    reason,
+  };
+  const rest = (file.unmatched || []).filter((row) => row.postId !== post.postId);
+  file.unmatched = [next, ...rest].slice(0, 50);
+}
+
+async function pickMemberForXHandle(handle: string): Promise<UserProfile | null> {
+  const users = await readUsers();
+  const matches = findMembersByXHandle(users, handle).filter((user) => !isUserBlocked(user));
+  if (matches.length === 0) return null;
+  const withPurchase: UserProfile[] = [];
+  for (const user of matches) {
+    if (await customerHasAnyPurchase(user.email)) withPurchase.push(user);
+  }
+  const pool = withPurchase.length > 0 ? withPurchase : matches;
+  return pool.find((user) => user.emailVerifiedAt || user.phoneVerifiedAt) ?? pool[0] ?? null;
+}
+
+export async function creditHashtagTdPost(input: {
+  post: XTdPost;
+  source: TdRewardSource;
+  submitIp?: string;
+  requireUserId?: string;
+}): Promise<{ credited: boolean; submission?: TdRewardSubmission; reason?: string }> {
+  const postKey = `x:${input.post.postId}`;
+  const file = await readFile();
+  const duplicate = file.submissions.find((row) => row.postKey === postKey && row.status !== 'revoked');
+  if (duplicate) {
+    return { credited: false, reason: 'This post was already credited.' };
+  }
+
+  if (!input.post.username) {
+    rememberUnmatched(file, input.post, 'No X username on the post');
+    await writeFile(file);
+    return { credited: false, reason: 'Could not read the X username on that post.' };
+  }
+
+  const member = await pickMemberForXHandle(input.post.username);
+  if (!member) {
+    rememberUnmatched(file, input.post, `No site profile with X username @${input.post.username}`);
+    await writeFile(file);
+    return {
+      credited: false,
+      reason: `No member profile has X username @${input.post.username}. Save that handle under Account → Profile.`,
+    };
+  }
+
+  if (input.requireUserId && member.id !== input.requireUserId) {
+    return {
+      credited: false,
+      reason: `That post is from @${input.post.username}, which is linked to a different member.`,
+    };
+  }
+
+  if (!(await customerHasAnyPurchase(member.email))) {
+    rememberUnmatched(file, input.post, 'Matched profile has no completed order');
+    await writeFile(file);
+    return { credited: false, reason: 'Complete at least one order before earning TD points.' };
+  }
+
+  const nowIso = new Date().toISOString();
+  const submission: TdRewardSubmission = {
+    id: randomUUID(),
+    userId: member.id,
+    userEmail: member.email,
+    userName: member.name || '',
+    postUrl: input.post.url,
+    postKey,
+    platform: 'x',
+    status: 'credited',
+    submitIp: input.submitIp,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    rewardType: 'points',
+    pointsAwarded: TD_CREDIT_POINTS,
+    xHandle: input.post.username,
+    source: input.source,
+    hashtag: KUSH_WORLD_TD_HASHTAG,
+  };
+
+  await addLoyaltyPoints(member.id, TD_CREDIT_POINTS);
+  file.submissions.push(submission);
+  file.unmatched = (file.unmatched || []).filter((row) => row.postId !== input.post.postId);
+  await writeFile(file);
+  return { credited: true, submission };
+}
+
+export async function scanKushWorldTdHashtag(): Promise<{
+  scanned: number;
+  credited: number;
+  skipped: number;
+  unmatched: number;
+  error?: string;
+  lastHashtagScanAt: string;
+}> {
+  const file = await readFile();
+  const search = await searchKushWorldTdPosts({ sinceId: file.lastHashtagSinceId, maxResults: 50 });
+  const nowIso = new Date().toISOString();
+  file.lastHashtagScanAt = nowIso;
+  if (search.newestId) file.lastHashtagSinceId = search.newestId;
+  await writeFile(file);
+
+  if (search.error) {
+    return {
+      scanned: 0,
+      credited: 0,
+      skipped: 0,
+      unmatched: 0,
+      error: search.error,
+      lastHashtagScanAt: nowIso,
+    };
+  }
+
+  let credited = 0;
+  let skipped = 0;
+  let unmatched = 0;
+  for (const post of search.posts) {
+    const result = await creditHashtagTdPost({ post, source: 'hashtag-scan' });
+    if (result.credited) credited += 1;
+    else if (result.reason?.includes('already credited')) skipped += 1;
+    else unmatched += 1;
+  }
+
+  return {
+    scanned: search.posts.length,
+    credited,
+    skipped,
+    unmatched,
+    lastHashtagScanAt: nowIso,
+  };
+}
+
 export async function submitTdPost(input: {
   user: UserProfile;
   postUrl: string;
   submitIp?: string;
-}): Promise<{ success: true; submission: TdRewardSubmission; coupon: SpinPrize } | { success: false; error: string }> {
+}): Promise<
+  | { success: true; submission: TdRewardSubmission; coupon?: SpinPrize; pointsAwarded?: number }
+  | { success: false; error: string }
+> {
   const parsed = parseTdPostUrl(input.postUrl);
   if (!parsed.ok) return { success: false, error: parsed.error };
+
+  if (parsed.platform === 'x') {
+    const user = input.user;
+    if (!user.emailVerifiedAt && !user.phoneVerifiedAt) {
+      return {
+        success: false,
+        error: 'Verify your email or phone in Account before submitting a TouchDown post.',
+      };
+    }
+    const handle = profileXHandle(user);
+    if (!handle) {
+      return {
+        success: false,
+        error: 'Save your X username on your profile first so we can match #KushWorldTD posts.',
+      };
+    }
+    const post = await lookupXTdPost(parsed.canonicalUrl);
+    if (!post) {
+      return {
+        success: false,
+        error: 'Could not read that X post. Make sure it is public and includes #KushWorldTD.',
+      };
+    }
+    if (!post.username) post.username = handle;
+    if (post.username !== handle) {
+      return {
+        success: false,
+        error: `That post is from @${post.username}. Your profile X username is @${handle}.`,
+      };
+    }
+    if (!postHasKushWorldTdHashtag(post.text)) {
+      return {
+        success: false,
+        error: `Add #${KUSH_WORLD_TD_HASHTAG} to the post so we can credit loyalty points.`,
+      };
+    }
+    const result = await creditHashtagTdPost({
+      post,
+      source: 'url',
+      submitIp: input.submitIp,
+      requireUserId: user.id,
+    });
+    if (!result.credited || !result.submission) {
+      return { success: false, error: result.reason || 'Could not credit that post.' };
+    }
+    return {
+      success: true,
+      submission: result.submission,
+      pointsAwarded: result.submission.pointsAwarded,
+    };
+  }
 
   const user = input.user;
   if (!user.emailVerifiedAt && !user.phoneVerifiedAt) {
@@ -355,6 +588,8 @@ export async function submitTdPost(input: {
     submitIp: input.submitIp,
     createdAt: nowIso,
     updatedAt: nowIso,
+    rewardType: 'coupon',
+    source: 'url',
   };
 
   await upsertSavedSpinCoupon(user.id, coupon);

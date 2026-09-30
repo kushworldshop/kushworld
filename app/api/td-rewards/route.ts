@@ -12,6 +12,7 @@ import {
   submitTdPost,
   tradeTdCouponForSpins,
 } from '@/lib/tdRewards';
+import { KUSH_WORLD_TD_HASHTAG } from '@/lib/xHandle';
 
 async function requireUser() {
   const userId = await getSessionUserId();
@@ -39,6 +40,7 @@ export async function GET() {
       tradePoints: trade.points,
       tradeSpins: trade.spins,
       spinCost: trade.spinCost,
+      hashtag: KUSH_WORLD_TD_HASHTAG,
     },
   });
 }
@@ -85,13 +87,22 @@ export async function POST(request: NextRequest) {
     }
 
     const submissions = await listTdSubmissionsForUser(user.id);
+    const refreshed = await getUserById(user.id);
+    const pointsAwarded = result.pointsAwarded || 0;
     return NextResponse.json({
       success: true,
       submission: result.submission,
       coupon: result.coupon,
       submissions,
-      activeCredit: result.coupon,
-      message: `$${TD_CREDIT_DOLLARS} TD credit added. Use it at checkout (one coupon per order) or trade it for wheel spins.`,
+      activeCredit: result.coupon || (refreshed ? getActiveTdCoupon(refreshed) : null),
+      pointsAwarded,
+      remainingPoints: refreshed
+        ? (refreshed.loyaltyPoints ?? 0) - (refreshed.lockedLoyaltyPoints ?? 0)
+        : undefined,
+      message:
+        pointsAwarded > 0
+          ? `Matched @${result.submission.xHandle || 'your X'} · +${pointsAwarded.toLocaleString()} loyalty points for #${KUSH_WORLD_TD_HASHTAG}.`
+          : `$${TD_CREDIT_DOLLARS} TD credit added. Use it at checkout (one coupon per order) or trade it for wheel spins.`,
     });
   } catch {
     return NextResponse.json({ success: false, error: 'Failed to submit TouchDown post' }, { status: 500 });

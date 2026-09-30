@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { listAllTdSubmissions, revokeTdSubmission } from '@/lib/tdRewards';
+import { listAllTdSubmissions, revokeTdSubmission, scanKushWorldTdHashtag } from '@/lib/tdRewards';
 
 export async function GET(request: NextRequest) {
   if (!isAdminRequest(request)) {
@@ -23,10 +23,21 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+    if (body.action === 'scan') {
+      const scan = await scanKushWorldTdHashtag();
+      const list = await listAllTdSubmissions(200);
+      return NextResponse.json({
+        success: !scan.error,
+        error: scan.error,
+        scan,
+        ...list,
+      });
+    }
+
     const submissionId = typeof body.submissionId === 'string' ? body.submissionId : '';
     if (!submissionId || body.action !== 'revoke') {
       return NextResponse.json(
-        { success: false, error: 'submissionId and action: revoke are required' },
+        { success: false, error: 'submissionId and action (revoke|scan) are required' },
         { status: 400 }
       );
     }

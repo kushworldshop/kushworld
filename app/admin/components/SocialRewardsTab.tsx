@@ -248,6 +248,18 @@ interface TdRow {
   status: 'credited' | 'used' | 'traded' | 'revoked';
   createdAt: string;
   revokeReason?: string;
+  rewardType?: 'coupon' | 'points';
+  pointsAwarded?: number;
+  xHandle?: string;
+  source?: 'url' | 'hashtag-scan';
+}
+
+interface TdUnmatched {
+  postId: string;
+  username: string;
+  postUrl: string;
+  seenAt: string;
+  reason: string;
 }
 
 function TdPostsAdmin() {
@@ -256,8 +268,13 @@ function TdPostsAdmin() {
   const [usedCount, setUsedCount] = useState(0);
   const [tradedCount, setTradedCount] = useState(0);
   const [revokedCount, setRevokedCount] = useState(0);
+  const [pointsAwarded, setPointsAwarded] = useState(0);
+  const [unmatched, setUnmatched] = useState<TdUnmatched[]>([]);
+  const [scanConfigured, setScanConfigured] = useState(false);
+  const [lastHashtagScanAt, setLastHashtagScanAt] = useState('');
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const [message, setMessage] = useState('');
 
   const load = async () => {
@@ -271,6 +288,10 @@ function TdPostsAdmin() {
         setUsedCount(data.usedCount ?? 0);
         setTradedCount(data.tradedCount ?? 0);
         setRevokedCount(data.revokedCount ?? 0);
+        setPointsAwarded(data.pointsAwarded ?? 0);
+        setUnmatched(data.unmatched || []);
+        setScanConfigured(Boolean(data.scanConfigured));
+        setLastHashtagScanAt(data.lastHashtagScanAt || '');
       }
     } catch {
       setMessage('Failed to load TD posts');
@@ -305,11 +326,46 @@ function TdPostsAdmin() {
       setUsedCount(data.usedCount ?? 0);
       setTradedCount(data.tradedCount ?? 0);
       setRevokedCount(data.revokedCount ?? 0);
+      setPointsAwarded(data.pointsAwarded ?? 0);
+      setUnmatched(data.unmatched || []);
       setMessage('Unused $5 TD credit revoked.');
     } catch {
       setMessage('Revoke failed');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const scan = async () => {
+    setScanning(true);
+    setMessage('');
+    try {
+      const res = await adminFetch('/api/admin/td-rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'scan' }),
+      });
+      const data = await res.json();
+      setRows(data.submissions || []);
+      setCreditedCount(data.creditedCount ?? 0);
+      setUsedCount(data.usedCount ?? 0);
+      setTradedCount(data.tradedCount ?? 0);
+      setRevokedCount(data.revokedCount ?? 0);
+      setPointsAwarded(data.pointsAwarded ?? 0);
+      setUnmatched(data.unmatched || []);
+      setScanConfigured(Boolean(data.scanConfigured));
+      setLastHashtagScanAt(data.lastHashtagScanAt || '');
+      if (data.scan?.error || data.error) {
+        setMessage(data.scan?.error || data.error);
+        return;
+      }
+      setMessage(
+        `Scanned ${data.scan?.scanned ?? 0} #KushWorldTD posts · credited ${data.scan?.credited ?? 0} · unmatched ${data.scan?.unmatched ?? 0}`
+      );
+    } catch {
+      setMessage('Scan failed');
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -320,22 +376,43 @@ function TdPostsAdmin() {
           <div>
             <h2 className="text-2xl font-bold mb-2">TouchDown / TD posts</h2>
             <p className="text-zinc-400 text-sm max-w-2xl">
-              Members paste a pack-landing post from their account. A $5 coupon is applied automatically (one unused credit, no stacking). You can revoke unused credits here.
+              X posts with #KushWorldTD are matched to the X username on a member profile and credited {500} loyalty points.
+              Other platforms can still submit a URL for a $5 coupon. Scan needs X_BEARER_TOKEN on the server.
             </p>
+            {lastHashtagScanAt && (
+              <p className="text-xs text-zinc-500 mt-2">
+                Last hashtag scan {new Date(lastHashtagScanAt).toLocaleString()}
+                {scanConfigured ? '' : ' · X API token not set'}
+              </p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => void load()}
-            disabled={loading}
-            className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium disabled:opacity-50"
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void scan()}
+              disabled={scanning}
+              className="bg-[#00ff9d] text-black px-5 py-3 rounded-xl text-sm font-medium disabled:opacity-50"
+            >
+              {scanning ? 'Scanning…' : 'Scan #KushWorldTD'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={loading}
+              className="bg-zinc-800 hover:bg-zinc-700 px-5 py-3 rounded-xl text-sm font-medium disabled:opacity-50"
+            >
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-black rounded-2xl p-5 border border-zinc-800">
-            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Unused credits</p>
-            <p className="text-3xl font-bold text-[#00ff9d]">{creditedCount}</p>
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Points paid</p>
+            <p className="text-3xl font-bold text-[#00ff9d]">{pointsAwarded.toLocaleString()}</p>
+          </div>
+          <div className="bg-black rounded-2xl p-5 border border-zinc-800">
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Unused coupons</p>
+            <p className="text-3xl font-bold">{creditedCount}</p>
           </div>
           <div className="bg-black rounded-2xl p-5 border border-zinc-800">
             <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Used at checkout</p>
@@ -374,6 +451,10 @@ function TdPostsAdmin() {
                       {row.status}
                     </span>
                     <span className="text-xs text-zinc-500">{row.platform}</span>
+                    {row.xHandle && <span className="text-xs text-zinc-400">@{row.xHandle}</span>}
+                    {(row.pointsAwarded || 0) > 0 && (
+                      <span className="text-xs text-[#00ff9d]">+{row.pointsAwarded} pts</span>
+                    )}
                   </div>
                   <p className="text-sm text-zinc-400">{row.userEmail}</p>
                   <a
@@ -389,7 +470,7 @@ function TdPostsAdmin() {
                   </p>
                   {row.revokeReason && <p className="text-xs text-red-400 mt-2">{row.revokeReason}</p>}
                 </div>
-                {row.status === 'credited' && (
+                {row.status === 'credited' && row.rewardType !== 'points' && (
                   <button
                     type="button"
                     disabled={busyId === row.id}
@@ -402,6 +483,26 @@ function TdPostsAdmin() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {unmatched.length > 0 && (
+        <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-3xl p-6">
+          <h3 className="font-semibold mb-2">Unmatched #KushWorldTD posts</h3>
+          <p className="text-xs text-zinc-500 mb-4">
+            These posts had the hashtag but no site profile with that X username.
+          </p>
+          <div className="space-y-3">
+            {unmatched.map((row) => (
+              <div key={row.postId} className="text-sm border-b border-zinc-800 pb-3">
+                <p className="text-zinc-300">@{row.username || 'unknown'}</p>
+                <a href={row.postUrl} target="_blank" rel="noopener noreferrer" className="text-[#00ff9d] break-all">
+                  {row.postUrl}
+                </a>
+                <p className="text-xs text-zinc-500 mt-1">{row.reason}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

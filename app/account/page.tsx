@@ -1077,7 +1077,12 @@ export default function Account() {
             <div className="grid md:grid-cols-2 gap-4">
               <DiscordSocialLink user={user} enabled={discordLoginEnabled} />
               <Field label="Instagram" value={profileForm.socials.instagram || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, instagram: v } })} placeholder="@yourhandle" />
-              <Field label="X / Twitter" value={profileForm.socials.twitter || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, twitter: v } })} placeholder="@yourhandle" />
+              <Field
+                label="X / Twitter (needed for #KushWorldTD points)"
+                value={profileForm.socials.twitter || ''}
+                onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, twitter: v } })}
+                placeholder="@yourhandle"
+              />
               <Field label="TikTok" value={profileForm.socials.tiktok || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, tiktok: v } })} placeholder="@yourhandle" />
               <Field label="YouTube" value={profileForm.socials.youtube || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, youtube: v } })} placeholder="Channel URL" />
               <Field label="Website" value={profileForm.socials.website || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, website: v } })} placeholder="https://yoursite.com" />
@@ -1136,7 +1141,7 @@ export default function Account() {
                 <p>• Earn <strong>{promoTerms?.referrerRewardPoints ?? 100} points</strong> per promo code use</p>
                 <p>• Share your <strong>personal promo code</strong> — earn <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on each order</p>
                 <p>• Post haul pics on <strong>X</strong> and submit the link below for bonus points (after review)</p>
-                <p>• Post a <strong>TouchDown / TD</strong> of your pack landing for an automatic <strong>$5 coupon</strong> — one at a time, trade it for wheel spins if you want</p>
+                <p>• Post a pack landing on X with <strong>#KushWorldTD</strong> — we match your profile X username and add <strong>500 loyalty points</strong></p>
                 <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
                 <p>• New members earn <strong>${SIGNUP_BONUS_DOLLARS} ({SIGNUP_BONUS_POINTS.toLocaleString()} pts)</strong> after verifying email or phone — unlocked after first purchase</p>
                 <p>• Gamble <strong>{spinCost} points</strong> on the prize wheel for discounts, free shipping, and more</p>
