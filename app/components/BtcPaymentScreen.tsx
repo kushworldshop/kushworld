@@ -2,13 +2,10 @@
 
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import BtcPaymentGuide from '@/app/components/BtcPaymentGuide';
-import { normalizeYoutubeGuideUrl } from '@/lib/btcPaymentGuide';
 
 interface BtcPaymentScreenProps {
   orderId: string;
   orderAccessToken: string;
-  guideYoutubeUrl?: string;
   payment: {
     address: string;
     amountBtc: number;
@@ -25,11 +22,9 @@ interface BtcPaymentScreenProps {
 export default function BtcPaymentScreen({
   orderId,
   orderAccessToken,
-  guideYoutubeUrl,
   payment,
   onPaid,
 }: BtcPaymentScreenProps) {
-  const youtubeUrl = normalizeYoutubeGuideUrl(guideYoutubeUrl);
   const [status, setStatus] = useState<'awaiting' | 'confirming' | 'paid' | 'expired'>('awaiting');
   const [confirmations, setConfirmations] = useState(0);
   const [txid, setTxid] = useState('');
@@ -118,7 +113,7 @@ export default function BtcPaymentScreen({
         <p className="text-4xl font-bold text-[#00ff9d] mb-1">{payment.amountBtc.toFixed(8)} BTC</p>
         <p className="text-zinc-400">${payment.amountUsd.toFixed(2)} USD</p>
         <p className="text-xs text-zinc-500 mt-2">
-          Locked rate: ${payment.rateUsd.toLocaleString()} / BTC · send this exact amount
+          ${payment.rateUsd.toLocaleString()} / BTC
         </p>
         <p
           className={`mt-4 text-lg font-mono font-semibold ${
@@ -198,36 +193,22 @@ export default function BtcPaymentScreen({
         </div>
       </div>
 
-      <div className="mb-6">
-        <BtcPaymentGuide youtubeUrl={youtubeUrl} compact />
-      </div>
-
-      <div className="rounded-2xl bg-zinc-950 border border-zinc-800 p-4 mb-6 text-sm text-zinc-400 space-y-2">
-        <p>1. Open your app (Cash App, Coinbase, etc.) and scan the QR code above.</p>
-        <p>2. Send the <strong className="text-white">exact BTC amount</strong> shown above.</p>
-        <p>3. Payment is detected automatically — no need to email us.</p>
-        <p className="text-yellow-400">Send only BTC. Other coins sent to this address may be lost.</p>
-      </div>
-
       <div className="text-center">
         {status === 'paid' && (
-          <p className="text-green-400 font-semibold mb-2">Payment received. Thank you!</p>
+          <p className="text-green-400 font-semibold mb-2">Payment received</p>
         )}
         {status === 'confirming' && (
           <p className="text-yellow-400 font-semibold mb-2">
-            Payment detected — waiting for confirmation ({confirmations})
+            Seen on-chain · {confirmations} confirmation{confirmations === 1 ? '' : 's'}
           </p>
         )}
         {status === 'awaiting' && (
-          <p className="text-[#00ff9d] font-semibold mb-2 animate-pulse">Waiting for Bitcoin payment...</p>
+          <p className="text-[#00ff9d] font-semibold mb-2 animate-pulse">Waiting for payment</p>
         )}
         {status === 'expired' && (
           <p className="text-red-400 font-semibold mb-2">
             This invoice expired. Contact support with order {orderId}.
           </p>
-        )}
-        {status !== 'expired' && (
-          <p className="text-xs text-zinc-500">Invoice expires in {timeLeft}</p>
         )}
         {txid && <p className="text-xs text-zinc-500 mt-2 font-mono break-all">Tx: {txid}</p>}
       </div>
