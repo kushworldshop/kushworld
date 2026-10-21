@@ -65,6 +65,30 @@ function PaymentMethodEditor({
         <span className="font-semibold text-[#00ff9d]">{title}</span>
       </label>
 
+      {showBitcoinDetails && featureKey === 'paymentBitcoin' && (
+        <div className="space-y-4 pl-2 border-l border-zinc-800">
+          <Field
+            label="BTC wallet address or link"
+            value={features.paymentBitcoin.walletAddress || ''}
+            onChange={(v) => patchFeatures({ paymentBitcoin: { walletAddress: v } })}
+            hint="Paste a bc1 / 1 / 3 address, a bitcoin: URI, or a wallet/explorer URL. Shoppers send the locked BTC amount here."
+          />
+          <Field
+            label="Optional wallet URL"
+            value={features.paymentBitcoin.walletLink || ''}
+            onChange={(v) => patchFeatures({ paymentBitcoin: { walletLink: v } })}
+            hint="Cash App, Strike, or another pay link shown as a button next to the QR."
+          />
+          <Field
+            label="Rate lock minutes"
+            value={features.paymentBitcoin.expiryMinutes ?? 30}
+            onChange={(v) =>
+              patchFeatures({ paymentBitcoin: { expiryMinutes: Math.max(5, Number(v) || 30) } })
+            }
+            hint="How long the quoted BTC amount stays valid after they place the order."
+          />
+        </div>
+      )}
       {config.enabled && (
         <div className="space-y-4 pl-2 border-l border-zinc-800">
           <Field
@@ -507,9 +531,30 @@ export default function SiteContentTab({
         {activeSection === 'payments' && (
           <>
             <p className="text-sm text-zinc-400">
-              Turn payment methods on or off and edit checkout copy. Manual methods show a confirmation code after
-              order — admins reach out by email and/or phone with payment details (no pay-to shown at checkout).
+              Bitcoin checkout locks the live USD rate, shows a QR + exact amount, and watches the chain —
+              same flow as btcpostage. Paste your wallet below, then Save.
             </p>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={features.checkoutBtcOnly?.enabled ?? true}
+                onChange={(e) => patchFeatures({ checkoutBtcOnly: { enabled: e.target.checked } })}
+                className="w-4 h-4 accent-[#00ff9d]"
+              />
+              <span className="font-semibold text-[#00ff9d]">Bitcoin only at checkout</span>
+            </label>
+            <p className="text-xs text-zinc-500 -mt-2">
+              When on, card, XRP, Zelle, and the rest are hidden from shoppers.
+            </p>
+
+            <Field
+              label="Storefront offline message"
+              value={features.maintenanceMode?.message || ''}
+              onChange={(v) => patchFeatures({ maintenanceMode: { message: v } })}
+              multiline
+              hint="Shown when you hit Site OFF in the Edit the site header. Admin stays up."
+            />
 
             <PaymentMethodEditor
               title="Credit / debit card (Authorize.net)"

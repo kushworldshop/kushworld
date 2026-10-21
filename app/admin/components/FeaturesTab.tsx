@@ -430,10 +430,20 @@ export default function FeaturesTab({
         )}
 
         {activeSection === 'checkout' && (
-          <p className="text-sm text-zinc-400">
-            Payment method toggles and checkout copy (labels, pay-to info, Bitcoin guide) are edited under{' '}
-            <strong className="text-zinc-200">Site Content → Checkout Payments</strong>.
-          </p>
+          <>
+            <Toggle
+              label="Bitcoin only at checkout"
+              description="Shoppers pay BTC at the live locked rate. Card, XRP, and manual methods stay in Site Content for later."
+              checked={features.checkoutBtcOnly?.enabled ?? true}
+              onChange={(enabled) => patchFeatures({ checkoutBtcOnly: { enabled } })}
+            />
+            <p className="text-sm text-zinc-400">
+              Paste the receive wallet and checkout copy under{' '}
+              <strong className="text-zinc-200">Site → Payments</strong>. Use the green/red{' '}
+              <strong className="text-zinc-200">Site ON / Site OFF</strong> switch at the top of Edit the site
+              when you are doing updates.
+            </p>
+          </>
         )}
 
         {activeSection === 'compliance' && (

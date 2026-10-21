@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react';
 import AgeModal from './AgeModal';
 import HitTheShop from './HitTheShop';
 import { AGE_ACCESS_EVENT, shouldShowAgeModal } from '@/lib/ageAccess';
+import { usePathname } from 'next/navigation';
 import { useSiteContent } from '@/lib/useSiteContent';
 
 export default function AgeGateProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { content } = useSiteContent();
-  const ageGateEnabled = content.features.ageGate.enabled;
+  const skipGate = pathname === '/maintenance' || pathname.startsWith('/admin');
+  const ageGateEnabled = content.features.ageGate.enabled && !skipGate;
 
   const [showModal, setShowModal] = useState(() => {
     if (!ageGateEnabled || typeof window === 'undefined') return false;

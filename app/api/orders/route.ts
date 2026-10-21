@@ -27,6 +27,7 @@ import {
   applyShippingEmailTimestamps,
   maybeSendShippingEmail,
 } from '@/lib/orderShippingEmail';
+import { getSiteContent } from '@/lib/siteContent';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -407,6 +408,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: err.message }, { status: 400 });
       }
       throw err;
+    }
+
+    const site = await getSiteContent();
+    if (site.features.checkoutBtcOnly.enabled) {
+      return NextResponse.json(
+        { success: false, error: 'Checkout is Bitcoin only. Place the order with BTC.' },
+        { status: 400 }
+      );
     }
 
     const allowedPaymentMethods = ['zelle', 'paypal', 'chime', 'venmo', 'cashapp', 'manual'];

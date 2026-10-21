@@ -111,7 +111,7 @@ export default function Checkout() {
   const features = (content && content.features) || {};
   const { addPoints } = useLoyaltyStore();
   const { code: storedReferralCode, referrerName, clearReferral } = useReferralStore();
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('btc');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [requiresIdUpload, setRequiresIdUpload] = useState(false);
   const [idUploaded, setIdUploaded] = useState(false);
@@ -163,6 +163,9 @@ export default function Checkout() {
   } | null>(null);
 
   const [btcEnabled, setBtcEnabled] = useState(true);
+  const [btcOnly, setBtcOnly] = useState(true);
+  const [btcRateUsd, setBtcRateUsd] = useState<number | null>(null);
+  const [btcConfigured, setBtcConfigured] = useState(true);
   const [xrpEnabled, setXrpEnabled] = useState(false);
   const [btcPayment, setBtcPayment] = useState<{
     orderId: string;
@@ -174,6 +177,8 @@ export default function Checkout() {
     rateUsd: number;
     expiresAt: string;
     qrUrl: string;
+    bitcoinUri?: string;
+    walletLink?: string;
   } | null>(null);
   const [btcPaymentComplete, setBtcPaymentComplete] = useState(false);
   const [xrpPayment, setXrpPayment] = useState<{
@@ -213,7 +218,13 @@ export default function Checkout() {
 
     fetch('/api/payments/btc/config')
       .then((res) => res.json())
-      .then((data) => setBtcEnabled(!!data.enabled))
+      .then((data) => {
+        setBtcEnabled(!!data.enabled);
+        setBtcOnly(data.btcOnly !== false);
+        setBtcConfigured(!!data.configured);
+        setBtcRateUsd(typeof data.rateUsd === 'number' ? data.rateUsd : null);
+        if (data.btcOnly !== false) setPaymentMethod('btc');
+      })
       .catch(() => setBtcEnabled(false));
 
     fetch('/api/payments/xrp/config')
@@ -1001,9 +1012,11 @@ export default function Checkout() {
     );
   }
 
-  const cardConfigured = (paymentConfig?.configured ?? false) && (features.paymentCard?.enabled ?? false);
-  const showBitcoin = btcEnabled && (features.paymentBitcoin?.enabled ?? false);
-  const showXrp = xrpEnabled && (features.paymentXrp?.enabled ?? false);
+  const btcOnlyCheckout = btcOnly || (features.checkoutBtcOnly?.enabled ?? true);
+  const cardConfigured =
+    !btcOnlyCheckout && (paymentConfig?.configured ?? false) && (features.paymentCard?.enabled ?? false);
+  const showBitcoin = (btcEnabled || btcOnlyCheckout) && (features.paymentBitcoin?.enabled ?? true);
+  const showXrp = !btcOnlyCheckout && xrpEnabled && (features.paymentXrp?.enabled ?? false);
   const manualPaymentOptions = (
     [
       { id: 'zelle' as const, config: features.paymentZelle ?? { enabled: false } },
@@ -1012,7 +1025,7 @@ export default function Checkout() {
       { id: 'venmo' as const, config: features.paymentVenmo ?? { enabled: false } },
       { id: 'cashapp' as const, config: features.paymentCashapp ?? { enabled: false } },
     ] as const
-  ).filter((option) => option.config.enabled);
+  ).filter((option) => !btcOnlyCheckout && option.config.enabled);
 
   const manualConfigById: Record<'zelle' | 'paypal' | 'chime' | 'venmo' | 'cashapp', CheckoutPaymentConfig | undefined> = {
     zelle: features.paymentZelle,
@@ -1290,7 +1303,20 @@ export default function Checkout() {
             )}
 
             <div className="mt-8">
-              <h3 className="text-xl mb-4">Payment Method</h3>
+              <h3 className="text-xl mb-4">{btcOnlyCheckout ? 'Pay with Bitcoin' : 'Payment Method'}</h3>
+              {btcOnlyCheckout && (
+                <p className="text-sm text-zinc-400 mb-4">
+                  Checkout is Bitcoin only. Rate is locked when you place the order
+                  {btcRateUsd ? ` — about $${btcRateUsd.toLocaleString()} per BTC right now` : ''}.
+                  Send the exact amount to the wallet on the next screen.
+                </p>
+              )}
+              {!btcConfigured && btcOnlyCheckout && (
+                <p className="text-red-400 text-sm mb-4">
+                  Bitcoin wallet is not set yet. Add it in Admin → Site → Payments.
+                </p>
+              )}
+              {!btcOnlyCheckout && (
               <div className="grid grid-cols-2 gap-4">
                 {cardConfigured && (
                   <button
@@ -1336,6 +1362,7 @@ export default function Checkout() {
                   </button>
                 ))}
               </div>
+              )}
             </div>
 
             {paymentMethod === 'card' && cardConfigured && (
@@ -1415,7 +1442,11 @@ export default function Checkout() {
 
             <button
               onClick={handlePlaceOrder}
-              disabled={loading || (paymentMethod === 'card' && !cardReady)}
+              disabled={
+                loading ||
+                (paymentMethod === 'card' && !cardReady) ||
+                (btcOnlyCheckout && !btcConfigured)
+              }
               className="w-full mt-10 py-6 bg-[#00ff9d] text-black rounded-3xl font-bold text-xl disabled:opacity-50"
             >
               {loading

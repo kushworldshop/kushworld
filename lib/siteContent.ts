@@ -4,6 +4,7 @@ import { DEFAULT_SITE_CONTENT, type SiteContent } from '@/lib/siteContentTypes';
 import { mergeSiteFeatures } from '@/lib/featureTypes';
 import { mergeHomepageLayout } from '@/lib/homepageLayout';
 import { mergeHomepageBlocks, mergeHomepageCopy } from '@/lib/homepageCopy';
+import { readMaintenanceModeSync, writeMaintenanceMode } from '@/lib/maintenanceMode';
 import { mergeShopNavigation } from '@/lib/shopNavigation';
 import { normalizeDiscordInviteUrl } from '@/lib/discordInvite';
 
@@ -52,7 +53,16 @@ export async function getSiteContent(): Promise<SiteContent> {
       ...merged.social,
       discordUrl: normalizeDiscordInviteUrl(merged.social.discordUrl),
     },
-    features: mergeSiteFeatures(parsed.features),
+    features: (() => {
+      const features = mergeSiteFeatures(parsed.features);
+      const maintenance = readMaintenanceModeSync();
+      features.maintenanceMode = {
+        ...features.maintenanceMode,
+        enabled: maintenance.enabled,
+        message: maintenance.message || features.maintenanceMode.message,
+      };
+      return features;
+    })(),
     shopNavigation: mergeShopNavigation(parsed.shopNavigation),
     homepageCopy: mergeHomepageCopy(parsed.homepageCopy),
     homepageBlocks: mergeHomepageBlocks(parsed.homepageBlocks),
@@ -73,5 +83,9 @@ export async function updateSiteContent(updates: Partial<SiteContent>): Promise<
     updatedAt: new Date().toISOString(),
   });
   await fs.writeFile(SITE_CONTENT_FILE, JSON.stringify(next, null, 2));
+  await writeMaintenanceMode({
+    enabled: Boolean(next.features.maintenanceMode?.enabled),
+    message: next.features.maintenanceMode?.message || '',
+  });
   return next;
 }

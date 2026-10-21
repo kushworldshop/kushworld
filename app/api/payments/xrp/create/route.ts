@@ -9,9 +9,18 @@ import {
   restoreInventoryForOrder,
 } from '@/lib/inventory';
 import { createXrpPaymentDetails, type XrpPaymentRecord } from '@/lib/xrpCheckout';
+import { getSiteContent } from '@/lib/siteContent';
 
 export async function POST(request: NextRequest) {
   try {
+    const site = await getSiteContent();
+    if (site.features.checkoutBtcOnly.enabled) {
+      return NextResponse.json(
+        { success: false, error: 'Checkout is Bitcoin only.' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const customer = body.customer ?? {};
 

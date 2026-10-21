@@ -81,6 +81,8 @@ const ROUTE_LIMITS: Array<{ prefix: string; limit: number; windowMs: number }> =
   { prefix: '/api/users/id-upload', limit: 10, windowMs: 60 * 60 * 1000 },
   { prefix: '/api/payments/charge', limit: 15, windowMs: 60 * 60 * 1000 },
   { prefix: '/api/payments/btc/create', limit: 15, windowMs: 60 * 60 * 1000 },
+  { prefix: '/api/payments/xrp/create', limit: 15, windowMs: 60 * 60 * 1000 },
+  { prefix: '/api/contact', limit: 8, windowMs: 60 * 60 * 1000 },
   { prefix: '/api/referrals', limit: 60, windowMs: 60 * 60 * 1000 },
   { prefix: '/api/orders/check-verification', limit: 20, windowMs: 15 * 60 * 1000 },
   { prefix: '/api/social-rewards', limit: 20, windowMs: 60 * 60 * 1000 },

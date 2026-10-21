@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { checkRateLimit, getClientIp, getRouteRateLimit, rateLimitResponse } from '@/lib/rateLimit';
+import { isMaintenanceExemptPath, readMaintenanceModeSync } from '@/lib/maintenanceMode';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -76,6 +77,24 @@ export function proxy(request: NextRequest) {
     if (!result.allowed) {
       return rateLimitResponse(result);
     }
+  }
+
+  const maintenance = readMaintenanceModeSync();
+  if (maintenance.enabled && !isMaintenanceExemptPath(pathname)) {
+    if (pathname.startsWith('/api/')) {
+      const offline = NextResponse.json(
+        { success: false, error: maintenance.message || 'Storefront is temporarily offline.' },
+        { status: 503 }
+      );
+      applySecurityHeaders(request, offline);
+      return offline;
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = '/maintenance';
+    url.search = '';
+    const rewrite = NextResponse.rewrite(url);
+    applySecurityHeaders(request, rewrite);
+    return rewrite;
   }
 
   const response = NextResponse.next();

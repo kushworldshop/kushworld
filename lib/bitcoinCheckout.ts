@@ -1,3 +1,6 @@
+import { getSiteContent } from '@/lib/siteContent';
+import { isLikelyBitcoinAddress, parseBitcoinWalletInput } from '@/lib/bitcoinWallet';
+
 export interface BtcPaymentDetails {
   address: string;
   amountBtc: number;
@@ -7,6 +10,7 @@ export interface BtcPaymentDetails {
   expiresAt: string;
   qrUrl: string;
   bitcoinUri: string;
+  walletLink?: string;
   orderId: string;
 }
 
@@ -23,8 +27,40 @@ export interface BtcPaymentRecord {
   paidAt?: string;
 }
 
-export function getBtcWalletAddress(): string {
-  return process.env.BTC_WALLET_ADDRESS || '32Un3zH14ovKpSyfLWtk6pVex69CmSYVjp';
+export async function getBtcWalletSettings(): Promise<{
+  address: string;
+  walletLink: string;
+  expiryMinutes: number;
+}> {
+  let address = String(process.env.BTC_WALLET_ADDRESS || '').trim();
+  let walletLink = '';
+  let expiryMinutes = Number(process.env.BTC_PAYMENT_EXPIRY_MINUTES || 30);
+
+  try {
+    const content = await getSiteContent();
+    const btc = content.features.paymentBitcoin;
+    const fromAddress = parseBitcoinWalletInput(btc.walletAddress || '');
+    const fromLink = parseBitcoinWalletInput(btc.walletLink || '');
+    if (fromAddress.address) address = fromAddress.address;
+    else if (fromLink.address) address = fromLink.address;
+    walletLink = String(btc.walletLink || fromAddress.httpLink || fromLink.httpLink || '').trim();
+    if (typeof btc.expiryMinutes === 'number' && btc.expiryMinutes > 0) {
+      expiryMinutes = btc.expiryMinutes;
+    }
+  } catch {
+    // fall through to env
+  }
+
+  return {
+    address,
+    walletLink,
+    expiryMinutes: Number.isFinite(expiryMinutes) && expiryMinutes > 0 ? expiryMinutes : 30,
+  };
+}
+
+export async function getBtcWalletAddress(): Promise<string> {
+  const settings = await getBtcWalletSettings();
+  return settings.address;
 }
 
 export function getBtcPaymentExpiryMinutes(): number {
@@ -93,10 +129,17 @@ export async function createBtcPaymentDetails(
   orderId: string,
   usdTotal: number
 ): Promise<BtcPaymentDetails> {
-  const address = getBtcWalletAddress();
+  const settings = await getBtcWalletSettings();
+  const address = settings.address;
+  if (!address) {
+    throw new Error('Bitcoin wallet is not set. Paste the address in Admin → Site → Payments.');
+  }
+  if (!isLikelyBitcoinAddress(address)) {
+    throw new Error('Bitcoin wallet address looks invalid. Paste a bc1, 1, or 3 address.');
+  }
   const rateUsd = await fetchBtcUsdRate();
   const { amountBtc, amountSatoshis } = calculateBtcPaymentAmount(usdTotal, orderId, rateUsd);
-  const expiresAt = new Date(Date.now() + getBtcPaymentExpiryMinutes() * 60_000).toISOString();
+  const expiresAt = new Date(Date.now() + settings.expiryMinutes * 60_000).toISOString();
   const label = `Kush World ${orderId}`;
   const message = orderId;
   const bitcoinUri = buildBitcoinUri(address, amountBtc, label, message);
@@ -110,6 +153,7 @@ export async function createBtcPaymentDetails(
     expiresAt,
     qrUrl: buildBtcQrUrl(bitcoinUri),
     bitcoinUri,
+    walletLink: settings.walletLink || undefined,
     orderId,
   };
 }

@@ -19,6 +19,7 @@ import { buildOrderRecord } from '@/lib/buildOrderRecord';
 import { createOrderAccessToken } from '@/lib/orderAccessToken';
 import { generateOrderId } from '@/lib/orderIds';
 import { validateCheckoutItems } from '@/lib/validateCheckout';
+import { getSiteContent } from '@/lib/siteContent';
 
 const ORDERS_FILE = path.join(process.cwd(), 'data', 'orders.json');
 
@@ -34,6 +35,14 @@ async function ensureOrdersFile() {
 
 export async function POST(request: NextRequest) {
   try {
+    const site = await getSiteContent();
+    if (site.features.checkoutBtcOnly.enabled) {
+      return NextResponse.json(
+        { success: false, error: 'Card checkout is off. Pay with Bitcoin.' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { customer, opaqueData, referralCode } = body;
 

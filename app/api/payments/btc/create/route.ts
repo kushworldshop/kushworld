@@ -10,6 +10,7 @@ import {
   InventoryError,
   restoreInventoryForOrder,
 } from '@/lib/inventory';
+import { getSiteContent } from '@/lib/siteContent';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +42,11 @@ export async function POST(request: NextRequest) {
       },
       orderId
     );
+
+    const site = await getSiteContent();
+    if (!site.features.checkoutBtcOnly.enabled && !site.features.paymentBitcoin.enabled) {
+      return NextResponse.json({ success: false, error: 'Bitcoin checkout is turned off' }, { status: 400 });
+    }
 
     const btcPayment = await createBtcPaymentDetails(orderId, order.total);
     const btcRecord: BtcPaymentRecord = {
@@ -90,6 +96,7 @@ export async function POST(request: NextRequest) {
         expiresAt: btcPayment.expiresAt,
         qrUrl: btcPayment.qrUrl,
         bitcoinUri: btcPayment.bitcoinUri,
+        walletLink: btcPayment.walletLink,
       },
     });
   } catch (error) {

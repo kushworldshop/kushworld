@@ -88,6 +88,18 @@ export interface SiteFeatures {
     detailTitle?: string;
     /** BTC detail panel body copy */
     detailBody?: string;
+    /** Receive address or bitcoin: URI pasted in admin */
+    walletAddress?: string;
+    /** Optional extra wallet URL (Cash App, Strike, etc.) */
+    walletLink?: string;
+    /** How long the locked BTC rate stays valid */
+    expiryMinutes?: number;
+  };
+  /** When on, checkout only offers Bitcoin. Other methods stay in admin for later. */
+  checkoutBtcOnly: FeatureToggle;
+  /** Turns the public storefront off. Admin stays up. */
+  maintenanceMode: FeatureToggle & {
+    message: string;
   };
   paymentXrp: CheckoutPaymentConfig & {
     detailTitle?: string;
@@ -136,7 +148,7 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
     title: 'How It Works',
     steps: [
       { icon: '🛒', title: 'Shop', body: 'Browse flower, vapes, concentrates, and studio merch.' },
-      { icon: '💳', title: 'Checkout', body: 'Pay securely with card, crypto, or manual options.' },
+      { icon: '₿', title: 'Checkout', body: 'Pay with Bitcoin. The live rate locks when you place the order.' },
       { icon: '📦', title: 'We Ship', body: 'Orders process in 1–3 business days, discreet packaging.' },
       { icon: '✅', title: 'Enjoy', body: 'Track your order and earn loyalty rewards.' },
     ],
@@ -180,11 +192,19 @@ export const DEFAULT_SITE_FEATURES: SiteFeatures = {
   paymentBitcoin: {
     enabled: true,
     label: 'Bitcoin (BTC)',
-    subtitle: 'Scan QR · live rate · auto-detected',
+    subtitle: 'Scan QR · live rate locked at checkout',
     guideYoutubeUrl: 'https://www.youtube.com/results?search_query=how+to+send+bitcoin+cash+app',
-    detailTitle: 'Pay with Bitcoin only',
+    detailTitle: 'Pay with Bitcoin',
     detailBody:
-      "After you place the order, you'll get a QR code and exact BTC amount. Most customers use Cash App — payment is detected automatically on the blockchain.",
+      "Place the order to lock today's BTC rate. You'll get a QR code and the exact amount to send. Payment is detected on-chain.",
+    walletAddress: '',
+    walletLink: '',
+    expiryMinutes: 30,
+  },
+  checkoutBtcOnly: { enabled: true },
+  maintenanceMode: {
+    enabled: false,
+    message: "Kush World is updating. We'll be back shortly.",
   },
   paymentXrp: {
     enabled: true,

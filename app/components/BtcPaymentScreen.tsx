@@ -16,6 +16,8 @@ interface BtcPaymentScreenProps {
     rateUsd: number;
     expiresAt: string;
     qrUrl: string;
+    bitcoinUri?: string;
+    walletLink?: string;
   };
   onPaid: () => void;
 }
@@ -115,7 +117,16 @@ export default function BtcPaymentScreen({
       <div className="bg-black rounded-2xl p-6 text-center mb-6 border border-zinc-800">
         <p className="text-4xl font-bold text-[#00ff9d] mb-1">{payment.amountBtc.toFixed(8)} BTC</p>
         <p className="text-zinc-400">${payment.amountUsd.toFixed(2)} USD</p>
-        <p className="text-xs text-zinc-500 mt-2">Rate: ${payment.rateUsd.toLocaleString()} / BTC</p>
+        <p className="text-xs text-zinc-500 mt-2">
+          Locked rate: ${payment.rateUsd.toLocaleString()} / BTC · send this exact amount
+        </p>
+        <p
+          className={`mt-4 text-lg font-mono font-semibold ${
+            status === 'expired' ? 'text-red-400' : 'text-white'
+          }`}
+        >
+          {status === 'expired' ? 'Invoice expired' : `Time left ${timeLeft || '—'}`}
+        </p>
       </div>
 
       <div className="flex justify-center mb-6">
@@ -128,6 +139,29 @@ export default function BtcPaymentScreen({
           unoptimized
         />
       </div>
+
+      {(payment.bitcoinUri || payment.walletLink) && (
+        <div className="flex flex-col sm:flex-row gap-2 mb-6">
+          {payment.bitcoinUri && (
+            <a
+              href={payment.bitcoinUri}
+              className="flex-1 text-center px-4 py-3 bg-[#00ff9d] text-black rounded-xl font-bold"
+            >
+              Open wallet
+            </a>
+          )}
+          {payment.walletLink && (
+            <a
+              href={payment.walletLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 text-center px-4 py-3 bg-zinc-800 rounded-xl font-semibold"
+            >
+              Wallet link
+            </a>
+          )}
+        </div>
+      )}
 
       <div className="space-y-4 mb-6">
         <div>

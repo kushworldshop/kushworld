@@ -10,7 +10,7 @@ export default function HitTheShop() {
   const { content } = useSiteContent();
   const [open, setOpen] = useState(false);
 
-  if (pathname?.startsWith('/admin')) return null;
+  if (pathname?.startsWith('/admin') || pathname === '/maintenance') return null;
 
   const discordUrl = normalizeDiscordInviteUrl(content.social.discordUrl);
   const whatsappUrl = content.social.whatsappUrl?.trim();

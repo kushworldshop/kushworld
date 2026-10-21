@@ -74,7 +74,7 @@ const GROUPS: Array<{ label: string; items: SiteItem[] }> = [
   {
     label: 'Checkout',
     items: [
-      { id: 'payments', label: 'Payments', blurb: 'Card, BTC, Zelle, and the rest', content: 'payments' },
+      { id: 'payments', label: 'Payments', blurb: 'Bitcoin wallet, rate lock, other methods', content: 'payments' },
       { id: 'shipping', label: 'Shipping', blurb: 'Free shipping thresholds', content: 'shipping' },
       {
         id: 'age',
@@ -144,11 +144,61 @@ export default function SiteEditor({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="shrink-0 border-b border-zinc-800 px-4 lg:px-6 py-3 bg-zinc-950">
-        <p className="font-semibold">Edit the site</p>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          Pick what shoppers see. Products, orders, and TDs stay in their own tabs.
-        </p>
+      <div className="shrink-0 border-b border-zinc-800 px-4 lg:px-6 py-3 bg-zinc-950 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-semibold">Edit the site</p>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            Pick what shoppers see. Products, orders, and TDs stay in their own tabs.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const enabled = !content.features.maintenanceMode?.enabled;
+            const next = {
+              ...content,
+              features: {
+                ...content.features,
+                maintenanceMode: {
+                  ...content.features.maintenanceMode,
+                  enabled,
+                  message:
+                    content.features.maintenanceMode?.message ||
+                    "Kush World is updating. We'll be back shortly.",
+                },
+              },
+            };
+            onContentChange(next);
+            void (async () => {
+              setSaving(true);
+              setMessage('');
+              try {
+                const res = await adminFetch('/api/admin/site-content', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ features: { maintenanceMode: next.features.maintenanceMode } }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Save failed');
+                onContentChange(data.content);
+                invalidateSiteContentCache();
+                setMessage(enabled ? 'Storefront is OFF. Shoppers see the update page.' : 'Storefront is LIVE.');
+              } catch (error) {
+                setMessage(error instanceof Error ? error.message : 'Failed to toggle site');
+              } finally {
+                setSaving(false);
+              }
+            })();
+          }}
+          disabled={saving}
+          className={`shrink-0 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-50 ${
+            content.features.maintenanceMode?.enabled
+              ? 'bg-red-500 text-black'
+              : 'bg-[#00ff9d] text-black'
+          }`}
+        >
+          {content.features.maintenanceMode?.enabled ? 'Site OFF — turn on' : 'Site ON — turn off'}
+        </button>
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
