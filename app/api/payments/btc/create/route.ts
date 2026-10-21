@@ -13,9 +13,13 @@ import {
 import { getSiteContent } from '@/lib/siteContent';
 
 export async function POST(request: NextRequest) {
+  let inventoryTaken = false;
+  let inventoryItems: unknown[] = [];
+
   try {
     const body = await request.json();
     const customer = body.customer ?? {};
+    inventoryItems = Array.isArray(body.items) ? body.items : [];
 
     if (!customer.name || !customer.email || !customer.address) {
       return NextResponse.json(
@@ -24,17 +28,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const orderId = generateOrderId();
-
-    try {
-      await deductInventoryForOrder(body.items);
-    } catch (err) {
-      if (err instanceof InventoryError) {
-        return NextResponse.json({ success: false, error: err.message }, { status: 400 });
-      }
-      throw err;
+    const site = await getSiteContent();
+    if (!site.features.checkoutBtcOnly.enabled && !site.features.paymentBitcoin.enabled) {
+      return NextResponse.json({ success: false, error: 'Bitcoin checkout is turned off' }, { status: 400 });
     }
 
+    const orderId = generateOrderId();
     const order = await buildCheckoutOrder(
       {
         ...body,
@@ -43,9 +42,14 @@ export async function POST(request: NextRequest) {
       orderId
     );
 
-    const site = await getSiteContent();
-    if (!site.features.checkoutBtcOnly.enabled && !site.features.paymentBitcoin.enabled) {
-      return NextResponse.json({ success: false, error: 'Bitcoin checkout is turned off' }, { status: 400 });
+    try {
+      await deductInventoryForOrder(body.items);
+      inventoryTaken = true;
+    } catch (err) {
+      if (err instanceof InventoryError) {
+        return NextResponse.json({ success: false, error: err.message }, { status: 400 });
+      }
+      throw err;
     }
 
     const btcPayment = await createBtcPaymentDetails(orderId, order.total);
@@ -100,6 +104,13 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (inventoryTaken) {
+      try {
+        await restoreInventoryForOrder(inventoryItems as { id: string; quantity: number }[]);
+      } catch {
+        // keep original error
+      }
+    }
     const message = error instanceof Error ? error.message : 'Failed to create Bitcoin payment';
     return NextResponse.json({ success: false, error: message }, { status: 400 });
   }

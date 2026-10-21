@@ -338,6 +338,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    const site = await getSiteContent();
+    if (site.features.checkoutBtcOnly.enabled) {
+      return NextResponse.json(
+        { success: false, error: 'Checkout is Bitcoin only. Place the order with BTC.' },
+        { status: 400 }
+      );
+    }
+
     const customer = body.customer ?? {};
     const email = customer.email ?? body.email;
 
@@ -408,14 +416,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: err.message }, { status: 400 });
       }
       throw err;
-    }
-
-    const site = await getSiteContent();
-    if (site.features.checkoutBtcOnly.enabled) {
-      return NextResponse.json(
-        { success: false, error: 'Checkout is Bitcoin only. Place the order with BTC.' },
-        { status: 400 }
-      );
     }
 
     const allowedPaymentMethods = ['zelle', 'paypal', 'chime', 'venmo', 'cashapp', 'manual'];

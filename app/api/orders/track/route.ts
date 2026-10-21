@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!authorized) {
-    return NextResponse.json({ success: false, error: 'Unauthorized. Use secure link from confirmation or log in.' }, { status: 401 });
+    return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 });
   }
 
   // Return a privacy-safe, tracker-focused subset. Never leak full address/phone in public tracker.

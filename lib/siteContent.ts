@@ -42,6 +42,29 @@ function deepMergeSiteContent<T>(base: T, patch: Partial<T>): T {
   return result;
 }
 
+/** Public /api/site-content must never include receive wallets or pay-to accounts. */
+export function toPublicSiteContent(content: SiteContent): SiteContent {
+  const features = { ...content.features };
+  const redact = <K extends keyof typeof features>(key: K) => {
+    const value = features[key];
+    if (!value || typeof value !== 'object') return;
+    const next = { ...value } as Record<string, unknown>;
+    delete next.walletAddress;
+    delete next.walletLink;
+    delete next.payToValue;
+    features[key] = next as unknown as (typeof features)[K];
+  };
+  redact('paymentBitcoin');
+  redact('paymentXrp');
+  redact('paymentCard');
+  redact('paymentZelle');
+  redact('paymentPaypal');
+  redact('paymentChime');
+  redact('paymentVenmo');
+  redact('paymentCashapp');
+  return { ...content, features };
+}
+
 export async function getSiteContent(): Promise<SiteContent> {
   await ensureSiteContentFile();
   const data = await fs.readFile(SITE_CONTENT_FILE, 'utf8');
