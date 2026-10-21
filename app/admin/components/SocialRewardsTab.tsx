@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { adminFetch } from '@/lib/adminClient';
+import XLiveTimeline from '@/app/components/XLiveTimeline';
 
 interface SocialRewardSubmission {
   id: string;
@@ -380,8 +381,8 @@ function TdPostsAdmin() {
           <div>
             <h2 className="text-2xl font-bold mb-2">TouchDown / TD posts</h2>
             <p className="text-zinc-400 text-sm max-w-2xl">
-              X posts with #KushWorldTD are matched to the X username on a member profile and credited {500} loyalty points.
-              Other platforms can still submit a URL for a $5 coupon. Scan needs X_BEARER_TOKEN on the server.
+              Public posts with “td td gang” or #KushWorldTD match the X username on a member profile and credit {500} loyalty
+              points. Reviews shows the live @KushWorld timeline. Auto-scan needs X_BEARER_TOKEN; URL paste still works without it.
             </p>
             {lastHashtagScanAt && (
               <p className="text-xs text-zinc-500 mt-2">
@@ -397,7 +398,7 @@ function TdPostsAdmin() {
               disabled={scanning}
               className="bg-[#00ff9d] text-black px-5 py-3 rounded-xl text-sm font-medium disabled:opacity-50"
             >
-              {scanning ? 'Scanning…' : 'Scan #KushWorldTD'}
+              {scanning ? 'Scanning…' : 'Scan X TDs'}
             </button>
             <button
               type="button"
@@ -434,6 +435,9 @@ function TdPostsAdmin() {
         {message && (
           <p className="mt-4 text-sm text-zinc-300 bg-black/40 border border-zinc-800 rounded-xl px-4 py-3">{message}</p>
         )}
+        <div className="mt-6">
+          <XLiveTimeline title="@KushWorld live" />
+        </div>
       </div>
 
       {loading ? (

@@ -125,16 +125,16 @@ export default function TouchdownRewards({
     <div className="bg-zinc-900 rounded-3xl p-8 border border-zinc-800">
       <h2 className="text-2xl font-bold mb-2">TouchDown / TD Posts</h2>
       <p className="text-zinc-400 text-sm mb-6 max-w-2xl">
-        Post your pack landing on X with <strong className="text-[#00ff9d]">#{hashtag}</strong>. Save the same X
-        username on your profile and we match it automatically for{' '}
-        <strong className="text-[#00ff9d]">{points.toLocaleString()} loyalty points</strong> (${dollars} value). You can
-        also paste the post URL below. Other platforms still get a ${dollars} coupon — one unused coupon at a time, no
-        stacking.
+        Post your pack landing on X, tag <strong className="text-[#00ff9d]">@KushWorld</strong>, and say{' '}
+        <strong className="text-[#00ff9d]">td td gang</strong> (or #{hashtag}). Save the same X username on your
+        profile. Paste the public post URL below for{' '}
+        <strong className="text-[#00ff9d]">{points.toLocaleString()} loyalty points</strong> (${dollars} value). Other
+        platforms still get a ${dollars} coupon — one unused coupon at a time, no stacking.
       </p>
 
       <div className="bg-black/40 border border-zinc-800 rounded-2xl p-4 mb-6 text-sm text-zinc-400 space-y-1">
         <p className="text-xs uppercase tracking-wider text-zinc-500 mb-2">Rules</p>
-        <p>• Put #{hashtag} in the X post</p>
+        <p>• Public X post with “td td gang” or #{hashtag}</p>
         <p>• X username on your profile must match the post</p>
         <p>• {points.toLocaleString()} loyalty points per matched X post · each post once</p>
         <p>• Instagram / TikTok / YouTube URLs still get a ${dollars} coupon (no stacking)</p>
@@ -188,7 +188,7 @@ export default function TouchdownRewards({
           type="url"
           value={postUrl}
           onChange={(e) => setPostUrl(e.target.value)}
-          placeholder="https://x.com/you/status/… with #KushWorldTD"
+          placeholder="https://x.com/you/status/… with td td gang"
           className="flex-1 bg-black border border-zinc-700 rounded-2xl px-5 py-4 text-sm focus:outline-none focus:border-[#00ff9d]"
         />
         <button

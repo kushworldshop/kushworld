@@ -80,12 +80,12 @@ export const DEFAULT_HOMEPAGE_COPY: HomepageCopy = {
     eyebrow: 'Touchdowns',
     title: 'Pack landings, paid',
     subtitle:
-      'Post the TD with #KushWorldTD, paste the link on your account, get 500 loyalty points. Real posts — not a fake review count.',
+      'Post the TD publicly, say td td gang, paste the link on your account, get 500 loyalty points. Real posts — not a fake review count.',
     ctaLabel: 'Submit your TD',
     ctaHref: '/account',
     emptyTitle: "Board's waiting on the next landing",
     emptyBody:
-      'Save your X username, drop #KushWorldTD on the post, then paste the URL under Account → TouchDown.',
+      'Save your X username, say td td gang on the public post, then paste the URL under Account → TouchDown.',
     emptyCtaLabel: 'Get 500 points',
   },
   brands: {

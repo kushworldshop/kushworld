@@ -43,9 +43,9 @@ function applySecurityHeaders(request: NextRequest, response: NextResponse) {
   // Tighten further later if you introduce nonces or remove inline.
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com https://cdn-cgi.cloudflare.com https://challenges.cloudflare.com",
-    "frame-src 'self' https://challenges.cloudflare.com blob:",
-    "child-src 'self' https://challenges.cloudflare.com blob:",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://static.cloudflareinsights.com https://cdn-cgi.cloudflare.com https://challenges.cloudflare.com https://platform.twitter.com https://platform.x.com https://abs.twimg.com",
+    "frame-src 'self' https://challenges.cloudflare.com https://platform.twitter.com https://platform.x.com https://syndication.twitter.com https://syndication.x.com blob:",
+    "child-src 'self' https://challenges.cloudflare.com https://platform.twitter.com https://platform.x.com blob:",
     "worker-src 'self' blob:",
     "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
     "img-src 'self' data: blob: https:",

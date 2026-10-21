@@ -1078,7 +1078,7 @@ export default function Account() {
               <DiscordSocialLink user={user} enabled={discordLoginEnabled} />
               <Field label="Instagram" value={profileForm.socials.instagram || ''} onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, instagram: v } })} placeholder="@yourhandle" />
               <Field
-                label="X / Twitter (needed for #KushWorldTD points)"
+                label="X / Twitter (needed for td td gang / TD points)"
                 value={profileForm.socials.twitter || ''}
                 onChange={(v) => setProfileForm({ ...profileForm, socials: { ...profileForm.socials, twitter: v } })}
                 placeholder="@yourhandle"
@@ -1141,7 +1141,7 @@ export default function Account() {
                 <p>• Earn <strong>{promoTerms?.referrerRewardPoints ?? 100} points</strong> per promo code use</p>
                 <p>• Share your <strong>personal promo code</strong> — earn <strong>{promoTerms?.referrerCommissionPercent ?? 5}% commission</strong> on each order</p>
                 <p>• Post haul pics on <strong>X</strong> and submit the link below for bonus points (after review)</p>
-                <p>• Post a pack landing on X with <strong>#KushWorldTD</strong> — we match your profile X username and add <strong>500 loyalty points</strong></p>
+                <p>• Post a pack landing on X with <strong>td td gang</strong> or <strong>#KushWorldTD</strong> — we match your profile X username and add <strong>500 loyalty points</strong></p>
                 <p>• Redeem <strong>100 points = $1 off</strong> at checkout when logged in</p>
                 <p>• New members earn <strong>${SIGNUP_BONUS_DOLLARS} ({SIGNUP_BONUS_POINTS.toLocaleString()} pts)</strong> after verifying email or phone — unlocked after first purchase</p>
                 <p>• Gamble <strong>{spinCost} points</strong> on the prize wheel for discounts, free shipping, and more</p>

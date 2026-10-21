@@ -1,8 +1,9 @@
 import { parseXPostUrl } from '@/lib/socialRewards';
 import {
   KUSH_WORLD_TD_HASHTAG,
+  KUSH_WORLD_X_HANDLE,
   normalizeXHandle,
-  postHasKushWorldTdHashtag,
+  postLooksLikeTd,
   xPostUrl,
 } from '@/lib/xHandle';
 
@@ -103,12 +104,16 @@ export async function searchKushWorldTdPosts(input?: {
   if (!token) {
     return {
       posts: [],
-      error: 'Set X_BEARER_TOKEN on the server to auto-scan #KushWorldTD posts.',
+      error:
+        'Auto-scan needs X_BEARER_TOKEN. Public posts still credit when a member pastes the URL. Reviews shows the live @KushWorld feed.',
     };
   }
 
   const url = new URL('https://api.twitter.com/2/tweets/search/recent');
-  url.searchParams.set('query', `#${KUSH_WORLD_TD_HASHTAG} -is:retweet`);
+  url.searchParams.set(
+    'query',
+    `(#${KUSH_WORLD_TD_HASHTAG} OR "td td gang" OR "td gang" OR (@${KUSH_WORLD_X_HANDLE} (td OR touchdown)) OR (from:${KUSH_WORLD_X_HANDLE} ("td td gang" OR "td gang" OR #${KUSH_WORLD_TD_HASHTAG}))) -is:retweet`
+  );
   url.searchParams.set('max_results', String(Math.min(100, Math.max(10, input?.maxResults ?? 50))));
   url.searchParams.set('tweet.fields', 'text,author_id,created_at,entities');
   url.searchParams.set('expansions', 'author_id');
@@ -138,7 +143,7 @@ export async function searchKushWorldTdPosts(input?: {
   for (const tweet of data.data || []) {
     const username = users.get(tweet.author_id || '') || '';
     const text = tweet.text || '';
-    if (!postHasKushWorldTdHashtag(text)) continue;
+    if (!postLooksLikeTd(text)) continue;
     posts.push({
       postId: tweet.id,
       username,

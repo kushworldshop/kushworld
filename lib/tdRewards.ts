@@ -26,7 +26,7 @@ import {
 import {
   findMembersByXHandle,
   KUSH_WORLD_TD_HASHTAG,
-  postHasKushWorldTdHashtag,
+  postLooksLikeTd,
   profileXHandle,
 } from '@/lib/xHandle';
 import { isXTdScanConfigured, lookupXTdPost, searchKushWorldTdPosts, type XTdPost } from '@/lib/xTdHashtag';
@@ -512,7 +512,7 @@ export async function submitTdPost(input: {
     if (!post) {
       return {
         success: false,
-        error: 'Could not read that X post. Make sure it is public and includes #KushWorldTD.',
+        error: 'Could not read that X post. Make sure it is public and says td td gang or #KushWorldTD.',
       };
     }
     if (!post.username) post.username = handle;
@@ -522,10 +522,10 @@ export async function submitTdPost(input: {
         error: `That post is from @${post.username}. Your profile X username is @${handle}.`,
       };
     }
-    if (!postHasKushWorldTdHashtag(post.text)) {
+    if (!postLooksLikeTd(post.text)) {
       return {
         success: false,
-        error: `Add #${KUSH_WORLD_TD_HASHTAG} to the post so we can credit loyalty points.`,
+        error: `Add “td td gang” or #${KUSH_WORLD_TD_HASHTAG} to the public post so we can credit loyalty points.`,
       };
     }
     const result = await creditHashtagTdPost({

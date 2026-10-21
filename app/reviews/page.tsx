@@ -7,6 +7,8 @@ import ReviewForm from '@/app/components/ReviewForm';
 import { StarDisplay } from '@/app/components/StarRating';
 import { products } from '@/lib/products';
 import { useSiteContent } from '@/lib/useSiteContent';
+import XLiveTimeline from '@/app/components/XLiveTimeline';
+import type { PublicTdPost } from '@/lib/tdRewards';
 
 interface ReviewStats {
   count: number;
@@ -19,6 +21,7 @@ export default function ReviewsPage() {
   const { features } = content;
   const [reviews, setReviews] = useState<ReviewCardData[]>([]);
   const [stats, setStats] = useState<ReviewStats | null>(null);
+  const [tdPosts, setTdPosts] = useState<PublicTdPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -26,11 +29,18 @@ export default function ReviewsPage() {
     setLoading(true);
     setLoadError('');
     try {
-      const r = await fetch('/api/reviews');
+      const [r, td] = await Promise.all([
+        fetch('/api/reviews'),
+        fetch('/api/td-rewards/public?limit=16'),
+      ]);
       if (!r.ok) throw new Error('Failed');
       const data = await r.json();
       setReviews(data.reviews || []);
       setStats(data.stats || null);
+      if (td.ok) {
+        const tdData = await td.json();
+        setTdPosts(tdData.posts || []);
+      }
     } catch {
       setLoadError('Could not load reviews right now. Please refresh the page.');
     } finally {
@@ -63,8 +73,7 @@ export default function ReviewsPage() {
             </p>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Real Reviews from Real Customers</h1>
             <p className="text-zinc-400 mb-8 max-w-2xl leading-relaxed">
-              Real touchdown posts from customers on X — plus reviews left right here after orders.
-              We feature verified posts below from a trusted source on{' '}
+              Live from{' '}
               <a
                 href="https://x.com/KushWorld"
                 target="_blank"
@@ -73,8 +82,32 @@ export default function ReviewsPage() {
               >
                 @KushWorld
               </a>
-              .
+              . Public posts that say <span className="text-white">td td gang</span> or{' '}
+              <span className="text-white">#KushWorldTD</span> count as TDs — paste the link in Account for points.
             </p>
+
+            {tdPosts.length > 0 && (
+              <div className="mb-10">
+                <p className="text-xs uppercase tracking-widest text-zinc-500 mb-3">Latest credited TDs</p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {tdPosts.map((post) => (
+                    <a
+                      key={post.id}
+                      href={post.postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-zinc-900 border border-zinc-800 hover:border-[#00ff9d]/40 rounded-2xl p-4"
+                    >
+                      <p className="font-semibold text-[#00ff9d]">{post.handle}</p>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        {new Date(post.createdAt).toLocaleDateString()}
+                        {post.pointsAwarded > 0 ? ` · +${post.pointsAwarded.toLocaleString()} pts` : ''}
+                      </p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {loading ? (
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-10">
@@ -146,19 +179,21 @@ export default function ReviewsPage() {
               rewardPoints={features.customerReviews.rewardPoints}
             />
 
-            <div className="bg-zinc-900 border border-[#00ff9d]/20 rounded-2xl p-6 text-sm text-zinc-400">
-              <p className="font-semibold text-white mb-2">Verified trusted source</p>
-              <p className="mb-4 leading-relaxed">
-                Search <span className="text-[#00ff9d]">@KushWorld</span> on X for touchdown posts,
-                order pics, and customer shoutouts. Tag us on your next TD to get featured here.
+            <XLiveTimeline title="@KushWorld live" />
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-sm text-zinc-400">
+              <p className="font-semibold text-white mb-2">How TDs get in</p>
+              <p className="leading-relaxed">
+                Post publicly, tag <span className="text-[#00ff9d]">@KushWorld</span>, and say{' '}
+                <span className="text-white">td td gang</span>. Save the same X username on your profile, then paste
+                the post URL under Account → TouchDown for 500 points.
               </p>
               <a
-                href="https://x.com/search?q=%40KushWorld%20touchdown&src=typed_query&f=live"
+                href="https://x.com/search?q=%22td%20td%20gang%22%20%40KushWorld&src=typed_query&f=live"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block text-[#00ff9d] font-medium hover:underline"
+                className="inline-block mt-4 text-[#00ff9d] font-medium hover:underline"
               >
-                Browse @KushWorld touchdowns on X →
+                Live X search for td td gang →
               </a>
             </div>
           </div>

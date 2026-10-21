@@ -1,6 +1,8 @@
 import type { UserProfile } from '@/lib/users';
 
 export const KUSH_WORLD_TD_HASHTAG = 'KushWorldTD';
+export const KUSH_WORLD_X_HANDLE = 'KushWorld';
+export const TD_GANG_PHRASE = 'td td gang';
 
 export function normalizeXHandle(value: string | undefined | null): string {
   if (!value) return '';
@@ -24,6 +26,18 @@ export function findMembersByXHandle(users: UserProfile[], handle: string): User
 export function postHasKushWorldTdHashtag(text: string | undefined | null): boolean {
   if (!text) return false;
   return /(?:^|[^a-z0-9_])#kushworldtd(?:[^a-z0-9_]|$)/i.test(text);
+}
+
+/** Public TD markers: #KushWorldTD, "td td gang", or @KushWorld + td/touchdown. */
+export function postLooksLikeTd(text: string | undefined | null): boolean {
+  if (!text) return false;
+  const t = text.replace(/\s+/g, ' ');
+  if (postHasKushWorldTdHashtag(t)) return true;
+  if (/\btd\s+td\s+gang\b/i.test(t)) return true;
+  if (/(?:^|[^a-z0-9_])#tdgang(?:[^a-z0-9_]|$)/i.test(t)) return true;
+  const mentionsKw = /(?:^|[^a-z0-9_])@kushworld(?:[^a-z0-9_]|$)/i.test(t);
+  const hasTdWord = /(?:^|[^a-z0-9_])(?:td|touchdown)(?:[^a-z0-9_]|$)/i.test(t);
+  return mentionsKw && hasTdWord;
 }
 
 export function xPostUrl(username: string | undefined, postId: string): string {
